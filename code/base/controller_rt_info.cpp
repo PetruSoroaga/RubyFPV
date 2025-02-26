@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -135,18 +136,18 @@ void controller_rt_info_update_ack_rt_time(controller_runtime_info* pRTInfo, u32
 {
    if ( (NULL == pRTInfo) || (0 == uVehicleId) || (MAX_U32 == uVehicleId) )
       return;
+   if ( (iRadioLink < 0) || (iRadioLink >= MAX_RADIO_INTERFACES) )
+      return;
 
    controller_runtime_info_vehicle* pRTInfoVehicle = controller_rt_info_get_vehicle_info(pRTInfo, uVehicleId);
    if ( NULL == pRTInfoVehicle )
       return;
 
-   if ( (iRadioLink >= 0) && (iRadioLink < MAX_RADIO_INTERFACES) )
-   {
-      pRTInfoVehicle->iAckTimeIndex[iRadioLink]++;
-      if ( pRTInfoVehicle->iAckTimeIndex[iRadioLink] >= SYSTEM_RT_INFO_INTERVALS/4 )
-         pRTInfoVehicle->iAckTimeIndex[iRadioLink] = 0;
-      pRTInfoVehicle->uAckTimes[pRTInfoVehicle->iAckTimeIndex[iRadioLink]][iRadioLink] = uRoundTripTime;
-   }
+
+   pRTInfoVehicle->iAckTimeIndex[iRadioLink]++;
+   if ( pRTInfoVehicle->iAckTimeIndex[iRadioLink] >= SYSTEM_RT_INFO_INTERVALS/4 )
+      pRTInfoVehicle->iAckTimeIndex[iRadioLink] = 0;
+   pRTInfoVehicle->uAckTimes[pRTInfoVehicle->iAckTimeIndex[iRadioLink]][iRadioLink] = uRoundTripTime;
 
    if ( 0 == pRTInfoVehicle->uMinAckTime[pRTInfo->iCurrentIndex][iRadioLink] )
       pRTInfoVehicle->uMinAckTime[pRTInfo->iCurrentIndex][iRadioLink] = (u8)uRoundTripTime;

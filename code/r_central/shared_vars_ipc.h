@@ -14,7 +14,7 @@
 extern t_packet_header_vehicle_tx_history g_PHVehicleTxHistory;
 
 // There are shared memory objects
-
+extern shared_mem_process_stats* g_pProcessStatsCentral;
 extern shared_mem_process_stats* g_pProcessStatsRouter;
 extern shared_mem_process_stats* g_pProcessStatsTelemetry;
 extern shared_mem_process_stats* g_pProcessStatsRC;

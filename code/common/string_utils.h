@@ -30,7 +30,8 @@ char* str_get_pipe_flags(int iFlags);
 const char* str_get_hardware_board_name(u32 board_type);
 const char* str_get_hardware_board_name_short(u32 board_type);
 const char* str_get_hardware_wifi_name(u32 wifi_type);
-void str_get_hardware_camera_type_string(u32 camType, char* szOutput);
+const char* str_get_hardware_camera_type_string(u32 uCamType);
+void str_get_hardware_camera_type_string_to_string(u32 uCamType, char* szOutput);
 
 const char* str_get_radio_type_description(int iRadioType);
 const char* str_get_radio_driver_description(int iDriverType);

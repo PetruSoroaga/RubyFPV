@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -40,6 +41,7 @@
 #include "../base/encr.h"
 #include "../base/radio_utils.h"
 #include "../base/hardware.h"
+#include "../base/hardware_audio.h"
 #include "../base/hw_procs.h"
 #include "../base/ruby_ipc.h"
 #include "../common/string_utils.h"
@@ -156,7 +158,6 @@ void _compute_set_tx_power_settings()
    if ( ! reloadCurrentModel() )
       log_softerror_and_alarm("Failed to load current model.");
  
-   ControllerSettings* pCS = get_ControllerSettings();
    ControllerInterfacesSettings* pCIS = get_ControllerInterfacesSettings();
    ControllerInterfacesSettings oldCIS;
    memcpy(&oldCIS, pCIS, sizeof(ControllerInterfacesSettings));
@@ -299,6 +300,9 @@ bool _switch_to_vehicle(Model* pTmp)
 
    reasign_radio_links(true);
    video_processors_init();
+   if ( g_pCurrentModel->audio_params.has_audio_device && g_pCurrentModel->audio_params.enabled )
+   if ( ! is_audio_processing_started() )
+      init_processing_audio();
    return true;
 }
 
@@ -311,7 +315,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
    rc_parameters_t oldRCParams;
    video_parameters_t oldVideoParams;
 
-   ControllerSettings* pCS = get_ControllerSettings();
    ControllerInterfacesSettings* pCIS = get_ControllerInterfacesSettings();
    ControllerInterfacesSettings oldCIS;
    memcpy(&oldCIS, pCIS, sizeof(ControllerInterfacesSettings));
@@ -345,6 +348,35 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
 
    if ( g_pCurrentModel->enc_flags != oldEFlags )
       lpp(NULL, 0);
+
+   if ( uChangeType == MODEL_CHANGED_AUDIO_PARAMS )
+   {
+      if ( (!g_pCurrentModel->audio_params.has_audio_device) || (!g_pCurrentModel->audio_params.enabled) )
+      if ( is_audio_processing_started() )
+      {
+         uninit_processing_audio();
+         return;
+      }
+      if ( g_pCurrentModel->audio_params.has_audio_device && g_pCurrentModel->audio_params.enabled )
+      if ( ! is_audio_processing_started() )
+      {
+         init_processing_audio();
+         return;
+      }
+
+      if ( (oldAudioParams.uPacketLength != g_pCurrentModel->audio_params.uPacketLength) ||
+           (oldAudioParams.uECScheme != g_pCurrentModel->audio_params.uECScheme) )
+      {
+         init_audio_rx_state();
+         return;
+      }
+      if ( (oldAudioParams.uFlags & 0xFF00) != (g_pCurrentModel->audio_params.uFlags & 0xFF00) )
+      {
+         init_audio_rx_state();
+         return;
+      }
+      return;
+   }
 
    if ( uChangeType == MODEL_CHANGED_SIK_PACKET_SIZE )
    {
@@ -529,6 +561,30 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
       return;
    }
 
+   if ( uChangeType == MODEL_CHANGED_USER_SELECTED_VIDEO_PROFILE )
+   {
+      log_line("Received notification that model user selected video profile changed.");
+      int iRuntimeIndex = -1;
+      Model* pModel = NULL;
+      for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      {
+         if ( g_State.vehiclesRuntimeInfo[i].uVehicleId == g_pCurrentModel->uVehicleId )
+         {
+            iRuntimeIndex = i;
+            pModel = findModelWithId(g_State.vehiclesRuntimeInfo[i].uVehicleId, 33);
+            break;
+         }
+      }
+      if ( (-1 == iRuntimeIndex) || (NULL == pModel) )
+         log_softerror_and_alarm("Failed to find vehicle runtime info for VID %u while processing user video profile changed notif from central.", g_pCurrentModel->uVehicleId);
+      else
+      {
+         adaptive_video_switch_to_video_profile(pModel->video_params.user_selected_video_link_profile, pModel->uVehicleId);
+         adaptive_video_on_new_vehicle(iRuntimeIndex);
+      }
+      return;
+   }
+
    if ( (uChangeType == MODEL_CHANGED_VIDEO_PROFILES) || 
         (uChangeType == MODEL_CHANGED_VIDEO_KEYFRAME) )
    {
@@ -635,6 +691,20 @@ void process_local_control_packet(t_packet_header* pPH)
       return;
    }
 
+   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_PAUSE_RESUME_AUDIO )
+   {
+      log_line("Received local notif to %s audio stream output.", pPH->vehicle_id_dest?"pause":"resume");
+      if ( 0 == pPH->vehicle_id_dest )
+      {
+         if ( (! g_bSearching) && (NULL != g_pCurrentModel) )
+         if ( hardware_has_audio_playback() )
+            start_audio_player_and_pipe();
+      }
+      else
+         stop_audio_player_and_pipe();
+      return;
+   }
+
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROLLER_RELOAD_CORE_PLUGINS )
    {
       log_line("Router received a local message to reload core plugins.");
@@ -683,7 +753,7 @@ void process_local_control_packet(t_packet_header* pPH)
 
       bool bInvalidParams = false;
       int iLocalRadioInterfaceIndex = -1;
-      if ( (uVehicleLinkId < 0) || (uVehicleLinkId >= g_pCurrentModel->radioLinksParams.links_count) )
+      if ( uVehicleLinkId >= g_pCurrentModel->radioLinksParams.links_count )
          bInvalidParams = true;
 
       if ( ! bInvalidParams )
@@ -720,7 +790,7 @@ void process_local_control_packet(t_packet_header* pPH)
          memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8), szBuff, strlen(szBuff)+1);
          radio_packet_compute_crc(packet, PH.total_length);
          if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, packet, PH.total_length) )
-            log_softerror_and_alarm("No pipe to central to send message to.");
+            log_ipc_send_central_error(packet, PH.total_length);
          return;
       }
 
@@ -762,7 +832,7 @@ void process_local_control_packet(t_packet_header* pPH)
       memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8), szBuff, strlen(szBuff)+1);
       radio_packet_compute_crc(packet, PH.total_length);
       if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, packet, PH.total_length) )
-         log_softerror_and_alarm("No pipe to central to send message to.");
+         log_ipc_send_central_error(packet, PH.total_length);
 
       return;
    }
@@ -857,7 +927,7 @@ void process_local_control_packet(t_packet_header* pPH)
 
       log_line("Switching to vehicle radio link %d %s. Sending response to central.", iVehicleRadioLinkId+1, (pPH->vehicle_id_dest == 1)?"succeeded":"failed");
       if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, (u8*)pPH, pPH->total_length) )
-         log_softerror_and_alarm("No pipe to central to send message to.");
+         log_ipc_send_central_error((u8*)pPH, pPH->total_length);
       else
          log_line("Sent response to central.");
       return;
@@ -919,9 +989,6 @@ void process_local_control_packet(t_packet_header* pPH)
             memcpy(&oldSerialPorts[i], pPort, sizeof(hw_serial_port_info_t));
       }
      
-      int iOldAudioDevice = get_ControllerSettings()->iAudioOutputDevice;
-      int iOldAudioVolume = get_ControllerSettings()->iAudioOutputVolume;
-
       hardware_reload_serial_ports_settings();
       load_ControllerSettings();
       g_pControllerSettings = get_ControllerSettings();
@@ -939,16 +1006,6 @@ void process_local_control_packet(t_packet_header* pPH)
 
       if ( NULL != g_pControllerSettings )
          radio_rx_set_timeout_interval(g_pControllerSettings->iDevRxLoopTimeout);
-
-      if ( (iOldAudioDevice != g_pControllerSettings->iAudioOutputDevice) ||
-           (iOldAudioVolume != g_pControllerSettings->iAudioOutputVolume) )
-      {
-         log_line("Audio settings have changed. Audio output device: %d, audio output volume: %d",
-             g_pControllerSettings->iAudioOutputDevice, g_pControllerSettings->iAudioOutputVolume);
-         
-         hardware_set_audio_output(g_pControllerSettings->iAudioOutputDevice, g_pControllerSettings->iAudioOutputVolume);
-         return;
-      }
 
       for( int i=0; i<hardware_get_serial_ports_count(); i++ )
       {

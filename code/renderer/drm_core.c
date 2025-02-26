@@ -3,13 +3,14 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
          * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
@@ -110,7 +111,7 @@ int _ruby_drm_get_object_properties(type_drm_object_info* pObject)
       return -1;
    }
 
-   pObject->ppPropertiesInfo = calloc( pObject->pProperties->count_props, sizeof(pObject->ppPropertiesInfo));
+   pObject->ppPropertiesInfo = calloc( pObject->pProperties->count_props, sizeof(drmModePropertyRes*));
    log_line("[DRMCore] Object %s, id: %u has %d properties:", szType, pObject->uObjId, pObject->pProperties->count_props);
    for (int i = 0; i < pObject->pProperties->count_props; i++)
    {

@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -63,7 +64,8 @@
 
 #define STREAM_ID_DATA    ((u32)0)
 #define STREAM_ID_TELEMETRY ((u32)1)
-#define STREAM_ID_DATA2    ((u32)2)
+#define STREAM_ID_AUDIO   ((u32)2)
+#define STREAM_ID_DATA2    ((u32)3)
 #define STREAM_ID_VIDEO_1 ((u32)4)
 
 // Packet flags is a byte and contains flags:
@@ -262,10 +264,10 @@ typedef struct
 #define VIDEO_STREAM_INFO_FLAG_VIDEO_PROFILE_FLAGS 4
 #define VIDEO_STREAM_INFO_FLAG_RETRANSMISSION_ID 5
 
-//  [packet header][video segment header][video seg header important][video debug][video data][000]
-//  | pPH          | pPHVS               | pPHVSImp                  |pHVSDebug   |pActualVideoData
-//                                       [             <- video block packet size ->              ]
-//                                                                                [-vid size-]
+//  [packet header][video segment header][video seg header important][video data][000]
+//  | pPH          | pPHVS               | pPHVSImp                  |pActualVideoData
+//                                       [     <- video block packet size            ]
+//                                                                   [-vid size-]
 typedef struct
 {
    u8 uVideoStreamIndexAndType;
@@ -274,14 +276,7 @@ typedef struct
    u32 uVideoStatusFlags2;
       // byte 0: current h264 quantization value
       // byte 1:
-      //    bit 0  - 0/1: has debug timings info after the video data:
-      //                  u32 - delta ms between video packets
-      //                  u32 - local timestamp camera capture,
-      //                  u32 - local timestamp sent to radio processing;
-      //                  u32 - local timestamp sent to radio output;
-      //                  u32 - local timestamp received on radio;
-      //                  u32 - local timestamp sent to video processing;
-      //                  u32 - local timestamp sent to video output;
+      //    bit 0  - 0/1: has (t_packet_header_video_segment_debug_info) after video packet;
       //    bit 1  - deprecated in 10.2
       //    bit 2  - 0/1: is on lower video bitrate
       //    bit 3  - 0/1: is end of a NAL
@@ -339,7 +334,15 @@ typedef struct
    u32 uTime4;
    u32 uTime5;
    u32 uTime6;
-} __attribute__((packed)) t_packet_header_video_segment_debug_info; // Also part of error correction, if present, after header important
+   u32 uTime7;
+      //                  u32 - delta ms between video packets
+      //                  u32 - local timestamp camera capture,
+      //                  u32 - local timestamp sent to radio processing;
+      //                  u32 - local timestamp sent to radio output;
+      //                  u32 - local timestamp received on radio;
+      //                  u32 - local timestamp sent to video processing;
+      //                  u32 - local timestamp sent to video output;
+} __attribute__((packed)) t_packet_header_video_segment_debug_info;
 
 
 //---------------------------------------

@@ -22,4 +22,6 @@ void link_set_is_reconfiguring_radiolink(int iRadioLink);
 void link_set_is_reconfiguring_radiolink(int iRadioLink, bool bConfirmFlagsChanges, bool bWaitVehicleConfirmation, bool bWaitControllerConfirmation);
 void link_reset_reconfiguring_radiolink();
 bool link_is_reconfiguring_radiolink();
+u32 link_get_last_reconfiguration_end_time();
+
 

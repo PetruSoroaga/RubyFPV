@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -33,6 +34,7 @@
 #include "../base/config.h"
 #include "../base/shared_mem.h"
 #include "../base/hardware_camera.h"
+#include "../base/hardware_cam_maj.h"
 #include "../base/hw_procs.h"
 #include "../base/ruby_ipc.h"
 #include "../base/parser_h264.h"
@@ -48,12 +50,15 @@
 #include <poll.h>
 
 #include "video_source_majestic.h"
+#include "video_tx_buffers.h"
 #include "events.h"
 #include "timers.h"
 #include "shared_vars.h"
 #include "launchers_vehicle.h"
 #include "packets_utils.h"
 #include "adaptive_video.h"
+
+#define MAX_AUDIO_MAJ_BUFFER 4096
 
 // Tested with majestic:
 // master+c953265, 2024-12-16
@@ -63,11 +68,15 @@
 int s_fInputVideoStreamUDPSocket = -1;
 int s_iInputVideoStreamUDPPort = 5600;
 bool s_bInputVideoStreamUSDPSocketSetupNonBlocking = false;
+u16 s_uLastRTPSeqNumberInUDPFrames[256];
+u16 s_uLastRTPSeqNumberInUDPFramesSkipCounter[256];
 
 bool s_bLogStartOfInputVideoData = true;
 
 u8 s_uInputVideoUDPBuffer[MAX_PACKET_TOTAL_SIZE];
 u8 s_uOutputUDPNALFrameSegment[MAX_PACKET_TOTAL_SIZE+10];
+u8 s_uInputMajAudioBuffer[MAX_AUDIO_MAJ_BUFFER];
+int s_iInputMajAudioBufferBytes = 0;
 
 u32 s_uDebugTimeLastUDPVideoInputCheck = 0;
 u32 s_uDebugUDPInputBytes = 0;
@@ -147,7 +156,7 @@ void video_source_majestic_init_all_params()
 
    hardware_camera_maj_apply_all_settings(g_pCurrentModel, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]),
           g_pCurrentModel->video_params.user_selected_video_link_profile,
-          &(g_pCurrentModel->video_params), g_bDeveloperMode, false);
+          &(g_pCurrentModel->video_params), false);
    
    hardware_sleep_ms(100);
 
@@ -180,6 +189,12 @@ int video_source_majestic_open(int iUDPPort)
    if ( -1 != s_fInputVideoStreamUDPSocket )
       return s_fInputVideoStreamUDPSocket;
 
+   s_iInputMajAudioBufferBytes = 0;
+   for( int i=0; i<256; i++ )
+   {
+      s_uLastRTPSeqNumberInUDPFrames[i] = 0;
+      s_uLastRTPSeqNumberInUDPFramesSkipCounter[i] = 0;
+   }
    s_iInputVideoStreamUDPPort = iUDPPort;
    s_bInputVideoStreamUSDPSocketSetupNonBlocking = false;
    struct sockaddr_in server_addr;
@@ -279,8 +294,7 @@ void* _thread_restart_majestic(void *argument)
 void video_source_majestic_request_update_program(u32 uChangeReason)
 {
    log_line("[VideoSourceMaj] Majestic was flagged for restart (reason: %d, %s)", uChangeReason & 0xFF, str_get_model_change_type(uChangeReason & 0xFF));
-   log_line("[VideoSourceMaj] Is now in developer mode? %s (router is in developer mode now? %s)",
-      hardware_camera_maj_is_in_developer_mode()?"yes":"no", g_bDeveloperMode?"yes":"no");
+   log_line("[VideoSourceMaj] Is now in developer mode? %s", g_bDeveloperMode?"yes":"no");
    s_bRequestedVideoMajesticCaptureUpdate = true;
    s_uRequestedVideoMajesticCaptureUpdateReason = uChangeReason;
 }
@@ -481,19 +495,36 @@ int _video_source_majestic_parse_rtp_data(u8* pInputRawData, int iInputBytes)
       iRTPHeaderLength = 12;
 
    // ----------------------------------------------
-   // Begin - Check RTP sequence number
-   static u16 s_uLastRTPSeqNumberInUDPFrame = 0;
-   
+   // Begin - Check RTP sequence number   
+   bool bHasPadding = ((pInputRawData[0]>>5) & 0x01)?true:false;
+   u8  uRTPPacketType = (pInputRawData[1] & 0x7F);
    u16 uRTPSeqNb = (((u16)pInputRawData[2]) << 8) | pInputRawData[3];
+   int iPaddingBytes = pInputRawData[iInputBytes-1];
 
-   if ( (0 != s_uLastRTPSeqNumberInUDPFrame) && (65535 != s_uLastRTPSeqNumberInUDPFrame) )
-   if ( (s_uLastRTPSeqNumberInUDPFrame + 1) != uRTPSeqNb )
-      log_softerror_and_alarm("[VideoSourceMaj] Read skipped RTP frames, from seqnb %d to seqnb %d", s_uLastRTPSeqNumberInUDPFrame, uRTPSeqNb);
-   s_uLastRTPSeqNumberInUDPFrame = uRTPSeqNb;
+   if ( (0 != s_uLastRTPSeqNumberInUDPFrames[uRTPPacketType]) && (65535 != s_uLastRTPSeqNumberInUDPFrames[uRTPPacketType]) )
+   if ( (s_uLastRTPSeqNumberInUDPFrames[uRTPPacketType] + 1) != uRTPSeqNb )
+   {
+      s_uLastRTPSeqNumberInUDPFramesSkipCounter[uRTPPacketType]++;
+      log_softerror_and_alarm("[VideoSourceMaj] Read skipped RTP frames tpye %d, from seqnb %d to seqnb %d", uRTPPacketType, s_uLastRTPSeqNumberInUDPFrames[uRTPPacketType], uRTPSeqNb);
+      if ( (uRTPPacketType == 98) || (uRTPPacketType == 100) )
+      if ( s_uLastRTPSeqNumberInUDPFramesSkipCounter[uRTPPacketType] > 10 )
+         hw_execute_bash_command("killall -1 majestic", NULL);
+   }
+   s_uLastRTPSeqNumberInUDPFrames[uRTPPacketType] = uRTPSeqNb;
 
    // End - Check RTP sequence number
    // ----------------------------------------------
 
+   if ( (uRTPPacketType == 98) || (uRTPPacketType == 100) )
+   {
+      if ( g_TimeNow > hardware_camera_maj_get_last_audio_change_time() + 150 )
+      if ( s_iInputMajAudioBufferBytes + (iInputBytes - iRTPHeaderLength) < MAX_AUDIO_MAJ_BUFFER )
+      {
+         memcpy(&(s_uInputMajAudioBuffer[s_iInputMajAudioBufferBytes]), pInputRawData + iRTPHeaderLength, iInputBytes - iRTPHeaderLength);
+         s_iInputMajAudioBufferBytes += (iInputBytes - iRTPHeaderLength);
+      }
+      return 0;
+   }
    pInputRawData += iRTPHeaderLength;
    iInputBytes -= iRTPHeaderLength;
 
@@ -523,8 +554,10 @@ int _video_source_majestic_parse_rtp_data(u8* pInputRawData, int iInputBytes)
 
       memcpy(s_uOutputUDPNALFrameSegment, uNALOutputHeader, iNALOutputHeaderSize);
       memcpy(&s_uOutputUDPNALFrameSegment[iNALOutputHeaderSize], pInputRawData, iInputBytes);
-      
-      return iInputBytes + iNALOutputHeaderSize;
+      int iOutputSize = iInputBytes + iNALOutputHeaderSize;
+      if ( bHasPadding )
+         iOutputSize -= iPaddingBytes;
+      return iOutputSize;
    }
    
    // Fragmentation unit (fragmented NAL over multiple packets)
@@ -592,11 +625,16 @@ int _video_source_majestic_parse_rtp_data(u8* pInputRawData, int iInputBytes)
       uNALOutputHeader[3] = 0x01;
       memcpy(s_uOutputUDPNALFrameSegment, uNALOutputHeader, iNALOutputHeaderSize);
       memcpy(&s_uOutputUDPNALFrameSegment[iNALOutputHeaderSize], pInputRawData, iInputBytes);
-      return iInputBytes + iNALOutputHeaderSize;
+      int iOutputSize = iInputBytes + iNALOutputHeaderSize;
+      if ( bHasPadding )
+         iOutputSize -= iPaddingBytes;
+      return iOutputSize;
    }
    else
    {
       memcpy(s_uOutputUDPNALFrameSegment, pInputRawData, iInputBytes);
+      if ( bHasPadding )
+         iInputBytes -= iPaddingBytes;
       return iInputBytes;
    }
 
@@ -666,6 +704,8 @@ u8* video_source_majestic_read(int* piReadSize, bool bAsync)
    //_parse_stream(s_uOutputUDPNALFrameSegment, iOutputBytes);
 
    *piReadSize = iOutputBytes;
+   if ( iOutputBytes <= 0 )
+      return NULL;
    return s_uOutputUDPNALFrameSegment;
 }
 
@@ -703,6 +743,32 @@ u8* video_source_majestic_raw_read(int* piReadSize, bool bAsync)
    return s_uInputVideoUDPBuffer;
 }
 
+int video_source_majestic_get_audio_data(u8* pOutputBuffer, int iMaxToRead)
+{
+   if ( (NULL == pOutputBuffer) || (iMaxToRead < 0 ) )
+      return 0;
+   
+   int iRead = s_iInputMajAudioBufferBytes;
+   if ( iRead > iMaxToRead )
+      iRead = iMaxToRead;
+   memcpy(pOutputBuffer, s_uInputMajAudioBuffer, iRead);
+ 
+   if ( iRead == s_iInputMajAudioBufferBytes )
+      s_iInputMajAudioBufferBytes = 0;
+   else
+   {
+      for( int i=iRead; i<s_iInputMajAudioBufferBytes; i++ )
+        s_uInputMajAudioBuffer[i-iRead] = s_uInputVideoUDPBuffer[i];
+      s_iInputMajAudioBufferBytes -= iRead;
+   }
+   return iRead;
+}
+
+void video_source_majestic_clear_audio_buffers()
+{
+   s_iInputMajAudioBufferBytes = 0;
+}
+
 void video_source_majestic_clear_input_buffers()
 {
    // Clear majestic buffers
@@ -738,10 +804,7 @@ u32 video_source_majestic_get_last_nal_type()
 
 void _video_source_majestic_update_params()
 {
-   char szComm[128];
-   char szOutput[256];
-
-   u32 uParam = (s_uRequestedVideoMajesticCaptureUpdateReason>>16);
+   //u32 uParam = (s_uRequestedVideoMajesticCaptureUpdateReason>>16);
    u32 uReason = s_uRequestedVideoMajesticCaptureUpdateReason & 0xFF;
 
    s_bRequestedVideoMajesticCaptureUpdate = false;
@@ -752,21 +815,17 @@ void _video_source_majestic_update_params()
    {
       int iCurrentProfile = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
       log_line("[VideoSourceMaj] Process signal to apply majestic camera only settings.");
-      camera_profile_parameters_t* pCameraParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]);
+      camera_profile_parameters_t* pCameraParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iCurrentProfile]);
       hardware_camera_maj_add_log("Will apply new camera settings...", true);
-      hardware_camera_maj_apply_all_camera_settings(pCameraParams, true);
+      hardware_camera_maj_apply_image_settings(pCameraParams, true);
       return;
    }
 
    if ( uReason == MODEL_CHANGED_DEBUG_MODE )
    {
-      log_line("[VideoSourceMaj] Developer mode changed to %s, majestic current dev mode: %s",
-         g_bDeveloperMode?"on":"off", hardware_camera_maj_is_in_developer_mode()?"on":"off");
-      if ( g_bDeveloperMode != hardware_camera_maj_is_in_developer_mode() )
-      {
-         hardware_camera_maj_update_nal_size(g_pCurrentModel, g_bDeveloperMode, false);        
-         video_source_majestic_clear_input_buffers();
-      }
+      log_line("[VideoSourceMaj] Process notif dev mode update. Developer mode is now %s",
+         g_bDeveloperMode?"on":"off");
+      video_source_majestic_clear_input_buffers();
       return;
    }
 
@@ -776,7 +835,9 @@ void _video_source_majestic_update_params()
    camera_profile_parameters_t* pCameraParams = &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile]);
    video_parameters_t* pVideoParams = &(g_pCurrentModel->video_params);
 
-   hardware_camera_maj_apply_all_settings(g_pCurrentModel, pCameraParams, g_pCurrentModel->video_params.user_selected_video_link_profile, pVideoParams, g_bDeveloperMode, false);
+   if ( uReason == MODEL_CHANGED_USER_SELECTED_VIDEO_PROFILE )
+      hardware_camera_maj_clear_temp_values();
+   hardware_camera_maj_apply_all_settings(g_pCurrentModel, pCameraParams, g_pCurrentModel->video_params.user_selected_video_link_profile, pVideoParams, false);
 
    video_source_majestic_clear_input_buffers();
 
@@ -847,7 +908,35 @@ bool video_source_majestic_periodic_checks()
       return false;
    }
 
-   hardware_camera_maj_check_apply_cached_changes();
+   static u32 s_uTimeLastOverflowCheck = 0;
+   if ( g_TimeNow > s_uTimeLastOverflowCheck + 500 )
+   if ( g_TimeNow > hardware_camera_maj_get_last_change_time() + 500 )
+   if ( g_TimeNow > s_uTimeLastMajesticRecvData + 500 )
+   if ( NULL != g_pVideoTxBuffers )
+   {
+      s_uTimeLastOverflowCheck = g_TimeNow;
+      if ( g_pVideoTxBuffers->getResetOverflowFlag() )
+      {
+         log_softerror_and_alarm("[VideoSourceMaj] Detected inconsistency in packets sizes: dev mode: %s",
+            g_bDeveloperMode?"yes":"no");
+         log_softerror_and_alarm("[VideoSourceMaj] Max raw usable video in tx buffers now: % bytes",
+            g_pVideoTxBuffers->getCurrentMaxUsableRawVideoDataSize());
+         log_softerror_and_alarm("[VideoSourceMaj] Current majestic NAL size now: % bytes",
+            hardware_camera_maj_get_current_nal_size());
+
+         hardware_camera_maj_update_nal_size(g_pCurrentModel, false);        
+         video_source_majestic_clear_input_buffers();
+      }
+   }
+
+   static u32 s_uTimeLastCheckMajestiUDPSkipCounters = 0;
+   if ( g_TimeNow > s_uTimeLastCheckMajestiUDPSkipCounters + 5000 )
+   {
+      s_uTimeLastCheckMajestiUDPSkipCounters = g_TimeNow;
+      s_uLastRTPSeqNumberInUDPFramesSkipCounter[98] = 0;
+      s_uLastRTPSeqNumberInUDPFramesSkipCounter[100] = 0;
+   }
+   hardware_camera_maj_check_apply_cached_image_changes(g_TimeNow);
 
    if ( s_bRequestedVideoMajesticCaptureUpdate )
       _video_source_majestic_update_params();

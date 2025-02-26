@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -31,6 +32,8 @@
 
 #include "../render_commands.h"
 #include "../../utils/utils_controller.h"
+#include "../../utils/utils_vehicle.h"
+#include "../../base/tx_powers.h"
 #include "osd.h"
 #include "osd_common.h"
 #include "../popup.h"
@@ -109,6 +112,8 @@ void MenuRadioConfig::onShow()
    log_line("Entering menu radio config...");
    removeAllItems();
 
+   compute_controller_radio_tx_powers(g_pCurrentModel, &g_SM_RadioStats);
+      
    m_fFooterHeight = 1.0 * g_pRenderEngine->textHeight(m_iIdFontRegular) + m_sfMenuPaddingY;
    m_szCurrentTooltip[0] = 0;
 
@@ -1011,7 +1016,7 @@ float MenuRadioConfig::drawRadioLinks(float xStart, float xEnd, float yStart)
 
    for( int iLink = 0; iLink < m_iCountVehicleRadioLinks; iLink++ )
    {
-      drawVehicleRadioLink(xStart, xEnd, yPos, iLink );
+      drawOneRadioLink(xStart, xEnd, yPos, iLink );
       yPos += m_fHeightLinks[iLink] + height_text*2.0;
    }
 
@@ -1083,12 +1088,12 @@ float MenuRadioConfig::drawRadioHeader(float xStart, float xEnd, float yStart)
    float hIconBig = height_text*3.0;
    float yPos = yStart;
    float xMid = (xStart+xEnd)*0.5;
-   float xMidMargin = 0.1/g_pRenderEngine->getAspectRatio();
+   float xMidMargin = 0.14/g_pRenderEngine->getAspectRatio();
    char szBuff[128];
 
    float ftw = g_pRenderEngine->textWidth(m_iIdFontLarge, "Current Radio Configuration");
    g_pRenderEngine->drawText(xStart + (xEnd-xStart - ftw)*0.5, yPos, m_iIdFontLarge, "Current Radio Configuration");
-   yPos += height_text_large*1.2;
+   yPos += height_text_large*1.4;
 
    float yTmp = yPos;
 
@@ -1116,9 +1121,7 @@ float MenuRadioConfig::drawRadioHeader(float xStart, float xEnd, float yStart)
    szBuff[0] = toupper(szBuff[0]);
    g_pRenderEngine->drawText(xRight, yPos + (hIconBig-height_text)*0.5, m_iIdFontRegular, szBuff);
    
-   yPos += hIconBig + height_text*2.0;
-   if ( m_iCountVehicleRadioLinks < 2 )
-      yPos += height_text;
+   yPos += hIconBig + height_text*1.5;
    
    if ( (NULL == g_pCurrentModel) || (! g_bFirstModelPairingDone) || m_bShowOnlyControllerUnusedInterfaces )
    {
@@ -1128,22 +1131,22 @@ float MenuRadioConfig::drawRadioHeader(float xStart, float xEnd, float yStart)
    }
 
    float fAlpha = g_pRenderEngine->setGlobalAlfa(0.5);
-   for( float fy = yTmp; fy<yPos-0.02 + height_text; fy += 0.02 )
+   for( float fy = yTmp; fy<yPos - height_text; fy += 0.02 )
       g_pRenderEngine->drawLine(xMid, fy, xMid, fy+0.01);
    g_pRenderEngine->setGlobalAlfa(fAlpha);
-   
+   yPos += height_text*0.3;
    return yPos - yStart;
 }
 
 
-void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd, float yStart, int iVehicleRadioLink, bool bIsLinkActive, bool bIsRelayLink)
+void MenuRadioConfig::drawOneRadioLinkCapabilities(float xStart, float xEnd, float yStart, int iVehicleRadioLink, bool bIsLinkActive, bool bIsRelayLink)
 {
    char szDescription[128];
    char szDescriptionSmall[128];
    char szCapabilities[128];
    char szDRVideo[128];
-   char szDRDataU[128];
-   char szDRDataD[128];
+   char szDRDataUp[128];
+   char szDRDataDown[128];
    char szAuto[128];
 
    int iCountInterfacesAssignableToThisLink = controller_count_asignable_radio_interfaces_to_vehicle_radio_link(g_pCurrentModel, iVehicleRadioLink);
@@ -1204,26 +1207,12 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
       strcat(szCapabilities, "Data Only,");
    }
 
-   str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLink], 0, szDRVideo);
-   str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iVehicleRadioLink], 0, szDRDataD);
-   str_getDataRateDescription(g_pCurrentModel->radioLinksParams.uplink_datarate_data_bps[iVehicleRadioLink], 0, szDRDataU);
-
-   if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[iVehicleRadioLink] & RADIO_HW_CAPABILITY_FLAG_HIGH_CAPACITY )
-   {
-      if ( g_pCurrentModel->radioLinksParams.uDownlinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO )
-         str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLink], 0, szDRDataU);
-      if ( g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO )
-         str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLink], 0, szDRDataU);
-      if ( g_pCurrentModel->radioLinksParams.uDownlinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST )
-         str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, 0, szDRDataD);
-      if ( g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST )
-         str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, 0, szDRDataU);
-
-      if ( g_pCurrentModel->radioLinksParams.uDownlinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_AUTO )
-         str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, 0, szDRDataD);
-      if ( g_pCurrentModel->radioLinksParams.uUplinkDataDataRateType[iVehicleRadioLink] == FLAG_RADIO_LINK_DATARATE_DATA_TYPE_AUTO )
-         str_getDataRateDescription(DEFAULT_RADIO_DATARATE_LOWEST, 0, szDRDataU);
-   }
+   bool bUsesHT40 = false;
+   if ( g_pCurrentModel->radioLinksParams.link_radio_flags[iVehicleRadioLink] & RADIO_FLAG_HT40_VEHICLE )
+      bUsesHT40 = true;
+   str_getDataRateDescription(g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLink], bUsesHT40, szDRVideo);
+   str_getDataRateDescription(g_pCurrentModel->getRadioLinkDownlinkDataRate(iVehicleRadioLink), bUsesHT40, szDRDataDown);
+   str_getDataRateDescription(g_pCurrentModel->getRadioLinkUplinkDataRate(iVehicleRadioLink), 0, szDRDataUp);
 
    szAuto[0] = 0;
    if ( (NULL != g_pCurrentModel) && ( ! g_pCurrentModel->radioLinkIsSiKRadio(iVehicleRadioLink) ) )
@@ -1281,9 +1270,9 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
          }
          char szTmp[256];
          if ( bDataOnlyRadioLink )
-            snprintf(szTmp, sizeof(szTmp)/sizeof(szTmp[0]), "Data Rates: Data: %s, Uplink: %s", szDRDataD, szDRDataU);
+            snprintf(szTmp, sizeof(szTmp)/sizeof(szTmp[0]), "Data Rates: Data: %s, Uplink: %s", szDRDataDown, szDRDataUp);
          else
-            snprintf(szTmp, sizeof(szTmp)/sizeof(szTmp[0]), "Data Rates: Video: %s%s, Data: %s, Uplink: %s", szDRVideo, szAuto, szDRDataD, szDRDataU);
+            snprintf(szTmp, sizeof(szTmp)/sizeof(szTmp[0]), "Data Rates: Video: %s%s, Data: %s, Uplink: %s", szDRVideo, szAuto, szDRDataDown, szDRDataUp);
          strcat(szDescription, szTmp);
       }
    }
@@ -1294,10 +1283,15 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
       g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
    }
 
-   g_pRenderEngine->drawText(xStart, yStart, m_iIdFontRegular, szDescription);
+   float fLine1W = g_pRenderEngine->textWidth(m_iIdFontRegular, szDescription);
+   float xLine1 = xStart + 0.5*((xEnd-xStart) - fLine1W);
+   g_pRenderEngine->drawText(xLine1, yStart, m_iIdFontRegular, szDescription);
    if ( 0 != szDescriptionSmall[0] )
-      g_pRenderEngine->drawText(xStart, yStart + 0.94*(g_pRenderEngine->textHeight(m_iIdFontRegular)), m_iIdFontSmall, szDescriptionSmall);
-
+   {
+      float fLine2W = g_pRenderEngine->textWidth(m_iIdFontSmall, szDescriptionSmall);
+      float xLine2 = xStart + 0.5*((xEnd-xStart) - fLine2W);
+      g_pRenderEngine->drawText(xLine2, yStart + 0.94*(g_pRenderEngine->textHeight(m_iIdFontRegular)), m_iIdFontSmall, szDescriptionSmall);
+   }
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
 
@@ -1306,14 +1300,14 @@ void MenuRadioConfig::drawVehicleRadioLinkCapabilities(float xStart, float xEnd,
       double cY[4] = {255,240,100,1.0};
 
       g_pRenderEngine->setColors(cY);
-      g_pRenderEngine->drawText(xStart, yStart, m_iIdFontRegular, "Data Only");
+      g_pRenderEngine->drawText(xLine1, yStart, m_iIdFontRegular, "Data Only");
 
       g_pRenderEngine->setColors(get_Color_MenuText());
       g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
    }
 }
 
-float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float yStart, int iVehicleRadioLink)
+float MenuRadioConfig::drawOneRadioLink(float xStart, float xEnd, float yStart, int iVehicleRadioLink)
 {
    float height_text = g_pRenderEngine->textHeight(m_iIdFontRegular);
    float height_text_large = g_pRenderEngine->textHeight(m_iIdFontLarge);
@@ -1337,7 +1331,7 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
    float yMidController[MAX_RADIO_INTERFACES];
    float fWidth = xEnd - xStart;
    float xMid = (xStart + xEnd)*0.5;
-   float xMidMargin = 0.07/g_pRenderEngine->getAspectRatio();
+   float xMidMargin = 0.11/g_pRenderEngine->getAspectRatio();
    float yPos = yStart;
 
    szBuff[0] = 0;
@@ -1457,6 +1451,8 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
    // -------------------------------------------------------
    // Begin - Draw link name/title
 
+   float fTitleWidth = g_pRenderEngine->textWidth(m_iIdFontLarge, szBuff);
+   float fTitleXpos = xStart + 0.5*((xEnd-xStart) - fTitleWidth);
    float fxTitleEnd = 0.0;
 
    if ( (iCurrentMenuItemCommand == MRC_ID_CONFIGURE_RADIO_LINK) && (iCurrentMenuItemExtraParam == iVehicleRadioLink) )
@@ -1471,26 +1467,13 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
       g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
    }
 
-   if ( iCountInterfacesAssignedToThisLink == 0 )
-   {
-      g_pRenderEngine->drawText(xMid + 0.01, yPos-height_text*0.3, m_iIdFontLarge, szBuff);
-      fxTitleEnd = xMid + 0.01 + height_text + g_pRenderEngine->textWidth(m_iIdFontLarge, szBuff);
-   }
-   else
-   {
-      g_pRenderEngine->drawText(xStart + 0.01, yPos-height_text*0.3, m_iIdFontLarge, szBuff);
-      fxTitleEnd = xStart + 0.01 + height_text + g_pRenderEngine->textWidth(m_iIdFontLarge, szBuff);
-   }
+   g_pRenderEngine->drawText(fTitleXpos, yPos-height_text*0.3, m_iIdFontLarge, szBuff);
+   fxTitleEnd = fTitleXpos + fTitleWidth + height_text;
 
    if ( bShowLinkRed && bIsLinkActive )
    {
-      float ftw = g_pRenderEngine->textWidth(m_iIdFontLarge, szBuff);
-      if ( iCountInterfacesAssignedToThisLink == 0 )
-         g_pRenderEngine->drawText(xMid + ftw + 0.02, yPos-height_text*0.2, m_iIdFontRegular, szError);
-      else
-         g_pRenderEngine->drawText(xStart + ftw + 0.02, yPos-height_text*0.2, m_iIdFontRegular, szError);
-
-      fxTitleEnd += 0.01 + ftw;
+      g_pRenderEngine->drawText(fxTitleEnd, yPos-height_text*0.2, m_iIdFontRegular, szError);
+      fxTitleEnd += 0.01 + g_pRenderEngine->textWidth(m_iIdFontRegular, szError);
    }
 
    if ( (iCurrentMenuItemCommand == MRC_ID_CONFIGURE_RADIO_LINK) && (iCurrentMenuItemExtraParam == iVehicleRadioLink) )
@@ -1547,15 +1530,12 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
    // End - Draw link container rectangle
    // ------------------------------------------------------
 
-   yPos += fPaddingInnerY * 0.4;
+   yPos += fPaddingInnerY * 0.7;
 
-   if ( 0 == iCountInterfacesAssignedToThisLink )
-      drawVehicleRadioLinkCapabilities(xMid + fPaddingInnerX, xEnd - fPaddingInnerX, yPos, iVehicleRadioLink, bIsLinkActive, bIsRelayLink);
-   else
-      drawVehicleRadioLinkCapabilities(xStart + fPaddingInnerX, xMid - fPaddingInnerX, yPos, iVehicleRadioLink, bIsLinkActive, bIsRelayLink);
+   drawOneRadioLinkCapabilities(xStart + fPaddingInnerX, xEnd - fPaddingInnerX, yPos, iVehicleRadioLink, bIsLinkActive, bIsRelayLink);
 
    yPos += height_text*2.0;
-   yPos += fPaddingInnerY * 0.4;
+   yPos += fPaddingInnerY * 0.1;
    
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
@@ -1586,7 +1566,7 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
       bShowRed = true;
    }
    
-   g_pRenderEngine->drawIcon(xMid + xMidMargin, yPos+height_text*0.5, hIcon/g_pRenderEngine->getAspectRatio(), hIcon, g_idIconRadio);
+   g_pRenderEngine->drawIcon(xMid + xMidMargin, yPos, hIcon/g_pRenderEngine->getAspectRatio(), hIcon, g_idIconRadio);
 
    float xiRight = xMid + xMidMargin + hIcon/g_pRenderEngine->getAspectRatio() + fPaddingInnerX;
    sprintf(szBuff, "Interface %d, Port %s", iVehicleRadioInterfaceId+1, g_pCurrentModel->radioInterfacesParams.interface_szPort[iVehicleRadioInterfaceId]);
@@ -1599,7 +1579,7 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
    if ( (iCurrentMenuItemCommand == MRC_ID_CONFIGURE_RADIO_INTERFACE_VEHICLE) && (iCurrentMenuItemExtraParam == iVehicleRadioInterfaceId) )
       g_pRenderEngine->drawBackgroundBoundingBoxes(bBBox);
 
-   yPos += height_text*1.3;
+   yPos += height_text*1.2;
 
    sprintf(szBuff, "Type: %s", str_get_radio_card_model_string(g_pCurrentModel->radioInterfacesParams.interface_card_model[iVehicleRadioInterfaceId]));
    g_pRenderEngine->drawText(xiRight, yPos, m_iIdFontRegular, szBuff);
@@ -1804,6 +1784,7 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
       dyArrow = - height_text*0.8;
    }
 
+   int iArrowCount = 0;
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
    {
       if ( g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId != iVehicleRadioLink )
@@ -1818,7 +1799,7 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
          continue;
 
       int iVehicleRadioInterfaceId = g_pCurrentModel->getRadioInterfaceIndexForRadioLink(iVehicleRadioLink);
-   
+      iArrowCount++;
       bShowRed = false;
 
       if ( pCardInfo->capabilities_flags & RADIO_HW_CAPABILITY_FLAG_DISABLED )
@@ -1874,10 +1855,10 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
 
       //g_pRenderEngine->drawLine(xLeftMaxMax + fPaddingInnerX, yMidController[i] - height_text, xLeftMaxMax + fPaddingInnerX, yMidController[i] + height_text);
 
-      float xLineStart = xMid - xMidMargin + fPaddingInnerX*0.2;
-      float xLineEnd = xMid + xMidMargin - fPaddingInnerX*0.2;
-      float yLineStart = yMidController[i];
-      float yLineEnd = yMidVehicle + dyArrow;
+      float xLineCtrl = xMid - xMidMargin + fPaddingInnerX*0.2;
+      float xLineVeh = xMid + xMidMargin - fPaddingInnerX*0.2;
+      float yLineCtrl = yMidController[i]-dyArrow*0.2;
+      float yLineVeh = yMidVehicle + dyArrow*0.5;
 
       //if ( bCanExchangeData && bCanExchangeVideo )
       //{
@@ -1893,39 +1874,64 @@ float MenuRadioConfig::drawVehicleRadioLink(float xStart, float xEnd, float ySta
          g_pRenderEngine->setStrokeSize(1.0);
       }
       
-      g_pRenderEngine->drawLine(xLineStart, yLineStart, xLineEnd, yLineEnd );
+      float xLineMid = (xLineCtrl + xLineVeh)/2.0;
+      float yLineMid = (yLineCtrl + yLineVeh)/2.0;
+      float xLineMarginCtrl = xLineMid - height_text*0.5;
+      float xLineMarginVeh = xLineMid + height_text*0.5;
+      float yLineMarginCtrl = yLineCtrl + (yLineMid-yLineCtrl) * (xLineMarginCtrl-xLineCtrl) / (xLineMid - xLineCtrl);
+      float yLineMarginVeh = yLineVeh + (yLineMid-yLineVeh) * (xLineMarginVeh-xLineVeh) / (xLineMid - xLineVeh);
+      
+      //g_pRenderEngine->drawLine(xLineCtrl, yLineCtrl, xLineVeh, yLineVeh );
+      g_pRenderEngine->drawLine(xLineCtrl, yLineCtrl, xLineMarginCtrl, yLineMarginCtrl);
+      g_pRenderEngine->drawLine(xLineVeh, yLineVeh, xLineMarginVeh, yLineMarginVeh);
  
+      char szTxPower[64];
+      if ( 1 == iArrowCount )
+      {
+         int iVehicleMw = get_vehicle_radio_link_current_tx_power_mw(g_pCurrentModel, iVehicleRadioLink);
+         if ( iVehicleMw < 1000 )
+            sprintf(szTxPower, "%d mW", iVehicleMw);
+         else
+            sprintf(szTxPower, "%.1f W", (float)iVehicleMw/1000.0);
+         g_pRenderEngine->drawTextLeft(xLineVeh - height_text*0.2, yLineMarginVeh - height_text*1.2, g_idFontMenuSmall, szTxPower);
+      }
+      int iCardMw = tx_powers_convert_raw_to_mw(0, pCardInfo->cardModel, pCardInfo->iRawPowerLevel);
+      if ( iCardMw < 1000 )
+         sprintf(szTxPower, "%d mW", iCardMw);
+      else
+         sprintf(szTxPower, "%.1f W", (float)iCardMw/1000.0);
+      if ( iArrowCount <= iCountInterfacesAssignedToThisLink/2 )
+         g_pRenderEngine->drawText(xLineCtrl + height_text*0.2, yLineCtrl - height_text*1.2, g_idFontMenuSmall, szTxPower);
+      else
+         g_pRenderEngine->drawText(xLineCtrl + height_text*0.2, yLineMarginCtrl - height_text*1.2, g_idFontMenuSmall, szTxPower);
+
       if ( bCanUplink )
       {
-         float dx = xLineEnd - xLineStart;
-         float dy = yLineEnd - yLineStart;
+         float dx = xLineVeh - xLineCtrl;
+         float dy = yLineVeh - yLineCtrl;
          float fLength = sqrtf(dx*dx+dy*dy);
-         float x1 = xLineEnd - dx*0.01/fLength;
-         float y1 = yLineEnd - dy*0.01/fLength;
+         float x1 = xLineMarginCtrl - dx*0.01/fLength;
+         float y1 = yLineMarginCtrl - dy*0.01/fLength;
          float xp[3], yp[3];
-         xp[0] = xLineEnd;
-         yp[0] = yLineEnd;
-         osd_rotate_point(x1, y1, xLineEnd, yLineEnd, 26, &xp[1], &yp[1]);
-         osd_rotate_point(x1, y1, xLineEnd, yLineEnd, -26, &xp[2], &yp[2]);
-         //g_pRenderEngine->drawPolyLine(xp,yp,3);
-         //g_pRenderEngine->fillPolygon(xp,yp,3);
+         xp[0] = xLineMarginCtrl;
+         yp[0] = yLineMarginCtrl;
+         osd_rotate_point(x1, y1, xLineMarginCtrl, yLineMarginCtrl, 26, &xp[1], &yp[1]);
+         osd_rotate_point(x1, y1, xLineMarginCtrl, yLineMarginCtrl, -26, &xp[2], &yp[2]);
          g_pRenderEngine->drawTriangle(xp[0], yp[0], xp[1], yp[1], xp[2], yp[2]);
          g_pRenderEngine->fillTriangle(xp[0], yp[0], xp[1], yp[1], xp[2], yp[2]);
       }
       if ( bCanDownlink )
       {
-         float dx = xLineEnd - xLineStart;
-         float dy = yLineEnd - yLineStart;
+         float dx = xLineVeh - xLineCtrl;
+         float dy = yLineVeh - yLineCtrl;
          float fLength = sqrtf(dx*dx+dy*dy);         
-         float x1 = xLineStart + dx*0.01/fLength;
-         float y1 = yLineStart + dy*0.01/fLength;
+         float x1 = xLineMarginVeh + dx*0.01/fLength;
+         float y1 = yLineMarginVeh + dy*0.01/fLength;
          float xp[3], yp[3];
-         xp[0] = xLineStart;
-         yp[0] = yLineStart;
-         osd_rotate_point(x1, y1, xLineStart, yLineStart, 26, &xp[1], &yp[1]);
-         osd_rotate_point(x1, y1, xLineStart, yLineStart, -26, &xp[2], &yp[2]);
-         //g_pRenderEngine->drawPolyLine(xp,yp,3);
-         //g_pRenderEngine->fillPolygon(xp,yp,3);
+         xp[0] = xLineMarginVeh;
+         yp[0] = yLineMarginVeh;
+         osd_rotate_point(x1, y1, xLineMarginVeh, yLineMarginVeh, 26, &xp[1], &yp[1]);
+         osd_rotate_point(x1, y1, xLineMarginVeh, yLineMarginVeh, -26, &xp[2], &yp[2]);
          g_pRenderEngine->drawTriangle(xp[0], yp[0], xp[1], yp[1], xp[2], yp[2]);
          g_pRenderEngine->fillTriangle(xp[0], yp[0], xp[1], yp[1], xp[2], yp[2]);
       }
@@ -1971,7 +1977,7 @@ float MenuRadioConfig::drawRadioInterfaceController(float xStart, float xEnd, fl
 float MenuRadioConfig::drawRadioInterfaceCtrlInfo(float xStart, float xEnd, float yStart, int iRadioLink, int iRadioInterface, bool bSelected)
 {
    float height_text = g_pRenderEngine->textHeight(m_iIdFontRegular);
-   float hIcon = height_text*2.0;
+   float hIcon = height_text*2.4;
    float fPaddingInnerY = 0.02;
    float fPaddingInnerX = fPaddingInnerY/g_pRenderEngine->getAspectRatio();
    
@@ -2016,7 +2022,7 @@ float MenuRadioConfig::drawRadioInterfaceCtrlInfo(float xStart, float xEnd, floa
       
    m_fYPosCtrlRadioInterfaces[iRadioInterface] = yPos;
 
-   g_pRenderEngine->drawIcon(xStart - hIcon/g_pRenderEngine->getAspectRatio(), yPos+height_text*0.5, hIcon/g_pRenderEngine->getAspectRatio(), hIcon, g_idIconRadio);
+   g_pRenderEngine->drawIcon(xStart - hIcon/g_pRenderEngine->getAspectRatio(), yPos, hIcon/g_pRenderEngine->getAspectRatio(), hIcon, g_idIconRadio);
       
    float xTextLeft = xStart - hIcon/g_pRenderEngine->getAspectRatio() - fPaddingInnerX;
    sprintf(szBuff, "Interface %d, Port %s", iRadioInterface+1, pRadioHWInfo->szUSBPort);
@@ -2034,11 +2040,12 @@ float MenuRadioConfig::drawRadioInterfaceCtrlInfo(float xStart, float xEnd, floa
 
    yPos += height_text*1.2;
 
-   char szBands[128];
-   str_get_supported_bands_string(pRadioHWInfo->supportedBands, szBands);
-   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Type: %s,  %s", str_get_radio_card_model_string(pCardInfo->cardModel), szBands);
-   if ( strlen(str_get_radio_card_model_string(pCardInfo->cardModel)) > 10 )
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s,  %s", str_get_radio_card_model_string(pCardInfo->cardModel), szBands);
+   //char szBands[128];
+   //str_get_supported_bands_string(pRadioHWInfo->supportedBands, szBands);
+   //snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Type: %s,  %s", str_get_radio_card_model_string(pCardInfo->cardModel), szBands);
+   //if ( strlen(str_get_radio_card_model_string(pCardInfo->cardModel)) > 10 )
+   //   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s,  %s", str_get_radio_card_model_string(pCardInfo->cardModel), szBands);
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Type: %s", str_get_radio_card_model_string(pCardInfo->cardModel));
    g_pRenderEngine->drawTextLeft(xTextLeft, yPos, m_iIdFontSmall, szBuff);
    if ( g_pRenderEngine->textWidth(m_iIdFontSmall, szBuff) > fMaxWidth )
       fMaxWidth = g_pRenderEngine->textWidth(m_iIdFontSmall, szBuff);

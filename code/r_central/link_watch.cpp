@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -69,7 +70,7 @@ u32 s_TimeSecondsCheck = 0;
 u32 s_TimeLastWarningRCHID = 0;
 u32 s_TimeLastAlarmRadioLinkBehind = 0;
 u32 s_TimeLastAlarmRouterProcess = 0;
-
+u32 s_TimeLastRadioLinkReconfigEnd = 0;
 u32 s_LastRouterProcessCheckedAlarmFlags = 0;
 
 u32 s_CountProcessRouterFailures = 0;
@@ -134,11 +135,17 @@ void link_set_is_reconfiguring_radiolink(int iRadioLink, bool bConfirmFlagsChang
 void link_reset_reconfiguring_radiolink()
 {
    g_bConfiguringRadioLink = false;
+   s_TimeLastRadioLinkReconfigEnd = g_TimeNow;
 }
 
 bool link_is_reconfiguring_radiolink()
 {
    return g_bConfiguringRadioLink;
+}
+
+u32 link_get_last_reconfiguration_end_time()
+{
+   return s_TimeLastRadioLinkReconfigEnd;
 }
 
 void link_watch_mark_started_video_processing()
@@ -411,6 +418,9 @@ void link_watch_check_link_lost()
    if ( g_SM_RadioStats.radio_streams[0][STREAM_ID_TELEMETRY].timeLastRxPacket + TIMEOUT_TELEMETRY_LOST > g_TimeNow )
       bHasLink = true;
    if ( ! bHasLink )
+   if ( g_SM_RadioStats.radio_streams[0][STREAM_ID_AUDIO].timeLastRxPacket + TIMEOUT_TELEMETRY_LOST > g_TimeNow )
+      bHasLink = true;
+   if ( ! bHasLink )
    if ( g_SM_RadioStats.radio_streams[0][STREAM_ID_VIDEO_1].timeLastRxPacket + TIMEOUT_TELEMETRY_LOST > g_TimeNow )
       bHasLink = true;
 
@@ -568,7 +578,7 @@ void link_watch_loop_telemetry()
       if ( g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo || g_VehiclesRuntimeInfo[i].bGotFCTelemetry )
       {
          u32 uMaxLostTime = TIMEOUT_TELEMETRY_LOST;
-         if ( (NULL != g_VehiclesRuntimeInfo[i].pModel) && (g_VehiclesRuntimeInfo[i].pModel->telemetry_params.update_rate > 10) )
+         if (  g_VehiclesRuntimeInfo[i].pModel->telemetry_params.update_rate > 10 )
             uMaxLostTime = TIMEOUT_TELEMETRY_LOST/2;
          if ( link_is_reconfiguring_radiolink() )
             uMaxLostTime += 2000;
@@ -674,7 +684,7 @@ void link_watch_loop_telemetry()
             {
                s_CountTelemetryLostCount++;
                char szBuff[128];
-               sprintf(szBuff, "Data stream from vehicle lost (%d)!", s_CountTelemetryLostCount);
+               sprintf(szBuff, "Data stream from vehicle lost (%u)!", s_CountTelemetryLostCount);
                warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, szBuff, g_idIconCPU, get_Color_IconError());
             }
             g_VehiclesRuntimeInfo[i].bRubyTelemetryLost = true;
@@ -684,7 +694,7 @@ void link_watch_loop_telemetry()
             if ( g_VehiclesRuntimeInfo[i].bRubyTelemetryLost )
             {
                char szBuff[128];
-               sprintf(szBuff, "Data stream from vehicle recovered (%d)", s_CountTelemetryLostCount);
+               sprintf(szBuff, "Data stream from vehicle recovered (%u)", s_CountTelemetryLostCount);
                warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, szBuff, g_idIconCPU, get_Color_IconSucces());
             }
             g_VehiclesRuntimeInfo[i].bRubyTelemetryLost = false;
@@ -905,7 +915,7 @@ int link_watch_loop_processes()
 
                link_watch_reset();
                popups_remove_all();
-               Popup* p = new Popup( "Radio hardware error", 0.2, 0.36, 0.5, 0);
+               Popup* p = new Popup( "Radio hardware error", 0.2, 0.36, 0.5, 10);
                p->setCentered();
                p->setIconId(g_idIconError, get_Color_MenuText());
 
@@ -1020,7 +1030,6 @@ int link_watch_loop_processes()
 
                while ( (NULL != fd) && ((read = getline(&line, &len, fd)) != -1))
                {
-                 printf("Retrieved line of length %zu:\n", read);
                  if ( read > 0 )
                     warnings_add(0, line, g_idIconCamera, get_Color_IconWarning());
                }
@@ -1076,7 +1085,7 @@ void link_watch_rc()
       if ( pCI->inputInterfacesCount == 0 )
       {
          controllerInterfacesEnumJoysticks();
-         if ( pCI->inputInterfacesCount  == 0 )
+         if ( pCI->inputInterfacesCount == 0 )
          {
              s_TimeLastWarningRCHID = g_TimeNow;
              warnings_add(g_pCurrentModel->uVehicleId, "RC is enabled on current vehicle and the input controller device is missing!", g_idIconJoystick, get_Color_IconError());

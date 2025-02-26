@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
          * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -196,19 +197,25 @@ int ruby_init_ipc_channels()
 {
    #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
    char szBuff[256];
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_CAMERA1 );
+   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_CAMERA1);
    hw_execute_bash_command(szBuff, NULL);
       
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_AUDIO1 );
+   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_AUDIO1);
    hw_execute_bash_command(szBuff, NULL);
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM_DISPLAY );
+   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_AUDIO_BUFF);
    hw_execute_bash_command(szBuff, NULL);
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM_RECORDING );
+   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_AUDIO_QUEUE);
    hw_execute_bash_command(szBuff, NULL);
 
-   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM_ETH );
+   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM_DISPLAY);
+   hw_execute_bash_command(szBuff, NULL);
+
+   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM_RECORDING);
+   hw_execute_bash_command(szBuff, NULL);
+
+   sprintf(szBuff, "mkfifo %s", FIFO_RUBY_STATION_VIDEO_STREAM_ETH);
    hw_execute_bash_command(szBuff, NULL);
    #endif
 
@@ -464,13 +471,11 @@ int ruby_close_ipc_channel(int iChannelUniqueId)
        iChannelUniqueId, iChannelIndex, _ruby_ipc_get_channel_name(s_iRubyIPCChannelsType[iChannelIndex]));
 
    #ifdef RUBY_USE_FIFO_PIPES
-   if ( fdToClose >= 0 )
-      close(fdToClose);
+   close(fdToClose);
    #endif
 
    #ifdef RUBY_USES_MSGQUEUES
-   if ( fdToClose >= 0 )
-      msgctl(fdToClose,IPC_RMID,NULL);
+   msgctl(fdToClose,IPC_RMID,NULL);
    #endif
 
 
@@ -782,8 +787,6 @@ u8* ruby_ipc_try_read_message(int iChannelUniqueId, u8* pTempBuffer, int* pTempB
 
    type_ipc_message_buffer ipcMessage;
 
-   pReturn = NULL;
-   
    lenReadIPCMsgQueue = msgrcv(iChannelFd, &ipcMessage, IPC_CHANNEL_MAX_MSG_SIZE, 0, MSG_NOERROR | IPC_NOWAIT);
    if ( lenReadIPCMsgQueue > 6 )
    {

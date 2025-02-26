@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -32,7 +33,7 @@
 #include "mpp_core.h"
 
 #define READ_VIDEO_BUF_SIZE (2*1024*1024) // SZ_1M https://github.com/rockchip-linux/mpp/blob/ed377c99a733e2cdbcc457a6aa3f0fcd438a9dff/osal/inc/mpp_common.h#L179
-#define MAX_VIDEO_FRAMES 64  // min 16 and 20+ recommended (mpp/readme.txt)
+#define MAX_VIDEO_FRAMES 128  // min 16 and 20+ recommended (mpp/readme.txt)
 #define CODEC_ALIGN(x, a)   (((x)+(a)-1)&~((a)-1))
 
 typedef struct
@@ -41,10 +42,15 @@ typedef struct
    type_drm_buffer drmBufferInfo;
 } type_mpp_frame_info;
 
+shared_mem_process_stats* g_pSMProcessStats = NULL;
+sem_t* g_pSemaphoreMPPDisplayFrameReadyWrite = NULL;
+sem_t* g_pSemaphoreMPPDisplayFrameReadyRead = NULL;
+
 MppCtx g_MPPCtx;
 MppApi* g_pMPPApi = NULL;
 MppBufferGroup g_MPPBufferGroup = NULL;
 MppCodingType g_MPPDecodeType = MPP_VIDEO_CodingAVC;
+int g_iMPPBuffersSize = MAX_VIDEO_FRAMES;
 type_mpp_frame_info g_Frames[MAX_VIDEO_FRAMES];
 uint8_t* g_pInputBuffer = NULL;
 MppPacket g_MPPInputPacket;
@@ -75,6 +81,7 @@ int _mpp_send_command(MpiCmd command, RK_U32 value)
 
 int mpp_feed_data_to_decoder(void* pData, int iLength)
 {
+    g_pSMProcessStats->uLoopCounter2++;
     mpp_packet_set_data(g_MPPInputPacket, pData);
     mpp_packet_set_size(g_MPPInputPacket, iLength);
     mpp_packet_set_pos(g_MPPInputPacket, pData);
@@ -86,24 +93,24 @@ int mpp_feed_data_to_decoder(void* pData, int iLength)
     mpp_packet_set_pts(g_MPPInputPacket,(RK_S64) tTime);
 
     int iStallCount = 0;
-    int iElapsed = 0;
+    int iElapsedMs = 0;
     uint64_t tTimeStart = tTime;
     while ( (!g_bQuit) && (MPP_OK != g_pMPPApi->decode_put_packet(g_MPPCtx, g_MPPInputPacket)) )
     {
         iStallCount++;
         clock_gettime(RUBY_HW_CLOCK_ID, &spec);
         uint64_t tTimeNow = spec.tv_sec * 1000 + spec.tv_nsec / 1e6;
-        iElapsed = (int)(tTimeNow - tTimeStart);
-        if ( iElapsed > 200 )
+        iElapsedMs = (int)(tTimeNow - tTimeStart);
+        if ( iElapsedMs > 100 )
         {
-            log_softerror_and_alarm("[MPP] Failed to feed data to MPP decoder, stalled for %d ms, stall counter: %d", iElapsed, iStallCount);
-            return iElapsed;
+            log_softerror_and_alarm("[MPP] Failed to feed data to MPP decoder, stalled for %d ms, stall counter: %d", iElapsedMs, iStallCount);
+            return iElapsedMs;
         }
-        hardware_sleep_micros(2000);
+        hardware_sleep_micros(1000);
     }
-    if ( (iStallCount > 0) && (iElapsed > 20) )
-       log_softerror_and_alarm("[MPP] Stalled feeding data for %d ms, stall count: %d", iElapsed, iStallCount);
-    return iElapsed;
+    if ( (iStallCount > 0) && (iElapsedMs > 5) )
+       log_softerror_and_alarm("[MPP] Stalled feeding data for %d ms, stall count: %d", iElapsedMs, iStallCount);
+    return iElapsedMs;
 }
 
 int _mpp_init_frames(MppFrame pFrame)
@@ -128,7 +135,7 @@ int _mpp_init_frames(MppFrame pFrame)
 
    int iRet = mpp_buffer_group_get_external(&g_MPPBufferGroup, MPP_BUFFER_TYPE_DRM);
 
-   for (int i=0; i<MAX_VIDEO_FRAMES; i++)
+   for (int i=0; i<g_iMPPBuffersSize; i++)
    {
       memset(&(g_Frames[i].drmBufferInfo), 0, sizeof(type_drm_buffer));
       struct drm_mode_create_dumb creq;
@@ -220,20 +227,42 @@ void* _mpp_thread_update_display(void *param)
 {
    log_line("[MPPThreadUpdateDisplay] Started.");
    u32 uLastDRMBufferIdDisplayed = 0;
-
+   u32 uNewDRMBufferIdToDisplay = 0;
    while ( (!g_bMPPFrameEOS) && (!g_bQuit) )
    {
-      if ( uLastDRMBufferIdDisplayed == g_uMPPDRMBufferIdToDisplay )
+      if ( NULL != g_pSemaphoreMPPDisplayFrameReadyRead )
+      {
+         struct timespec ts;
+         clock_gettime(CLOCK_REALTIME, &ts);
+         ts.tv_nsec += 1000LL*(long long)10000;
+         int iRes = sem_timedwait(g_pSemaphoreMPPDisplayFrameReadyRead, &ts);
+         if ( 0 != iRes )
+            continue;
+         uNewDRMBufferIdToDisplay = g_uMPPDRMBufferIdToDisplay;
+         int iSemVal = 0;
+         if ( 0 == sem_getvalue(g_pSemaphoreMPPDisplayFrameReadyRead, &iSemVal) )
+         {
+            if ( iSemVal > 0 )
+            {
+               for( int i=0; i<iSemVal; i++ )
+                  sem_trywait(g_pSemaphoreMPPDisplayFrameReadyRead);
+            }
+         }
+         //else
+         //   log_softerror_and_alarm("DBG Failed to get display frame sem value.");
+      }
+      else
+         uNewDRMBufferIdToDisplay = g_uMPPDRMBufferIdToDisplay;
+      if ( uLastDRMBufferIdDisplayed == uNewDRMBufferIdToDisplay )
       {
          hardware_sleep_ms(1);
          continue;
       }
 
-      ruby_drm_core_set_plane_buffer(g_uMPPDRMBufferIdToDisplay);
-      uLastDRMBufferIdDisplayed = g_uMPPDRMBufferIdToDisplay;
-      
-      //log_line("Disp buff index %d, id %u", g_iMPPFrameBufferIndexToDisplay, g_uMPPDRMBufferIdToDisplay);
-
+      g_pSMProcessStats->uLoopCounter4++;
+      g_pSMProcessStats->lastIPCOutgoingTime = get_current_timestamp_ms();
+      ruby_drm_core_set_plane_buffer(uNewDRMBufferIdToDisplay);
+      uLastDRMBufferIdDisplayed = uNewDRMBufferIdToDisplay;
    }
    log_line("[MPPThreadUpdateDisplay] Finsihed.");
    return NULL;
@@ -242,7 +271,6 @@ void* _mpp_thread_update_display(void *param)
 void* _mpp_thread_frame_decode(void *param)
 {
    log_line("[MPPThreadDecoder] Started.");
-   hw_increase_current_thread_priority("MPPFrameDecode", 10);
 
    MppFrame pFrame  = NULL;
 
@@ -278,6 +306,7 @@ void* _mpp_thread_frame_decode(void *param)
       }
 
       // Regular frame
+      g_pSMProcessStats->uLoopCounter3++;
      
       if ( 0 == g_uTimeFirstFrame )
       {
@@ -291,7 +320,7 @@ void* _mpp_thread_frame_decode(void *param)
          MppBufferInfo info;
          mpp_buffer_info_get(pBuffer, &info);
          int iPrimeIndex = -1;
-         for (int i=0; i<MAX_VIDEO_FRAMES; i++)
+         for (int i=0; i<g_iMPPBuffersSize; i++)
          {
             if ( ((uint32_t) g_Frames[i].prime_fd) == ((uint32_t) info.fd) )
             {
@@ -302,17 +331,23 @@ void* _mpp_thread_frame_decode(void *param)
          //static int s_iLastPrimeBufferIndex = -1;
          //if ( (iPrimeIndex != s_iLastPrimeBufferIndex+1) && (iPrimeIndex != 0) )
          //   log_line("[MPPThreadDecoder] Diff now index: %d, prev index: %d", iPrimeIndex, s_iLastPrimeBufferIndex);
-         //log_line("[MPPThreadDecoder] Received a frame in primeId buffer index %d (max %d)", iPrimeIndex, MAX_VIDEO_FRAMES);
+         //log_line("[MPPThreadDecoder] Received a frame in primeId buffer index %d (max %d)", iPrimeIndex, g_iMPPBuffersSize);
          //s_iLastPrimeBufferIndex = iPrimeIndex;
          
-         //ruby_drm_core_set_plane_buffer(g_Frames[iPrimeIndex].drmBufferInfo.uBufferId);
-         g_iMPPFrameBufferIndexToDisplay = iPrimeIndex;
-         g_uMPPDRMBufferIdToDisplay = g_Frames[iPrimeIndex].drmBufferInfo.uBufferId;
-         u32 uTimeNow = get_current_timestamp_ms();
-         if ( uTimeNow > g_uTimeMPPPeriodicChecks + 1000 )
+         if ( -1 != iPrimeIndex )
          {
-            g_uTimeMPPPeriodicChecks = uTimeNow;
-            _mpp_core_periodic_checks();
+            //ruby_drm_core_set_plane_buffer(g_Frames[iPrimeIndex].drmBufferInfo.uBufferId);
+            g_iMPPFrameBufferIndexToDisplay = iPrimeIndex;
+            g_uMPPDRMBufferIdToDisplay = g_Frames[iPrimeIndex].drmBufferInfo.uBufferId;
+            if ( NULL != g_pSemaphoreMPPDisplayFrameReadyWrite )
+            if ( 0 != sem_post(g_pSemaphoreMPPDisplayFrameReadyWrite) )
+               log_softerror_and_alarm("Failed to signal semaphore for display frame ready.");
+            u32 uTimeNow = get_current_timestamp_ms();
+            if ( uTimeNow > g_uTimeMPPPeriodicChecks + 1000 )
+            {
+               g_uTimeMPPPeriodicChecks = uTimeNow;
+               _mpp_core_periodic_checks();
+            }
          }
       }
       
@@ -338,12 +373,17 @@ int mpp_start_decoding_thread()
 }
 
 
-int mpp_init(bool bUseH265Decoder)
+int mpp_init(bool bUseH265Decoder, int iMPPBuffersSize)
 {
-   log_line("[MPP] Doing MPP Initialization (for codec %s)...", (bUseH265Decoder?"H265":"H264"));
+   log_line("[MPP] Doing MPP Initialization (for codec %s, buffers size: %d)...", (bUseH265Decoder?"H265":"H264"), iMPPBuffersSize);
    g_MPPDecodeType = MPP_VIDEO_CodingAVC;
    if ( bUseH265Decoder )
       g_MPPDecodeType = MPP_VIDEO_CodingHEVC;
+
+   g_iMPPBuffersSize = iMPPBuffersSize;
+   if ( (g_iMPPBuffersSize < 5) || (g_iMPPBuffersSize >= MAX_VIDEO_FRAMES) )
+      g_iMPPBuffersSize = 32;
+     
    int iRes = mpp_check_support_format(MPP_CTX_DEC, g_MPPDecodeType);
    if ( iRes != 0 )
    {
@@ -378,6 +418,44 @@ int mpp_init(bool bUseH265Decoder)
       log_error_and_alarm("[MPP] Can't init MPP library for decoding. Exit.");
       return -1;
    }
+
+   if ( NULL != g_pSemaphoreMPPDisplayFrameReadyRead )
+      sem_close(g_pSemaphoreMPPDisplayFrameReadyRead);
+   if ( NULL != g_pSemaphoreMPPDisplayFrameReadyWrite )
+      sem_close(g_pSemaphoreMPPDisplayFrameReadyWrite);
+   
+   sem_unlink(SEMAPHORE_MPP_DISPLAY_FRAME_READY);
+   g_pSemaphoreMPPDisplayFrameReadyWrite = sem_open(SEMAPHORE_MPP_DISPLAY_FRAME_READY, O_CREAT | O_RDWR, S_IWUSR | S_IRUSR, 0);
+   if ( (NULL == g_pSemaphoreMPPDisplayFrameReadyWrite) || (SEM_FAILED == g_pSemaphoreMPPDisplayFrameReadyWrite) )
+   {
+      log_error_and_alarm("[RadioRx] Failed to create write semaphore: %s, try alternative.", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
+      g_pSemaphoreMPPDisplayFrameReadyWrite = sem_open(SEMAPHORE_MPP_DISPLAY_FRAME_READY, O_CREAT, S_IWUSR | S_IRUSR, 0); 
+      if ( (NULL == g_pSemaphoreMPPDisplayFrameReadyWrite) || (SEM_FAILED == g_pSemaphoreMPPDisplayFrameReadyWrite) )
+      {
+         log_error_and_alarm("[RadioRx] Failed to create write semaphore: %s", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
+         return -1;
+      }
+   }
+   log_line("Opened semaphore for signaling display frame ready: (%s)", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
+
+   g_pSemaphoreMPPDisplayFrameReadyRead = sem_open(SEMAPHORE_MPP_DISPLAY_FRAME_READY, O_RDWR);
+   if ( (NULL == g_pSemaphoreMPPDisplayFrameReadyRead) || (SEM_FAILED == g_pSemaphoreMPPDisplayFrameReadyRead) )
+   {
+      log_error_and_alarm("[RadioRx] Failed to create read semaphore: %s, try alternative.", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
+      g_pSemaphoreMPPDisplayFrameReadyRead = sem_open(SEMAPHORE_MPP_DISPLAY_FRAME_READY, O_CREAT, S_IWUSR | S_IRUSR, 0); 
+      if ( (NULL == g_pSemaphoreMPPDisplayFrameReadyRead) || (SEM_FAILED == g_pSemaphoreMPPDisplayFrameReadyRead) )
+      {
+         log_error_and_alarm("[RadioRx] Failed to create read semaphore: %s", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
+         return -1;
+      }
+   }
+   log_line("Opened semaphore for checking display frame ready: (%s)", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
+
+   int iSemVal = 0;
+   if ( 0 == sem_getvalue(g_pSemaphoreMPPDisplayFrameReadyRead, &iSemVal) )
+      log_line("Display frame ready semaphore initial value: %d", iSemVal);
+   else
+      log_softerror_and_alarm("Failed to get display frame ready semaphore value.");
 
    // Set MPP configuration and params
 
@@ -428,7 +506,7 @@ int mpp_uninit()
    {
       mpp_buffer_group_put(g_MPPBufferGroup);
       g_MPPBufferGroup = NULL;
-      for (int i=0; i<MAX_VIDEO_FRAMES; i++)
+      for (int i=0; i<g_iMPPBuffersSize; i++)
       {
          //drmModeRmFB(drm_fd, mpi.frame_to_drm[i].fb_id);
          //struct drm_mode_destroy_dumb dmdd;
@@ -444,6 +522,13 @@ int mpp_uninit()
    mpp_destroy(g_MPPCtx);
    free(g_pInputBuffer);
 
+   if ( NULL != g_pSemaphoreMPPDisplayFrameReadyRead )
+      sem_close(g_pSemaphoreMPPDisplayFrameReadyRead);
+   if ( NULL != g_pSemaphoreMPPDisplayFrameReadyWrite )
+      sem_close(g_pSemaphoreMPPDisplayFrameReadyWrite);
+
+   g_pSemaphoreMPPDisplayFrameReadyRead = NULL;
+   g_pSemaphoreMPPDisplayFrameReadyWrite = NULL;
    g_bMPPFramesBuffersInitialised = false;
    g_uTimeFirstFrame = 0;
    log_line("[MPP] Done MPP Un-initialization.");

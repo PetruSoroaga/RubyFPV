@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -164,6 +165,17 @@ void MenuSystem::onReturnFromChild(int iChildMenuId, int returnValue)
       hw_execute_bash_command(szBuff, NULL);
 
       hardware_reboot();
+      return;
+   }
+
+   if ( 5 == iChildMenuId/1000 )
+   {
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);      
+      valuesToUI();
+
+      if ( (NULL != g_pCurrentModel) && (! g_pCurrentModel->is_spectator) )
+      if ( pairing_isStarted() && link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
+         g_pCurrentModel->b_mustSyncFromVehicle = true;
       return;
    }
 
@@ -322,6 +334,14 @@ void MenuSystem::onSelectItem()
       log_line("MenuSystem: Changed controller developer mode flag to: %s", val?"true":"false");
       pCS->iDeveloperMode = val;
       save_ControllerSettings();
+      
+      if ( pCS->iDeveloperMode )
+      {
+         MenuConfirmation* pMC = new MenuConfirmation(L("Developer Mode"),L("Enabling developer mode will have an impact on performance. It is recomended you turn Developer Mode Off after you do the changes you want to do."), 5, true);
+         pMC->m_yPos = 0.3;
+         add_menu_to_stack(pMC);
+         return;
+      }
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);      
       valuesToUI();
 

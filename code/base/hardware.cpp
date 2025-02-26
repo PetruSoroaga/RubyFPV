@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -704,8 +705,8 @@ void hardware_enum_joystick_interfaces()
       if ( count_buttons > MAX_JOYSTICK_BUTTONS )
          count_buttons = MAX_JOYSTICK_BUTTONS;
 
-      for( int i=0; i<(int)strlen(name); i++ )
-         uid += name[i]*i;
+      for( int k=0; k<(int)strlen(name); k++ )
+         uid += name[k]*k;
       s_HardwareJoystickInfo[s_iHardwareJoystickCount].deviceIndex = i;
       strcpy(s_HardwareJoystickInfo[s_iHardwareJoystickCount].szName, name);
       s_HardwareJoystickInfo[s_iHardwareJoystickCount].uId = uid;
@@ -1521,12 +1522,8 @@ int hardware_try_mount_usb()
           continue;
        }
        log_line("[Hardware] Device [%s] is valid.", szToken);
-       if ( iValid )
-       {
-          iFoundUSBDevice = 1;
-          break;
-       }
-       szToken = strtok(NULL, " \n\r");
+       iFoundUSBDevice = 1;
+       break;
    }
 
    if ( 0 == iFoundUSBDevice )
@@ -1586,14 +1583,14 @@ int hardware_try_mount_usb()
       char* pTmp = &szOutput[0];
       while ((*pTmp) != 0 )
       {
-         if ( ((*pTmp) == 10) || ((*pTmp) == 13) || ((*pTmp) == '\t') || ((*pTmp) < 32) )
+         if ( (*pTmp) < 32 )
             *pTmp = ' ';
          pTmp++;
          iCountChars++;
       }
 
       log_line("[Hardware] USB stick name mapping: [%s], %d chars", szOutput, iCountChars);
-      char* szToken = strstr(szOutput, "->");
+      szToken = strstr(szOutput, "->");
       if ( NULL != szToken )
       {
          char* p = szToken;
@@ -1618,10 +1615,8 @@ int hardware_try_mount_usb()
                {
                   szTmp[i] = ' ';
                   if ( (szTmp[i+1] == 'n') || (szTmp[i+1] == 't') )
-                  if ( szTmp[i+1] != 0 )
                      szTmp[i+1] = ' ';
                   if ( szTmp[i+1] == 'x' )
-                  if ( szTmp[i+1] != 0 )
                   {
                      szTmp[i+1] = ' ';
                      if ( isdigit(szTmp[i+2]) )
@@ -1899,21 +1894,6 @@ int hardware_get_gpu_speed()
    #endif
 }
 
-int hardware_set_audio_output(int iAudioDevice, int iAudioVolume)
-{
-   #ifdef HW_PLATFORM_RASPBERRY
-   char szComm[256];
-   sprintf(szComm, "sudo amixer cset numid=1 %d%%", iAudioVolume);
-   hw_execute_bash_command(szComm, NULL);
-
-   if ( 1 == iAudioDevice )
-      hw_execute_bash_command("sudo amixer cset numid=3 2", NULL);
-   if ( 2 == iAudioDevice )
-      hw_execute_bash_command("sudo amixer cset numid=3 0", NULL);
-   #endif
-   return 1;
-}
-
 void hardware_set_oipc_freq_boost(int iFreqCPUMhz, int iGPUBoost)
 {
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
@@ -2004,10 +1984,10 @@ void _hardware_set_int_affinity_core(const char* szIntName, int iCoreIndex)
       if ( 0 == iLen )
          break;
       bool bHasDigits = false;
-      for( int i=0; i<iLen; i++ )
+      for( int k=0; k<iLen; k++ )
       {
-         if ( ! isdigit(szOutput[i]) )
-            szOutput[i] = ' ';
+         if ( ! isdigit(szOutput[k]) )
+            szOutput[k] = ' ';
          else
             bHasDigits = true;
       }

@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -613,6 +614,7 @@ void log_line(const char* format, ...)
       vsnprintf(szBuff,MAX_SERVICE_LOG_ENTRY_LENGTH-1, format, args);
       szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-1] = 0;
       _log_service_entry(szBuff);
+      va_end(args);
       return;
    }
 
@@ -661,6 +663,7 @@ void log_line(const char* format, ...)
          fclose(fdAux);
       }
    }
+   va_end(args);
 
    if ( ! s_logDisabledStdout )
       printf("\n");
@@ -734,6 +737,7 @@ void log_line_forced_to_file(const char* format, ...)
    if ( NULL != fd )
      fprintf(fd, "\n");  
 
+   va_end(args);
    //if ( 0 == lock )
    //   flock(fileno(fd), LOCK_UN);
    if ( NULL != fd )
@@ -758,6 +762,7 @@ void log_line_watchdog(const char* format, ...)
       vsnprintf(szBuff, MAX_SERVICE_LOG_ENTRY_LENGTH-1, format, args);
       szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-1] = 0;
       _log_service_entry(szBuff);
+      va_end(args);
       return;
    }
 
@@ -794,6 +799,7 @@ void log_line_watchdog(const char* format, ...)
    if ( NULL != fd2 )
      fprintf(fd2, "\n");  
 
+   va_end(args);
    //if ( 0 == lock )
    //   flock(fileno(fd), LOCK_UN);
    if ( NULL != fd )
@@ -821,6 +827,7 @@ void log_line_commands(const char* format, ...)
       vsnprintf(szBuff, MAX_SERVICE_LOG_ENTRY_LENGTH-1, format, args);
       szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-1] = 0;
       _log_service_entry(szBuff);
+      va_end(args);
       return;
    }
 
@@ -857,6 +864,7 @@ void log_line_commands(const char* format, ...)
    if ( NULL != fd2 )
      fprintf(fd2, "\n");  
 
+   va_end(args);
    //if ( 0 == lock )
    //   flock(fileno(fd), LOCK_UN);
    if ( NULL != fd )
@@ -1165,6 +1173,7 @@ void log_error_and_alarm(const char* format, ...)
       vsnprintf(szBuff, MAX_SERVICE_LOG_ENTRY_LENGTH-1, format, args);
       szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-1] = 0;
       _log_service_entry_error(szBuff);
+      va_end(args);
       return;
    }
 
@@ -1232,6 +1241,7 @@ void log_error_and_alarm(const char* format, ...)
    if ( NULL != fd2 )
      fprintf(fd2, "\n");  
 
+   va_end(args);
    //if ( 0 == lock )
    //   flock(fileno(fd), LOCK_UN);
    //if ( 0 == lock2 )
@@ -1263,6 +1273,7 @@ void log_softerror_and_alarm(const char* format, ...)
       vsnprintf(szBuff, MAX_SERVICE_LOG_ENTRY_LENGTH-1, format, args);
       szBuff[MAX_SERVICE_LOG_ENTRY_LENGTH-1] = 0;
       _log_service_entry_softerror(szBuff);
+      va_end(args);
       return;
    }
 
@@ -1330,6 +1341,7 @@ void log_softerror_and_alarm(const char* format, ...)
    if ( NULL != fd2 )
      fprintf(fd2, "\n");  
 
+   va_end(args);
    //if ( 0 == lock )
    //   flock(fileno(fd), LOCK_UN);
    //if ( 0 == lock2 )

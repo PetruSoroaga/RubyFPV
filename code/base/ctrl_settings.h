@@ -76,6 +76,7 @@ typedef struct
    int iRadioTxUsesPPCAP;
    int iRadioBypassSocketBuffers;
    int iStreamerOutputMode; // 0 - sm, 1 - pipe, 2 - udp
+   int iVideoMPPBuffersSize;
 } ControllerSettings;
 
 int save_ControllerSettings();

@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
          * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -55,7 +56,7 @@ MenuVehicleVideo::MenuVehicleVideo(void)
 
    char szCam[256];
    char szCam2[128];
-   str_get_hardware_camera_type_string( g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType, szCam2);
+   str_get_hardware_camera_type_string_to_string(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType, szCam2);
    sprintf(szCam, "Video Settings, Active Camera: %s", szCam2);
    //addTopLine(szCam);
    setTitle(szCam);
@@ -292,7 +293,8 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
       memcpy(&profiles[i], &(g_pCurrentModel->video_link_profiles[i]), sizeof(type_video_link_profile));
 
-   type_video_link_profile* pProfile = &(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]);
+   int iCurrentProfile = g_pCurrentModel->video_params.user_selected_video_link_profile;
+   type_video_link_profile* pProfile = &(profiles[iCurrentProfile]);
 
    int videoResolutionIndex = m_pItemsSelect[0]->getSelectedIndex();
    bool forceUpdates = false;
@@ -355,6 +357,29 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
       }
    }
 
+   if ( (pProfile->width != g_pCurrentModel->video_link_profiles[iCurrentProfile].width) ||
+        (pProfile->height != g_pCurrentModel->video_link_profiles[iCurrentProfile].height) )
+   {
+      if ( pProfile->width > 1500 )
+      if ( pProfile->fps > 60 )
+         pProfile->fps = 60;
+      if ( pProfile->width > 1980 )
+      if ( pProfile->fps > 30 )
+         pProfile->fps = 30;
+      if ( pProfile->width >= 2048 )
+      if ( pProfile->fps > 20 )
+         pProfile->fps = 20;
+   }
+
+   #if defined (HW_PLATFORM_RASPBERRY)
+   if ( (pProfile->width > 1980) || (pProfile->height > 1080) )
+   {
+      addMessage(L("Can't use 2k,4k resolutions on Raspberry Pi controllers."));
+      valuesToUI();
+      return;
+   }
+   #endif
+
    pProfile->keyframe_ms = m_pItemsSlider[1]->getCurrentValue();
    pProfile->bitrate_fixed_bps = m_pItemsSlider[2]->getCurrentValue()*1000*1000/4;
 
@@ -363,20 +388,20 @@ void MenuVehicleVideo::sendVideoLinkProfiles()
       pProfile->uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ONE_WAY_FIXED_VIDEO;
 
    if ( ! forceUpdates )
-   if ( pProfile->uProfileEncodingFlags == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags )
-   if ( pProfile->width == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].width )
-   if ( pProfile->height == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].height )
-   if ( pProfile->fps == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps )
-   if ( pProfile->keyframe_ms == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms )
-   if ( pProfile->bitrate_fixed_bps == g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].bitrate_fixed_bps )
+   if ( pProfile->uProfileEncodingFlags == g_pCurrentModel->video_link_profiles[iCurrentProfile].uProfileEncodingFlags )
+   if ( pProfile->width == g_pCurrentModel->video_link_profiles[iCurrentProfile].width )
+   if ( pProfile->height == g_pCurrentModel->video_link_profiles[iCurrentProfile].height )
+   if ( pProfile->fps == g_pCurrentModel->video_link_profiles[iCurrentProfile].fps )
+   if ( pProfile->keyframe_ms == g_pCurrentModel->video_link_profiles[iCurrentProfile].keyframe_ms )
+   if ( pProfile->bitrate_fixed_bps == g_pCurrentModel->video_link_profiles[iCurrentProfile].bitrate_fixed_bps )
       return;
 
    // Propagate changes to lower video profiles
 
    propagate_video_profile_changes( &g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], pProfile, &(profiles[0]));
 
-   if ( pProfile->fps != g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps )
-     log_line("Sending new video FPS %d -> %d", g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps, pProfile->fps);
+   if ( pProfile->fps != g_pCurrentModel->video_link_profiles[iCurrentProfile].fps )
+     log_line("Sending new video FPS %d -> %d", g_pCurrentModel->video_link_profiles[iCurrentProfile].fps, pProfile->fps);
    log_line("Sending video encoding flags: %s", str_format_video_encoding_flags(pProfile->uProfileEncodingFlags));
       
    u8 buffer[1024];

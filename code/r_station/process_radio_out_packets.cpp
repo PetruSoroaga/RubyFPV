@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -68,24 +69,6 @@ void preprocess_radio_out_packet(u8* pPacketBuffer, int iPacketLength)
       if ( pPH->packet_type == PACKET_TYPE_COMMAND )
       {
          t_packet_header_command* pPHC = (t_packet_header_command*)(pPacketBuffer + sizeof(t_packet_header));
-         /*
-         if ( (pPHC->command_type & COMMAND_TYPE_MASK) == COMMAND_ID_SET_CAMERA_PARAMETERS )
-         {
-            type_camera_parameters* pPHCamP = (type_camera_parameters*)(pPacketBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
-
-            int iProfile = pPHCamP->iCurrentProfile;
-            
-            log_line("Sending cam params: br: %d, co: %d, sa: %d, sh: %d, hue: %d, exp: %d, shutter: %d, drc: %d",
-               (int)pPHCamP->profiles[iProfile].brightness,
-               (int)pPHCamP->profiles[iProfile].contrast,
-               (int)pPHCamP->profiles[iProfile].saturation,
-               (int)pPHCamP->profiles[iProfile].sharpness,
-               (int)pPHCamP->profiles[iProfile].hue,
-               (int)pPHCamP->profiles[iProfile].exposure,
-               (int)pPHCamP->profiles[iProfile].shutterspeed,
-               (int)pPHCamP->profiles[iProfile].drc );
-         }
-         */
          if ( ((pPHC->command_type & COMMAND_TYPE_MASK) == COMMAND_ID_SET_VIDEO_PARAMS) ||
               ((pPHC->command_type & COMMAND_TYPE_MASK) == COMMAND_ID_UPDATE_VIDEO_LINK_PROFILES) ||
               ((pPHC->command_type & COMMAND_TYPE_MASK) == COMMAND_ID_RESET_VIDEO_LINK_PROFILE) ||

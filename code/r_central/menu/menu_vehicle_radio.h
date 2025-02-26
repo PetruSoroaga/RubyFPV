@@ -9,6 +9,7 @@ class MenuVehicleRadioConfig: public Menu
    public:
       MenuVehicleRadioConfig();
       virtual ~MenuVehicleRadioConfig();
+      virtual void onAddToStack();
       virtual void onShow();
       virtual int onBack();
       virtual void onReturnFromChild(int iChildMenuId, int returnValue);

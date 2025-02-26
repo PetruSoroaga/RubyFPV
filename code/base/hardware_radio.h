@@ -193,6 +193,7 @@ int hardware_install_driver_rtl8733bu(int iEchoToConsole);
 void hardware_install_drivers(int iEchoToConsole);
 int hardware_initialize_radio_interface(int iInterfaceIndex, u32 uDelayMS);
 
+int hardware_radio_get_driver_id_card_model(int iCardModel);
 int hardware_radio_get_driver_id_for_product_id(const char* szProdId);
 
 int hardware_get_radio_interfaces_count();

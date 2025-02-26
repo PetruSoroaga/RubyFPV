@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -33,10 +34,13 @@
 #include "../base/config.h"
 #include "../base/hardware.h"
 #include "../base/hardware_i2c.h"
+#include "../base/hardware_cam_maj.h"
 #include "../base/hw_procs.h"
 #include "../base/radio_utils.h"
 #include <math.h>
 #include <semaphore.h>
+#include <unistd.h>
+#include <sys/types.h>
 
 #include "shared_vars.h"
 #include "timers.h"
@@ -161,6 +165,7 @@ void vehicle_stop_tx_router()
    hw_stop_process(szRouter);
 }
 
+#if defined (HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
 static void * _thread_audio_capture(void *argument)
 {
    s_bAudioCaptureIsStarted = true;
@@ -234,6 +239,12 @@ static void * _thread_audio_capture(void *argument)
    s_bAudioCaptureIsStarted = false;
    return NULL;
 }
+#endif
+
+bool vehicle_is_audio_capture_started()
+{
+  return s_bAudioCaptureIsStarted;
+}
 
 void vehicle_launch_audio_capture(Model* pModel)
 {
@@ -243,14 +254,21 @@ void vehicle_launch_audio_capture(Model* pModel)
    if ( NULL == pModel || (! pModel->audio_params.has_audio_device) || (! pModel->audio_params.enabled) )
       return;
 
+   s_bAudioCaptureIsStarted = true;
+
+   #if defined (HW_PLATFORM_RASPBERRY)
    if ( 0 != pthread_create(&s_pThreadAudioCapture, NULL, &_thread_audio_capture, g_pCurrentModel) )
    {
       log_softerror_and_alarm("Failed to create thread for audio capture.");
       s_bAudioCaptureIsStarted = false;
       return;
    }
-   s_bAudioCaptureIsStarted = true;
    log_line("Created thread for audio capture.");
+   #endif
+
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   hardware_camera_maj_enable_audio(true, 4000*(1+pModel->audio_params.quality), pModel->audio_params.volume);
+   #endif
 }
 
 void vehicle_stop_audio_capture(Model* pModel)
@@ -263,24 +281,42 @@ void vehicle_stop_audio_capture(Model* pModel)
       return;
 
    //hw_execute_bash_command("kill -9 $(pidof arecord) 2>/dev/null", NULL);
+   #if defined (HW_PLATFORM_RASPBERRY)
    hw_stop_process("arecord");
+   #endif
+
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   hardware_camera_maj_enable_audio(false, 0, 0);
+   #endif
 }
 
 static bool s_bThreadBgAffinitiesStarted = false;
 static int s_iCPUCoresCount = -1;
 static bool s_bAdjustAffinitiesIsVeyeCamera = false;
+static bool s_bLaunchedAffinitiesInThread = false;
 
 static void * _thread_adjust_affinities_vehicle(void *argument)
 {
    s_bThreadBgAffinitiesStarted = true;
+   if ( s_bLaunchedAffinitiesInThread )
+      sched_yield();
    bool bVeYe = false;
    if ( NULL != argument )
    {
       bool* pB = (bool*)argument;
       bVeYe = *pB;
    }
+
    log_line("Started background thread to adjust processes affinities (arg: %p, veye: %d (%d))...", argument, (int)bVeYe, (int)s_bAdjustAffinitiesIsVeyeCamera);
-   
+   int iSelfPID = getpid();
+   int iSelfId = 0;
+   #if defined(HW_PLATFORM_RADXA_ZERO3) || defined(HW_PLATFORM_OPENIPC_CAMERA)
+   iSelfId = gettid();
+   #endif
+
+   log_line("[BGThread] Background thread id: %d, PID: %d", iSelfId, iSelfPID);
+   if ( ! s_bLaunchedAffinitiesInThread )
+      iSelfId = 0;
    if ( s_iCPUCoresCount < 1 )
    {
       s_iCPUCoresCount = 1;
@@ -305,33 +341,33 @@ static void * _thread_adjust_affinities_vehicle(void *argument)
    log_line("%d CPU cores, doing affinity adjustments for processes...", s_iCPUCoresCount);
    if ( s_iCPUCoresCount > 2 )
    {
-      hw_set_proc_affinity("ruby_rt_vehicle", 1,1);
-      hw_set_proc_affinity("ruby_tx_telemetry", 2,2);
+      hw_set_proc_affinity("ruby_rt_vehicle", iSelfId, 1,1);
+      hw_set_proc_affinity("ruby_tx_telemetry", iSelfId, 2,2);
       // To fix
-      //hw_set_proc_affinity("ruby_rx_rc", 2,2);
+      //hw_set_proc_affinity("ruby_rx_rc", iSelfId, 2,2);
 
       //#if defined (HW_PLATFORM_OPENIPC_CAMERA)
-      //hw_set_proc_affinity("majestic", 3, s_iCPUCoresCount);
+      //hw_set_proc_affinity("majestic", iSelfId, 3, s_iCPUCoresCount);
       //#endif
 
       #ifdef HW_PLATFORM_RASPBERRY
       if ( bVeYe )
-         hw_set_proc_affinity(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, 3, s_iCPUCoresCount);
+         hw_set_proc_affinity(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, iSelfId, 3, s_iCPUCoresCount);
       else
-         hw_set_proc_affinity(VIDEO_RECORDER_COMMAND, 3, s_iCPUCoresCount);
+         hw_set_proc_affinity(VIDEO_RECORDER_COMMAND, iSelfId, 3, s_iCPUCoresCount);
       #endif
    }
    else
    {
-      hw_set_proc_affinity("ruby_rt_vehicle", 1,1);
+      hw_set_proc_affinity("ruby_rt_vehicle", iSelfId, 1,1);
       //#if defined (HW_PLATFORM_OPENIPC_CAMERA)
-      //hw_set_proc_affinity("majestic", 2, s_iCPUCoresCount);
+      //hw_set_proc_affinity("majestic", iSelfId, 2, s_iCPUCoresCount);
       //#endif
       #ifdef HW_PLATFORM_RASPBERRY
       if ( bVeYe )
-         hw_set_proc_affinity(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, 2, s_iCPUCoresCount);
+         hw_set_proc_affinity(VIDEO_RECORDER_COMMAND_VEYE_SHORT_NAME, iSelfId, 2, s_iCPUCoresCount);
       else
-         hw_set_proc_affinity(VIDEO_RECORDER_COMMAND, 2, s_iCPUCoresCount);
+         hw_set_proc_affinity(VIDEO_RECORDER_COMMAND, iSelfId, 2, s_iCPUCoresCount);
       #endif
    }
 
@@ -354,6 +390,12 @@ void vehicle_check_update_processes_affinities(bool bUseThread, bool bVeYe)
       (bUseThread?"Yes":"No"), (s_bAdjustAffinitiesIsVeyeCamera?"Yes":"No"));
    #endif
 
+   if ( s_bThreadBgAffinitiesStarted )
+   {
+      log_line("A background thread to adjust processes affinities is already running. Do nothing.");
+      return;
+   }
+   s_bLaunchedAffinitiesInThread = bUseThread;
    if ( ! bUseThread )
    {
       _thread_adjust_affinities_vehicle(&s_bAdjustAffinitiesIsVeyeCamera);
@@ -361,20 +403,25 @@ void vehicle_check_update_processes_affinities(bool bUseThread, bool bVeYe)
       return;
    }
    
-   if ( s_bThreadBgAffinitiesStarted )
-   {
-      log_line("A background thread to adjust processes affinities is already running. Do nothing.");
-      return;
-   }
    s_bThreadBgAffinitiesStarted = true;
    pthread_t pThreadBgAffinities;
+   pthread_attr_t attr;
+   struct sched_param params;
 
-   if ( 0 != pthread_create(&pThreadBgAffinities, NULL, &_thread_adjust_affinities_vehicle, &s_bAdjustAffinitiesIsVeyeCamera) )
+   pthread_attr_init(&attr);
+   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+   pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+   pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
+   params.sched_priority = 0;
+   pthread_attr_setschedparam(&attr, &params);
+
+   if ( 0 != pthread_create(&pThreadBgAffinities, &attr, &_thread_adjust_affinities_vehicle, &s_bAdjustAffinitiesIsVeyeCamera) )
    {
       log_error_and_alarm("Failed to create thread for adjusting processes affinities.");
+      pthread_attr_destroy(&attr);
       s_bThreadBgAffinitiesStarted = false;
       return;
    }
-
+   pthread_attr_destroy(&attr);
    log_line("Created thread for adjusting processes affinities (veye: %s)", (s_bAdjustAffinitiesIsVeyeCamera?"Yes":"No"));
 }

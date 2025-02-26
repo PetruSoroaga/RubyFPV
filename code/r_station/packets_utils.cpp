@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -248,14 +249,11 @@ int compute_packet_uplink_datarate(int iVehicleRadioLink, int iRadioInterface, t
       bUsesHT40 = true;
 
    int nVideoProfileAdaptive = -1;
-   if ( NULL != g_pCurrentModel )
-   {
-      type_global_state_vehicle_runtime_info* pRuntimeInfo = getVehicleRuntimeInfo(g_pCurrentModel->uVehicleId);
-      if ( NULL != pRuntimeInfo )
-         nVideoProfileAdaptive = pRuntimeInfo->uPendingVideoProfileToSet;
-      if ( (nVideoProfileAdaptive < 0) || (nVideoProfileAdaptive >= VIDEO_PROFILE_LAST) )
-         nVideoProfileAdaptive = -1;
-   }
+   type_global_state_vehicle_runtime_info* pRuntimeInfo = getVehicleRuntimeInfo(g_pCurrentModel->uVehicleId);
+   if ( NULL != pRuntimeInfo )
+      nVideoProfileAdaptive = pRuntimeInfo->uPendingVideoProfileToSet;
+   if ( (nVideoProfileAdaptive < 0) || (nVideoProfileAdaptive >= VIDEO_PROFILE_LAST) )
+      nVideoProfileAdaptive = -1;
 
    switch ( pRadioLinksParams->uUplinkDataDataRateType[iVehicleRadioLink] )
    {
@@ -648,7 +646,6 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSen
          g_pProcessStats->lastRadioTxTime = g_TimeNow;
 
       #ifdef LOG_RAW_TELEMETRY
-      t_packet_header* pPH = (t_packet_header*) pPacketData;
       if ( pPH->packet_type == PACKET_TYPE_TELEMETRY_RAW_UPLOAD )
       {
          t_packet_header_telemetry_raw* pPHTR = (t_packet_header_telemetry_raw*)(pPacketData + sizeof(t_packet_header));

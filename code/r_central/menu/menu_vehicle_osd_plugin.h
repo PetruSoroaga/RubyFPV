@@ -27,6 +27,9 @@ class MenuVehicleOSDPlugin: public Menu
       void readPlugin();
       void stopAction();
 
+      void onMinusAction();
+      void onPlusAction();
+
       MenuItemSlider* m_pItemsSlider[5];
       MenuItemSelect* m_pItemsSelect[MAX_PLUGIN_SETTINGS+10];
       MenuItemRange* m_pItemsRange[MAX_PLUGIN_SETTINGS];

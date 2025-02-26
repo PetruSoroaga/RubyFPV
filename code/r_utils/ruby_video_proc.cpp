@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -176,7 +177,7 @@ bool store_video()
    str_sanitize_filename(vehicle_name);
 
    u32 timeNow = get_current_timestamp_ms();
-   sprintf(szOutFileInfo, FILE_FORMAT_VIDEO_INFO, vehicle_name, g_iBootCount, timeNow/1000, timeNow%1000 );
+   sprintf(szOutFileInfo, FILE_FORMAT_VIDEO_INFO, vehicle_name, g_iBootCount, (int)timeNow/1000, (int)timeNow%1000 );
 
    strncpy(szOutFileVideo, szOutFileInfo, sizeof(szOutFileVideo)/sizeof(szOutFileVideo[0]));
    szOutFileVideo[strlen(szOutFileVideo)-4] = 'h';
@@ -340,7 +341,7 @@ int main(int argc, char *argv[])
    if ( g_bDebug )
       log_enable_stdout();
    
-   char szComm[256];
+   char szComm[1024];
    sprintf(szComm, "chmod 777 %s 2>&1 1>/dev/null", FOLDER_MEDIA);
    hw_execute_bash_command(szComm, NULL);
    sprintf(szComm, "chmod 777 %s* 2>&1 1>/dev/null", FOLDER_MEDIA);
@@ -351,7 +352,6 @@ int main(int argc, char *argv[])
       log_line("Processing input video file to store it to media folder...");
       store_video();
       log_line("Remove temporary recording files...");
-      char szComm[1024];
       sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_VIDEO_FILE_INFO);
       hw_execute_bash_command(szComm, NULL);
       sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_VIDEO_FILE);

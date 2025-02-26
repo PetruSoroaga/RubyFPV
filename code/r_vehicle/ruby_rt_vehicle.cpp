@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -192,9 +193,9 @@ bool links_set_cards_frequencies_and_params(int iLinkId)
             u32 uMCSTR = (g_pCurrentModel->radioLinksParams.link_radio_flags[nRadioLinkId] & RADIO_FLAGS_SIK_MCSTR)? 1:0;
 
             bool bDataRateOk = false;
-            for( int i=0; i<getSiKAirDataRatesCount(); i++ )
+            for( int k=0; k<getSiKAirDataRatesCount(); k++ )
             {
-               if ( (int)uDataRate == getSiKAirDataRates()[i] )
+               if ( (int)uDataRate == getSiKAirDataRates()[k] )
                {
                   bDataRateOk = true;
                   break;
@@ -796,11 +797,9 @@ int process_and_send_packets()
             pPHRTE->downlink_tx_video_bitrate_bps = g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(500);
             pPHRTE->downlink_tx_video_all_bitrate_bps = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverageLastMs(500);
             if ( NULL != g_pProcessorTxAudio )
-            {
                pPHRTE->downlink_tx_data_bitrate_bps += g_pProcessorTxAudio->getAverageAudioInputBps();
-               pPHRTE->downlink_tx_video_all_bitrate_bps += g_pProcessorTxAudio->getAverageAudioInputBps();
-            }
-            pPHRTE->downlink_tx_data_bitrate_bps = 0;
+            else
+               pPHRTE->downlink_tx_data_bitrate_bps = 0;
 
             pPHRTE->downlink_tx_video_packets_per_sec = s_countTXVideoPacketsOutPerSec[0] + s_countTXVideoPacketsOutPerSec[1];
             pPHRTE->downlink_tx_data_packets_per_sec = s_countTXDataPacketsOutPerSec[0] + s_countTXDataPacketsOutPerSec[1];
@@ -902,8 +901,10 @@ void cleanUp()
    radio_links_close_rxtx_radio_interfaces();
 
    if ( NULL != g_pProcessorTxAudio )
+   {
+      g_pProcessorTxAudio->stopLocalRecording();
       g_pProcessorTxAudio->closeAudioStream();
-
+   }
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->audio_params.has_audio_device) )
       vehicle_stop_audio_capture(g_pCurrentModel);
 
@@ -1483,6 +1484,16 @@ int main(int argc, char *argv[])
    */
 
    g_pProcessorTxAudio = new ProcessorTxAudio();
+   g_pProcessorTxAudio->init(g_pCurrentModel);
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->audio_params.has_audio_device) && (g_pCurrentModel->audio_params.enabled) )
+   {
+      vehicle_launch_audio_capture(g_pCurrentModel);
+      g_pProcessorTxAudio->openAudioStream();
+      // To remove
+      g_pProcessorTxAudio->startLocalRecording();
+   }
+   else
+      log_line("Start sequence: Audio is not enabled (has device: %s, enabled: %s).", g_pCurrentModel->audio_params.has_audio_device?"yes":"no", g_pCurrentModel->audio_params.enabled?"yes":"no");
 
    log_line("Start sequence: Done creating audio processor.");
 
@@ -1758,6 +1769,11 @@ int _main_loop_try_read_camera()
       }
       g_pProcessStats->uLoopSubStep = 9;
 
+      // Send audio packets if any
+      if ( g_pCurrentModel->audio_params.has_audio_device && g_pCurrentModel->audio_params.enabled )
+      if ( NULL != g_pProcessorTxAudio )
+         g_pProcessorTxAudio->sendAudioPackets();
+
       // Intermix video packets and try again to see if we got any new high priority packets
       while ( g_pVideoTxBuffers->hasPendingPacketsToSend() )
       {
@@ -1922,19 +1938,16 @@ void _main_loop()
    //-------------------------------------------
    // Process IPCs
 
-   if ( (g_CoutersMainLoop.uCounter % 10) == 0 ) // execute only 1/10th times
+   static u32 s_uMainLoopIPCCheckLastTime = 0;
+   if ( g_TimeNow >= s_uMainLoopIPCCheckLastTime + 10 )
    {
-      static u32 s_uMainLoopIPCCheckLastTime = 0;
-      if ( g_TimeNow >= s_uMainLoopIPCCheckLastTime + 10 )
-      {
-         s_uMainLoopIPCCheckLastTime = g_TimeNow;
+      s_uMainLoopIPCCheckLastTime = g_TimeNow;
 
-         _read_ipc_pipes(g_TimeNow);
-         g_pProcessStats->uLoopSubStep = 28;
+      _read_ipc_pipes(g_TimeNow);
+      g_pProcessStats->uLoopSubStep = 28;
 
-         _consume_ipc_messages();
-         g_pProcessStats->uLoopSubStep = 29;
-      }
+      _consume_ipc_messages();
+      g_pProcessStats->uLoopSubStep = 29;
    }
 
    // Send radio packets right away if:
@@ -2018,7 +2031,6 @@ void _main_loop()
 
    if ( NULL != g_pProcessorTxAudio )
       g_pProcessorTxAudio->tryReadAudioInputStream();
-
    g_pProcessStats->uLoopSubStep = 51;
    //----------------------------------------------
    // Other stuff

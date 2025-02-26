@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -62,6 +63,15 @@ MenuVehicleRadioConfig::MenuVehicleRadioConfig(void)
       m_IndexConfigureLinks[i] = -1;
       m_IndexTxPowers[i] = -1;
    }
+}
+
+MenuVehicleRadioConfig::~MenuVehicleRadioConfig()
+{
+}
+
+void MenuVehicleRadioConfig::onAddToStack()
+{
+   Menu::onAddToStack();
 
    bool bShowTxWarning = false;
    for( int i=0; i<g_pCurrentModel->radioInterfacesParams.interfaces_count; i++ )
@@ -80,17 +90,14 @@ MenuVehicleRadioConfig::MenuVehicleRadioConfig(void)
 
    if ( bShowTxWarning )
    {
+      char szText[256];
       if ( 1 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
-         addMessage2(0, L("Unknown Tx Power"), L("Your radio interface has multiple cloned variants manufactured. Tx power varies depending on clone manufacturer, so a certain value can't be established."));
+         sprintf(szText, L("Your radio interface (%s) has multiple cloned variants manufactured. Tx power varies depending on clone manufacturer, so a certain value can't be established."), str_get_radio_card_model_string(CARD_MODEL_RTL8812AU_DUAL_ANTENNA));
       else
-         addMessage2(0, L("Unknown Tx Power"), L("Some of your radio interfaces have multiple cloned variants manufactured. Tx power varies depending on clone manufacturer, so a certain value can't be established."));
+         sprintf(szText, L("Some of your radio interfaces (%s) have multiple cloned variants manufactured. Tx power varies depending on clone manufacturer, so a certain value can't be established."), str_get_radio_card_model_string(CARD_MODEL_RTL8812AU_DUAL_ANTENNA));
+         
+      addMessage2(0, L("Variable Tx Power"),szText);
    }
-
-   valuesToUI();
-}
-
-MenuVehicleRadioConfig::~MenuVehicleRadioConfig()
-{
 }
 
 void MenuVehicleRadioConfig::populate()

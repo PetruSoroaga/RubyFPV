@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -309,6 +310,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
 {
    log_line("Received local notification to reload model. Change type: %d (%s), from component id: %d (%s)", changeType, str_get_model_change_type(changeType), fromComponentId, str_get_component_id(fromComponentId));
    log_line("Developer mode is: %s", g_bDeveloperMode?"on":"off");
+   
    if ( changeType == MODEL_CHANGED_DEBUG_MODE )
    {
       log_line("Received notification that developer mode changed from %s to %s",
@@ -336,12 +338,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       ruby_ipc_channel_send_message(s_fIPCRouterToCommands, (u8*)pPH, pPH->total_length);
       return;
    }
-
-   if ( changeType == MODEL_CHANGED_CAMERA_PARAMS )
-   {
-      log_line("Received local notification that camera parameters have changed.");
-   }
-
 
    if ( changeType == MODEL_CHANGED_SERIAL_PORTS )
    {
@@ -576,15 +572,43 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    if ( changeType == MODEL_CHANGED_AUDIO_PARAMS )
    {
       log_line("Received notification that audio parameters have changed.");
-      if ( NULL != g_pProcessorTxAudio )
-         g_pProcessorTxAudio->closeAudioStream();
-      if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->audio_params.has_audio_device) )
-         vehicle_stop_audio_capture(g_pCurrentModel);
 
-      if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->audio_params.has_audio_device) && (g_pCurrentModel->audio_params.enabled) )
+      if ( oldAudioParams.quality != g_pCurrentModel->audio_params.quality )
+      {
+         #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+         video_source_majestic_clear_audio_buffers();
+         hardware_camera_maj_set_audio_quality(4000*(1+g_pCurrentModel->audio_params.quality));
+         #endif
+      }
+      else if ( oldAudioParams.volume != g_pCurrentModel->audio_params.volume )
+      {
+         #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+         video_source_majestic_clear_audio_buffers();
+         hardware_camera_maj_set_audio_volume(g_pCurrentModel->audio_params.volume);
+         #endif
+      }
+
+      if ( g_pCurrentModel->audio_params.has_audio_device && g_pCurrentModel->audio_params.enabled )
+      if ( ! vehicle_is_audio_capture_started() )
       {
          vehicle_launch_audio_capture(g_pCurrentModel);
-         g_pProcessorTxAudio->openAudioStream();
+         if ( NULL != g_pProcessorTxAudio )
+            g_pProcessorTxAudio->openAudioStream();
+      }
+
+      if ( (!g_pCurrentModel->audio_params.has_audio_device) || (!g_pCurrentModel->audio_params.enabled) )
+      if ( vehicle_is_audio_capture_started() )
+      {
+         if ( NULL != g_pProcessorTxAudio )
+            g_pProcessorTxAudio->closeAudioStream();
+         vehicle_stop_audio_capture(g_pCurrentModel);
+      }
+
+      if ( (oldAudioParams.uPacketLength != g_pCurrentModel->audio_params.uPacketLength) ||
+           (oldAudioParams.uECScheme != g_pCurrentModel->audio_params.uECScheme) )
+      {
+         if ( NULL != g_pProcessorTxAudio )
+            g_pProcessorTxAudio->resetState(g_pCurrentModel);
       }
       return;
    }
@@ -810,28 +834,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       }
  */
       return;
-   }
-
-   if ( changeType == MODEL_CHANGED_USER_SELECTED_VIDEO_PROFILE )
-   {
-      log_line("Received local notification that the user selected video profile has changed.");
-
-      int iIPQuantizationDelta = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].iIPQuantizationDelta;
-      int iIPQuantizationDeltaNew = iExtraParam - 100;
-      char szProfile[64];
-      strcpy(szProfile, str_get_video_profile_name(adaptive_video_get_current_active_video_profile()));
-      log_line("Received local notification that video IP quantization delta was changed by user (from %d to %d) (current video profile: %s, user selected video profile: %s",
-         iIPQuantizationDelta,
-         iIPQuantizationDeltaNew,
-         szProfile,
-         str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile));
-
-      if ( adaptive_video_get_current_active_video_profile() == g_pCurrentModel->video_params.user_selected_video_link_profile )
-      {
-         if ( g_pCurrentModel->hasCamera() )
-         if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-            hardware_camera_maj_set_qpdelta(iIPQuantizationDeltaNew);
-      }
    }
 
    if ( changeType == MODEL_CHANGED_RADIO_LINK_CAPABILITIES )
@@ -1126,15 +1128,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    if ( bMustReinitVideo )
       process_data_tx_video_signal_model_changed();
 
-   if ( 0 != memcmp(&oldAudioParams, &(g_pCurrentModel->audio_params), sizeof(audio_parameters_t)) )
-   {
-      if ( NULL != g_pProcessorTxAudio )
-      {
-         g_pProcessorTxAudio->closeAudioStream();
-         g_pProcessorTxAudio->openAudioStream();
-      }
-   }
-
    // Signal other components about the model change
 
    if ( bMustSignalOtherComponents )
@@ -1271,7 +1264,13 @@ void process_local_control_packet(t_packet_header* pPH)
 
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM )
    {
-      log_line("Received controll message to update video capture program. Parameter: %u (%s)", pPH->vehicle_id_dest & 0xFF, str_get_model_change_type((int)(pPH->vehicle_id_dest & 0xFF)));
+      int iChangeType = (int)(pPH->vehicle_id_dest & 0xFF);
+      log_line("Received controll message to update video capture program. Parameter: %u (%s)", pPH->vehicle_id_dest & 0xFF, str_get_model_change_type(iChangeType));
+      if ( MODEL_CHANGED_USER_SELECTED_VIDEO_PROFILE == iChangeType )
+      {
+          adaptive_video_init();
+      }
+
       if ( g_pCurrentModel->hasCamera() )
          video_source_capture_mark_needs_update_or_restart(pPH->vehicle_id_dest);
       return;

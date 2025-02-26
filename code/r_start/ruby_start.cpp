@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -320,10 +321,16 @@ void _check_update_drivers_on_update()
    bool bNeedsInstall = false;
    hw_execute_bash_command("lsmod | grep 88XXau", szOutput);
    if ( strlen(szOutput) < 6 )
-      bNeedsInstall = true;
+   {
+      if ( ! hardware_load_driver_rtl8812au() )
+         bNeedsInstall = true;
+   }
    hw_execute_bash_command("lsmod | grep 8812eu", szOutput);
    if ( strlen(szOutput) < 6 )
-      bNeedsInstall = true;
+   {
+      if ( ! hardware_load_driver_rtl8812eu() )
+         bNeedsInstall = true;
+   }
    if ( bNeedsInstall )
    {
       log_line("Updating drivers. Please wait...");
@@ -411,7 +418,7 @@ void _log_openipc_info()
    fprintf(fd, "Hardware detected info:\nCamera:\n");
    fclose(fd);
    hw_execute_bash_command("ipcinfo -s >> /root/ruby/hw_info.txt", NULL);
-   hw_execute_bash_command("fw_printenv sensor >> /root/ruby/hw_info.txt", NULL);
+   hw_execute_bash_command("fw_printenv sensor 2>/dev/null >> /root/ruby/hw_info.txt", NULL);
    hw_execute_bash_command("echo 'Env:' >> /root/ruby/hw_info.txt", NULL);
    hw_execute_bash_command("fw_printenv >> /root/ruby/hw_info.txt", NULL);
    hw_execute_bash_command("echo 'OS:' >> /root/ruby/hw_info.txt", NULL);
@@ -1062,6 +1069,7 @@ void _step_check_binaries_and_processes()
    #endif
 
    #if defined(HW_PLATFORM_OPENIPC_CAMERA)
+   hardware_camera_check_set_oipc_sensor();
    _log_openipc_info();
    #endif
 
@@ -1141,7 +1149,7 @@ void _step_load_init_devices()
    #ifdef HW_CAPABILITY_I2C
 
    char szComm[256];
-   u32 board_type = (hardware_getOnlyBoardType() & BOARD_TYPE_MASK);
+   board_type = (hardware_getOnlyBoardType() & BOARD_TYPE_MASK);
 
    #if defined HW_PLATFORM_RASPBERRY
    // Initialize I2C bus 0 for different boards types
@@ -1505,7 +1513,7 @@ int main(int argc, char *argv[])
       hardware_sleep_ms(900);
    }
 
-   u32 board_type = (hardware_getOnlyBoardType() & BOARD_TYPE_MASK);
+   board_type = (hardware_getOnlyBoardType() & BOARD_TYPE_MASK);
 
    // Detect hardware
    hardware_getCameraType();
@@ -1693,12 +1701,12 @@ int main(int argc, char *argv[])
          modelVehicle.saveToFile(szFile, false);
       }
       
-      char szOutput[4096];
+      char szOutputF[4096];
       sprintf(szComm, "ls -al %sruby_update* 2>/dev/null", FOLDER_BINARIES);
-      hw_execute_bash_command_raw(szComm, szOutput);
-      strcat(szOutput, "***END***");
+      hw_execute_bash_command_raw(szComm, szOutputF);
+      strcat(szOutputF, "***END***");
       log_line("Update files:");
-      log_line(szOutput);
+      log_line(szOutputF);
 
       strcpy(szFile, FOLDER_BINARIES);
       strcat(szFile, "ruby_update_vehicle");

@@ -34,8 +34,8 @@ class MenuControllerVideo: public Menu
       int m_IndexVideoETHPacket;
       int m_IndexCalibrateHDMI;
 
-      int m_IndexAudioOutput;
       int m_IndexAudioVolume;
+      int m_IndexAudioTest;
       
       int m_hdmigroupOrg;
       int m_hdmimodeOrg;

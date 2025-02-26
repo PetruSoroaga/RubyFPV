@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -68,7 +69,7 @@
 
 
 bool s_bDebugOSDShowAll = false;
-
+bool s_bOSDDisableRendering = false;
 u32 s_RenderCount = 0;
 
 bool s_bShowOSDFlightEndStats = false;
@@ -82,6 +83,16 @@ bool osd_is_debug()
 {
    return s_bDebugOSDShowAll;
 }
+
+void osd_disable_rendering()
+{
+   s_bOSDDisableRendering = true;
+}
+void osd_enable_rendering()
+{
+   s_bOSDDisableRendering = false;
+}
+
 
 void osd_add_stats_flight_end()
 {
@@ -428,15 +439,15 @@ float osd_show_video_link_mbs(float xPos, float yPos, bool bLeft)
    else
       sprintf(szBuff, "%.1f (%.1f)", totalMaxVideo_bps/1000.0/1000.0, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
 
-   u32 uRealDataRate = pActiveModel->getLinkRealDataRate(0);
+   u32 uMaxVideoRadioDataRate = pActiveModel->getRadioLinkVideoDataRateBSP(0);
    if ( pActiveModel->radioLinksParams.links_count > 1 )
-   if ( pActiveModel->getLinkRealDataRate(1) > uRealDataRate )
-      uRealDataRate = pActiveModel->getLinkRealDataRate(1);
+   if ( pActiveModel->getRadioLinkVideoDataRateBSP(1) > uMaxVideoRadioDataRate )
+      uMaxVideoRadioDataRate = pActiveModel->getRadioLinkVideoDataRateBSP(1);
    if ( pActiveModel->radioLinksParams.links_count > 2 )
-   if ( pActiveModel->getLinkRealDataRate(2) > uRealDataRate )
-      uRealDataRate = pActiveModel->getLinkRealDataRate(2);
+   if ( pActiveModel->getRadioLinkVideoDataRateBSP(2) > uMaxVideoRadioDataRate )
+      uMaxVideoRadioDataRate = pActiveModel->getRadioLinkVideoDataRateBSP(2);
 
-   if ( totalMaxVideo_bps >= (float)(uRealDataRate) * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT / 100.0 )
+   if ( totalMaxVideo_bps >= (float)(uMaxVideoRadioDataRate) * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT / 100.0 )
       g_pRenderEngine->setColors(get_Color_IconWarning());
    if ( g_bHasVideoDataOverloadAlarm && (g_TimeLastVideoDataOverloadAlarm > 0) && (g_TimeNow <  g_TimeLastVideoDataOverloadAlarm + 5000) )
       g_pRenderEngine->setColors(get_Color_IconError());
@@ -2650,7 +2661,18 @@ void osd_show_monitor()
 }
 
 void osd_render_all()
-{     
+{
+   if ( s_bOSDDisableRendering )
+   {
+      Model* pModel = osd_get_current_data_source_vehicle_model();
+      if ( (NULL == pModel) || (0 == g_uActiveControllerModelVID) )
+         return;
+      osd_render_instruments();
+      osd_widgets_render(pModel->uVehicleId, osd_get_current_layout_index());
+      osd_plugins_render();
+      return;
+   }
+
    Model* pModel = osd_get_current_data_source_vehicle_model();
    if ( (NULL == pModel) || (0 == g_uActiveControllerModelVID) )
       return;

@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
          * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -101,20 +102,12 @@ void hardware_i2c_log_devices()
 
    log_line("[Hardware] -----------------------------------------");
    log_line("[Hardware] Settings stored for %d I2C devices:", s_iCountI2CDevicesSettings);
-   szBuff[0] = 0;
    for( int i=0; i<s_iCountI2CDevicesSettings; i++ )
    {
       if ( s_listI2CDevicesSettings[i].nDeviceType > 0 )
       if ( s_listI2CDevicesSettings[i].nI2CAddress > 0 )
       {
-         szBuff[0] = 0;
-         char szTmp[32];
-         if ( 0 == szBuff[0] )
-            sprintf(szTmp, "%d-%d", s_listI2CDevicesSettings[i].nI2CAddress, s_listI2CDevicesSettings[i].nDeviceType);
-         else
-            sprintf(szTmp, ", %d-%d", s_listI2CDevicesSettings[i].nI2CAddress, s_listI2CDevicesSettings[i].nDeviceType);
-         
-         strcat(szBuff, szTmp);
+         sprintf(szBuff, "%d-%d", s_listI2CDevicesSettings[i].nI2CAddress, s_listI2CDevicesSettings[i].nDeviceType);
          log_line("[Hardware] Dev I2CAddress/Type: %s, Custom params: %d %d %d", szBuff, s_listI2CDevicesSettings[i].uParams[0], s_listI2CDevicesSettings[i].uParams[1], s_listI2CDevicesSettings[i].uParams[2]);
       }
    }
@@ -521,7 +514,7 @@ int hardware_i2c_load_device_settings()
    }
 
    s_iCountI2CDevicesSettings = 0;
-   if ( (!failed) && (1 != fscanf(fd, "%*s %d", &s_iCountI2CDevicesSettings)) )
+   if ( 1 != fscanf(fd, "%*s %d", &s_iCountI2CDevicesSettings) )
    {
       s_iCountI2CDevicesSettings = 0;
       failed = 16;

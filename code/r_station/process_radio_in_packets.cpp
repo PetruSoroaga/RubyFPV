@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -437,7 +438,7 @@ void _process_received_single_packet_while_searching(int interfaceIndex, u8* pDa
          if ( (pPHRTE->rubyVersion >> 4) > 10 )
             bIsV3 = false;
          if ( (pPHRTE->rubyVersion >> 4) == 10 )
-         if ( (pPHRTE->rubyVersion & 0x0F) > 3 )
+         if ( (pPHRTE->rubyVersion & 0x0F) > 4 )
             bIsV3 = false;
       }
 
@@ -457,6 +458,7 @@ void _process_received_single_packet_while_searching(int interfaceIndex, u8* pDa
             bIsV4 = false;
       }
 
+      log_line("Received telemetry while searching. V3=%s V4=%s", bIsV3?"yes":"no", bIsV4?"yes":"no");
       if ( (!bIsV3) && (!bIsV4) )
       {
          t_packet_header_ruby_telemetry_extended_v3* pPHRTE = (t_packet_header_ruby_telemetry_extended_v3*)(pData + sizeof(t_packet_header)); 
@@ -466,10 +468,8 @@ void _process_received_single_packet_while_searching(int interfaceIndex, u8* pDa
       if ( bIsV3 )
       {
          t_packet_header_ruby_telemetry_extended_v3* pPHRTE = (t_packet_header_ruby_telemetry_extended_v3*)(pData + sizeof(t_packet_header));
-         u8 vMaj = pPHRTE->rubyVersion;
-         u8 vMin = pPHRTE->rubyVersion;
-         vMaj = vMaj >> 4;
-         vMin = vMin & 0x0F;
+         u8 vMaj = (pPHRTE->rubyVersion) >> 4;
+         u8 vMin = (pPHRTE->rubyVersion) & 0x0F;
          if ( (g_TimeNow >= s_TimeLastLoggedSearchingRubyTelemetry + 2000) || (s_TimeLastLoggedSearchingRubyTelemetryVehicleId != pPH->vehicle_id_src) )
          {
             s_TimeLastLoggedSearchingRubyTelemetry = g_TimeNow;
@@ -917,7 +917,7 @@ int process_received_single_radio_packet(int iInterfaceIndex, u8* pData, int iDa
             {
                radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
 
-               if ( controllerIsCardDisabled(pRadioHWInfo->szMAC) )
+               if ( (NULL == pRadioHWInfo) || controllerIsCardDisabled(pRadioHWInfo->szMAC) )
                   continue;
 
                int nRadioLinkId = g_SM_RadioStats.radio_interfaces[i].assignedVehicleRadioLinkId;
@@ -929,7 +929,6 @@ int process_received_single_radio_packet(int iInterfaceIndex, u8* pData, int iDa
                if ( g_pCurrentModel->radioLinksParams.link_capabilities_flags[nRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
                   continue;
 
-               if ( NULL != pRadioHWInfo )
                if ( (pRadioHWInfo->iRadioType == RADIO_TYPE_ATHEROS) ||
                     (pRadioHWInfo->iRadioType == RADIO_TYPE_RALINK) )
                {
@@ -975,7 +974,6 @@ int process_received_single_radio_packet(int iInterfaceIndex, u8* pData, int iDa
 
       // Ruby telemetry and FC telemetry from relayed vehicle is always sent to central to detect the relayed vehicle
       if ( bIsRelayedPacket )
-      if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
       if ( (uPacketType == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED) ||
            (uPacketType == PACKET_TYPE_RUBY_TELEMETRY_SHORT) ||
            (uPacketType == PACKET_TYPE_FC_TELEMETRY) ||

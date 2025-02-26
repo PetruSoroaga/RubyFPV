@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -59,6 +60,7 @@
 #include "../base/shared_mem.h"
 #include "../base/base.h"
 #include "../base/hardware.h"
+#include "../base/hardware_audio.h"
 #include "../base/hdmi.h"
 #include "../base/config.h"
 #include "../base/ctrl_settings.h"
@@ -145,8 +147,6 @@ static u32 s_TimeLastRecordingStop = 0;
 
 static bool s_bFreezeOSD = false;
 static u32 s_uTimeFreezeOSD = 0;
-
-shared_mem_process_stats* s_pProcessStatsCentral = NULL;
 
 Popup popupNoModel("No vehicle defined or linked to!", 0.2, 0.45, 5);
 Popup popupStartup("System starting. Please wait.", 0.05, 0.16, 0);
@@ -461,12 +461,12 @@ void _render_background_and_paddings(bool bForceBackground)
 
    if ( ! pairing_isStarted() )
       showBg = true;
-   if ( link_has_received_main_vehicle_ruby_telemetry() && (g_TimeNow < pairing_getStartTime() + 2000) )
+   if ( link_has_received_main_vehicle_ruby_telemetry() && (g_TimeNow < pairing_getStartTime() + 1000) )
    {
       bForceBackground = true;
       showBg = true;
    }
-   if ( (!link_has_received_main_vehicle_ruby_telemetry()) && (g_TimeNow < pairing_getStartTime() + 4000) )
+   if ( (!link_has_received_main_vehicle_ruby_telemetry()) && (g_TimeNow < pairing_getStartTime() + 3000) )
    {
       bForceBackground = true;
       showBg = true;
@@ -479,7 +479,7 @@ void _render_background_and_paddings(bool bForceBackground)
 
    if ( showBg || bForceBackground || (! link_has_received_videostream(0)) )
    {
-      if ( bForceBackground || (! pairing_isStarted()) || (g_TimeNow < pairing_getStartTime() + 2000) )
+      if ( bForceBackground || (! pairing_isStarted()) || (g_TimeNow < pairing_getStartTime() + 1000) )
          _draw_background();
       else
          _render_video_background();
@@ -1224,7 +1224,8 @@ void _on_start_completed()
    {
       log_line("Intro video is playing. Stopping it...");
       hw_stop_process(VIDEO_PLAYER_OFFLINE);
-      sprintf(szComm, "rm -rf %s", szFile);
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s", szFile);
+      hw_execute_bash_command(szComm, NULL);
    }
    g_bPlayIntro = false;
 }
@@ -1892,7 +1893,7 @@ void ruby_processing_loop(bool bNoKeys)
 
    u32 uTimeStart = get_current_timestamp_ms();
 
-   try_read_messages_from_router(7);
+   try_read_messages_from_router(5);
 
    u32 uTime1 = get_current_timestamp_ms();
 
@@ -1986,8 +1987,8 @@ void main_loop_r_central()
       start_loop();
       log_line("Startup sequence now after executing a step: %d", s_StartSequence);
       render_all(g_TimeNow, false, false);
-      if ( NULL != s_pProcessStatsCentral )
-         s_pProcessStatsCentral->lastActiveTime = g_TimeNow;
+      if ( NULL != g_pProcessStatsCentral )
+         g_pProcessStatsCentral->lastActiveTime = g_TimeNow;
       log_line("Startup sequence now after rendering a step: %d", s_StartSequence);
       return;
    }
@@ -2012,8 +2013,8 @@ void main_loop_r_central()
       ruby_signal_alive();
       s_TimeLastRender = g_TimeNow;
       render_all(g_TimeNow, false, false);
-      if ( NULL != s_pProcessStatsCentral )
-         s_pProcessStatsCentral->lastActiveTime = g_TimeNow;
+      if ( NULL != g_pProcessStatsCentral )
+         g_pProcessStatsCentral->lastActiveTime = g_TimeNow;
 
       if ( g_bIsReinit )
       if ( s_iFPSCount > 5 )
@@ -2061,8 +2062,8 @@ void main_loop_r_central()
 
 void ruby_signal_alive()
 {
-   if ( NULL != s_pProcessStatsCentral )
-      s_pProcessStatsCentral->lastActiveTime = g_TimeNow;
+   if ( NULL != g_pProcessStatsCentral )
+      g_pProcessStatsCentral->lastActiveTime = g_TimeNow;
    else
       log_softerror_and_alarm("Shared mem for self process stats is NULL. Can't signal to others that process is active.");
 }
@@ -2191,7 +2192,7 @@ int main(int argc, char *argv[])
    if ( p->nLogLevel != 0 )
       log_only_errors();
 
-   ControllerSettings* pcs = get_ControllerSettings();
+   ControllerSettings* pCS = get_ControllerSettings();
    
    #if defined (HW_PLATFORM_RASPBERRY)
    hdmi_enum_modes();
@@ -2232,6 +2233,15 @@ int main(int argc, char *argv[])
          //sprintf(szComm, "./%s -f res/intro.h264 20 -endexit&", VIDEO_PLAYER_OFFLINE);
          //hw_execute_bash_command_nonblock(szComm, NULL);
          #endif
+
+         hardware_enable_audio_output();
+         hardware_set_audio_output_volume(pCS->iAudioOutputVolume);
+
+         //int iSample = 1 + (rand()%2);
+         //char szFileIntro[256];
+         //sprintf(szFileIntro, "res/intro%d.wav", iSample);
+         hardware_audio_play_file_async("res/intro1.wav");
+
       }
    }
 
@@ -2247,8 +2257,8 @@ int main(int argc, char *argv[])
    clear_shared_mems();   
    ruby_clear_all_ipc_channels();
 
-   s_pProcessStatsCentral = shared_mem_process_stats_open_write(SHARED_MEM_WATCHDOG_CENTRAL);
-   if ( NULL == s_pProcessStatsCentral )
+   g_pProcessStatsCentral = shared_mem_process_stats_open_write(SHARED_MEM_WATCHDOG_CENTRAL);
+   if ( NULL == g_pProcessStatsCentral )
       log_softerror_and_alarm("Failed to open shared mem for ruby_central process watchdog for writing: %s", SHARED_MEM_WATCHDOG_CENTRAL);
    else
       log_line("Opened shared mem for ruby_centrall process watchdog for writing.");
@@ -2264,8 +2274,8 @@ int main(int argc, char *argv[])
       
    save_ControllerInterfacesSettings();
 
-   if ( pcs->iPrioritiesAdjustment )
-      hw_set_priority_current_proc(pcs->iNiceCentral); 
+   if ( pCS->iPrioritiesAdjustment )
+      hw_set_priority_current_proc(pCS->iNiceCentral); 
 
 
    g_TimeNow = get_current_timestamp_ms();
@@ -2359,7 +2369,7 @@ int main(int argc, char *argv[])
    shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_ROUTER_RX, g_pProcessStatsRouter);
    shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_RC_TX, g_pProcessStatsRC);
 
-   shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_CENTRAL, s_pProcessStatsCentral);
+   shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_CENTRAL, g_pProcessStatsCentral);
  
    hardware_release();
 

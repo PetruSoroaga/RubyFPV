@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -38,6 +39,7 @@
 #include "menu_item_section.h"
 #include "menu_confirmation.h"
 
+#include "../osd/osd.h"
 #include "../osd/osd_common.h"
 #include "../osd/osd_plugins.h"
 
@@ -202,7 +204,8 @@ void MenuVehicleOSDPlugin::stopAction()
    m_bIsMovingV = false;
    m_bIsResizing = false;
    menu_setGlobalAlpha(m_fMenuOrgAlpha);
-
+   osd_enable_rendering();
+   
    plugin_osd_t* pPlugin = osd_plugins_get(m_nPluginIndex);
    pPlugin->bBoundingBox = false;
    pPlugin->bHighlight = false;
@@ -221,50 +224,96 @@ bool MenuVehicleOSDPlugin::periodicLoop()
    return false;
 }
 
+void MenuVehicleOSDPlugin::onMinusAction()
+{
+   plugin_osd_t* pPluginOSD = osd_plugins_get(m_nPluginIndex);
+   if ( NULL == pPluginOSD )
+      return;
+
+   SinglePluginSettings* pPluginSettings = osd_get_settings_for_plugin_for_model(pPluginOSD->szUID, g_pCurrentModel);
+   if ( NULL == pPluginSettings )
+      return;
+
+   int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+   int iModelIndex = getPluginModelSettingsIndex(pPluginSettings, g_pCurrentModel);
+
+   if ( m_bIsMovingH )
+   if ( pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] >= PLUGIN_MOVE_MARGIN )
+      pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] -= PLUGIN_MOVE_MARGIN;
+
+   if ( m_bIsMovingV )
+   if ( pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] >= PLUGIN_MOVE_MARGIN )
+      pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] -= PLUGIN_MOVE_MARGIN;
+
+   float fAspect = 1.0;
+   if ( 0 < pPluginSettings->fHeight[iModelIndex][osdLayoutIndex] )
+      fAspect = pPluginSettings->fWidth[iModelIndex][osdLayoutIndex] / pPluginSettings->fHeight[iModelIndex][osdLayoutIndex];
+
+   if ( m_bIsResizing )
+   if ( pPluginSettings->fWidth[iModelIndex][osdLayoutIndex] > PLUGIN_MOVE_MARGIN )
+   if ( pPluginSettings->fHeight[iModelIndex][osdLayoutIndex] > PLUGIN_MOVE_MARGIN/fAspect )
+   {
+      pPluginSettings->fWidth[iModelIndex][osdLayoutIndex] -= PLUGIN_MOVE_MARGIN;
+      pPluginSettings->fHeight[iModelIndex][osdLayoutIndex] -= PLUGIN_MOVE_MARGIN/fAspect;
+
+      pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] += PLUGIN_MOVE_MARGIN*0.5;
+      pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] += PLUGIN_MOVE_MARGIN*0.5/fAspect;
+   } 
+}
+
+void MenuVehicleOSDPlugin::onPlusAction()
+{
+   plugin_osd_t* pPluginOSD = osd_plugins_get(m_nPluginIndex);
+   if ( NULL == pPluginOSD )
+      return;
+
+   SinglePluginSettings* pPluginSettings = osd_get_settings_for_plugin_for_model(pPluginOSD->szUID, g_pCurrentModel);
+   if ( NULL == pPluginSettings )
+      return;
+
+   int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+   int iModelIndex = getPluginModelSettingsIndex(pPluginSettings, g_pCurrentModel);
+
+   if ( m_bIsMovingH )
+   if ( osd_getMarginX() + pPluginSettings->fXPos[iModelIndex][osdLayoutIndex]*(1.0-2.0*osd_getMarginX()) + pPluginSettings->fWidth[iModelIndex][osdLayoutIndex] <= 1.0-osd_getMarginX()-PLUGIN_MOVE_MARGIN )
+      pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] += PLUGIN_MOVE_MARGIN;
+
+   if ( m_bIsMovingV )
+   if ( osd_getMarginY() + pPluginSettings->fYPos[iModelIndex][osdLayoutIndex]*(1.0-2.0*osd_getMarginY()) + pPluginSettings->fHeight[iModelIndex][osdLayoutIndex] <= 1.0-osd_getMarginY()-PLUGIN_MOVE_MARGIN )
+      pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] += PLUGIN_MOVE_MARGIN;
+
+   float fAspect = 1.0;
+   if ( 0 < pPluginSettings->fHeight[iModelIndex][osdLayoutIndex] )
+      fAspect = pPluginSettings->fWidth[iModelIndex][osdLayoutIndex] / pPluginSettings->fHeight[iModelIndex][osdLayoutIndex];
+
+   if ( m_bIsResizing )
+   if ( osd_getMarginX() + pPluginSettings->fXPos[iModelIndex][osdLayoutIndex]*(1.0-2.0*osd_getMarginX()) + pPluginSettings->fWidth[iModelIndex][osdLayoutIndex] < (1.0-PLUGIN_MOVE_MARGIN) )
+   if ( osd_getMarginY() + pPluginSettings->fYPos[iModelIndex][osdLayoutIndex]*(1.0-2.0*osd_getMarginY()) + pPluginSettings->fHeight[iModelIndex][osdLayoutIndex] < 1.0-PLUGIN_MOVE_MARGIN/fAspect )
+   {
+      pPluginSettings->fWidth[iModelIndex][osdLayoutIndex] += PLUGIN_MOVE_MARGIN;
+      pPluginSettings->fHeight[iModelIndex][osdLayoutIndex] += PLUGIN_MOVE_MARGIN/fAspect;
+
+      pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] -= PLUGIN_MOVE_MARGIN*0.5;
+      if ( pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] < PLUGIN_MOVE_MARGIN )
+         pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] = PLUGIN_MOVE_MARGIN;
+
+      pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] -= PLUGIN_MOVE_MARGIN*0.5/fAspect;
+      if ( pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] < PLUGIN_MOVE_MARGIN )
+         pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] = PLUGIN_MOVE_MARGIN;
+   }
+}
 
 void MenuVehicleOSDPlugin::onMoveUp(bool bIgnoreReversion)
 {
+   Preferences* pP = get_Preferences();
 
    if ( m_bIsMovingH || m_bIsMovingV || m_bIsResizing )
    {
-      plugin_osd_t* pPluginOSD = osd_plugins_get(m_nPluginIndex);
-      if ( NULL == pPluginOSD )
-         return;
-
-      SinglePluginSettings* pPluginSettings = osd_get_settings_for_plugin_for_model(pPluginOSD->szUID, g_pCurrentModel);
-      if ( NULL == pPluginSettings )
-         return;
-
-      int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
-      int iModelIndex = getPluginModelSettingsIndex(pPluginSettings, g_pCurrentModel);
-
-      if ( m_bIsMovingH )
-      if ( osd_getMarginX() + pPluginSettings->fXPos[iModelIndex][osdLayoutIndex]*(1.0-2.0*osd_getMarginX()) + pPluginSettings->fWidth[iModelIndex][osdLayoutIndex] <= 1.0-osd_getMarginX()-PLUGIN_MOVE_MARGIN )
-         pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] += PLUGIN_MOVE_MARGIN;
-
-      if ( m_bIsMovingV )
-      if ( pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] >= PLUGIN_MOVE_MARGIN )
-         pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] -= PLUGIN_MOVE_MARGIN;
-
-      float fAspect = 1.0;
-      if ( 0 < pPluginSettings->fHeight[iModelIndex][osdLayoutIndex] )
-         fAspect = pPluginSettings->fWidth[iModelIndex][osdLayoutIndex] / pPluginSettings->fHeight[iModelIndex][osdLayoutIndex];
-
-      if ( m_bIsResizing )
-      if ( osd_getMarginX() + pPluginSettings->fXPos[iModelIndex][osdLayoutIndex]*(1.0-2.0*osd_getMarginX()) + pPluginSettings->fWidth[iModelIndex][osdLayoutIndex] < (1.0-PLUGIN_MOVE_MARGIN) )
-      if ( osd_getMarginY() + pPluginSettings->fYPos[iModelIndex][osdLayoutIndex]*(1.0-2.0*osd_getMarginY()) + pPluginSettings->fHeight[iModelIndex][osdLayoutIndex] < 1.0-PLUGIN_MOVE_MARGIN/fAspect )
-      {
-         pPluginSettings->fWidth[iModelIndex][osdLayoutIndex] += PLUGIN_MOVE_MARGIN;
-         pPluginSettings->fHeight[iModelIndex][osdLayoutIndex] += PLUGIN_MOVE_MARGIN/fAspect;
-
-         pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] -= PLUGIN_MOVE_MARGIN*0.5;
-         if ( pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] < PLUGIN_MOVE_MARGIN )
-            pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] = PLUGIN_MOVE_MARGIN;
-
-         pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] -= PLUGIN_MOVE_MARGIN*0.5/fAspect;
-         if ( pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] < PLUGIN_MOVE_MARGIN )
-            pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] = PLUGIN_MOVE_MARGIN;
-      }
+      if ( bIgnoreReversion || (pP->iSwapUpDownButtonsValues == 0) )
+         onMinusAction();
+      else
+         onPlusAction();
+     
       return;
    }
    Menu::onMoveUp(bIgnoreReversion);
@@ -272,43 +321,18 @@ void MenuVehicleOSDPlugin::onMoveUp(bool bIgnoreReversion)
 
 void MenuVehicleOSDPlugin::onMoveDown(bool bIgnoreReversion)
 {
+   Preferences* pP = get_Preferences();
+
    if ( m_bIsMovingH || m_bIsMovingV || m_bIsResizing )
    {
-      plugin_osd_t* pPluginOSD = osd_plugins_get(m_nPluginIndex);
-      if ( NULL == pPluginOSD )
-         return;
-
-      SinglePluginSettings* pPluginSettings = osd_get_settings_for_plugin_for_model(pPluginOSD->szUID, g_pCurrentModel);
-      if ( NULL == pPluginSettings )
-         return;
-
-      int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
-      int iModelIndex = getPluginModelSettingsIndex(pPluginSettings, g_pCurrentModel);
-
-      if ( m_bIsMovingH )
-      if ( pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] >= PLUGIN_MOVE_MARGIN )
-         pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] -= PLUGIN_MOVE_MARGIN;
-
-      if ( m_bIsMovingV )
-      if ( osd_getMarginY() + pPluginSettings->fYPos[iModelIndex][osdLayoutIndex]*(1.0-2.0*osd_getMarginY()) + pPluginSettings->fHeight[iModelIndex][osdLayoutIndex] <= 1.0-osd_getMarginY()-PLUGIN_MOVE_MARGIN )
-         pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] += PLUGIN_MOVE_MARGIN;
-
-      float fAspect = 1.0;
-      if ( 0 < pPluginSettings->fHeight[iModelIndex][osdLayoutIndex] )
-         fAspect = pPluginSettings->fWidth[iModelIndex][osdLayoutIndex] / pPluginSettings->fHeight[iModelIndex][osdLayoutIndex];
-
-      if ( m_bIsResizing )
-      if ( pPluginSettings->fWidth[iModelIndex][osdLayoutIndex] > PLUGIN_MOVE_MARGIN )
-      if ( pPluginSettings->fHeight[iModelIndex][osdLayoutIndex] > PLUGIN_MOVE_MARGIN/fAspect )
-      {
-         pPluginSettings->fWidth[iModelIndex][osdLayoutIndex] -= PLUGIN_MOVE_MARGIN;
-         pPluginSettings->fHeight[iModelIndex][osdLayoutIndex] -= PLUGIN_MOVE_MARGIN/fAspect;
-
-         pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] += PLUGIN_MOVE_MARGIN*0.5;
-         pPluginSettings->fYPos[iModelIndex][osdLayoutIndex] += PLUGIN_MOVE_MARGIN*0.5/fAspect;
-      }
+      if ( bIgnoreReversion || (pP->iSwapUpDownButtonsValues == 0) )
+         onPlusAction();
+      else
+         onMinusAction();
+     
       return;
    }
+
    Menu::onMoveDown(bIgnoreReversion);
 }
 
@@ -360,6 +384,7 @@ int MenuVehicleOSDPlugin::onBack()
       return 1;
    }
    menu_setGlobalAlpha(1.0);
+   osd_enable_rendering();
    return Menu::onBack();
 }
 
@@ -406,7 +431,8 @@ void MenuVehicleOSDPlugin::onSelectItem()
       }
 
       m_bIsMovingH = true;
-      menu_setGlobalAlpha(0.2);
+      menu_setGlobalAlpha(0.0);
+      osd_disable_rendering();
       return;
    }
    if ( m_IndexMoveY == m_SelectedIndex )
@@ -437,7 +463,8 @@ void MenuVehicleOSDPlugin::onSelectItem()
       }
 
       m_bIsMovingV = true;
-      menu_setGlobalAlpha(0.2);
+      menu_setGlobalAlpha(0.0);
+      osd_disable_rendering();
       return;
    }
 
@@ -468,7 +495,8 @@ void MenuVehicleOSDPlugin::onSelectItem()
             pPlugin->bBoundingBox = true;
       }
       m_bIsResizing = true;
-      menu_setGlobalAlpha(0.2);
+      menu_setGlobalAlpha(0.0);
+      osd_disable_rendering();
       return;
    }
 

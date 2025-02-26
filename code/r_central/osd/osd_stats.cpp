@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -514,6 +515,11 @@ float osd_render_stats_video_decode_get_height(int iDeveloperMode, bool bIsSnaps
          height += height_text*s_OSDStatsLineSpacing;
    }
 
+   // Audio
+   if ( bIsExtended )
+   if ( pActiveModel->isAudioCapableAndEnabled() )
+      height += height_text*s_OSDStatsLineSpacing;
+
    // Graph
    if ( ! bIsMinimal )
       height += 1.0*height_text_small;
@@ -669,12 +675,15 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          if ( pVDS->PHVS.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_IS_ON_LOWER_BITRATE )
             sprintf(szBuff, "%s- %.1f (%.1f) Mbs", szMode, fReceivedVideoMbps, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
       }
-      u32 uRealDataRate = pActiveModel->getLinkRealDataRate(0);
+      u32 uMaxVideoRadioDataRate = pActiveModel->getRadioLinkVideoDataRateBSP(0);
       if ( pActiveModel->radioLinksParams.links_count > 1 )
-      if ( pActiveModel->getLinkRealDataRate(1) > uRealDataRate )
-         uRealDataRate = pActiveModel->getLinkRealDataRate(1);
+      if ( pActiveModel->getRadioLinkVideoDataRateBSP(1) > uMaxVideoRadioDataRate )
+         uMaxVideoRadioDataRate = pActiveModel->getRadioLinkVideoDataRateBSP(1);
+      if ( pActiveModel->radioLinksParams.links_count > 2 )
+      if ( pActiveModel->getRadioLinkVideoDataRateBSP(2) > uMaxVideoRadioDataRate )
+         uMaxVideoRadioDataRate = pActiveModel->getRadioLinkVideoDataRateBSP(2);
 
-      if ( fReceivedVideoMbps*1000*1000 >= (float)(uRealDataRate) * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT / 100.0 )
+      if ( fReceivedVideoMbps*1000*1000 >= (float)(uMaxVideoRadioDataRate) * DEFAULT_VIDEO_LINK_MAX_LOAD_PERCENT / 100.0 )
          g_pRenderEngine->setColors(get_Color_IconWarning());
       
       if ( g_bHasVideoDataOverloadAlarm && (g_TimeLastVideoDataOverloadAlarm > 0) && (g_TimeNow <  g_TimeLastVideoDataOverloadAlarm + 5000) )
@@ -846,7 +855,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
          g_pRenderEngine->setColors(get_Color_Dev());
          _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, L("Dropped video blocks (total alarms):"), szBuff);
          osd_set_colors();
-         y += height_text_small*s_OSDStatsLineSpacing;       
+         y += height_text_small*s_OSDStatsLineSpacing;
       }
    }
   
@@ -968,6 +977,22 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
    // Stream info Retr, adaptive info
    // --------------------------------------
 
+   // Audio
+   if ( bIsExtended )
+   if ( pActiveModel->isAudioCapableAndEnabled() )
+   {
+      strcpy(szBuff, "N/A");
+      for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+      {
+         if ( pSM_RadioStats->radio_streams[i][STREAM_ID_AUDIO].uVehicleId == pActiveModel->uVehicleId )
+         {
+            sprintf(szBuff, "%u kbps", (pSM_RadioStats->radio_streams[i][STREAM_ID_AUDIO].rxBytesPerSec*8)/1000);
+            break;
+         }
+      }
+      _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, L("Audio:"), szBuff);
+      y += height_text*s_OSDStatsLineSpacing;
+   }
 
    y += osd_stats_render_video_stream_graph(xPos, y, widthMax, hGraphHistory, bIsMinimal, bIsCompact, bIsSnapshot);
    y += height_text_small*0.3;

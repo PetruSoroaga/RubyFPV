@@ -89,10 +89,11 @@ typedef struct
 typedef struct
 {
    u32 uProfileFlags;
-      // bit 0.1: 3d noise: 0,1, auto (2)
+      // VIDEO_PROFILE_FLAGS_* constants
+      // bit 0-1: 3d noise: 0,1, auto (2)
 
    u32 uProfileEncodingFlags; // same as radio video packet uProfileEncodingFlags
-
+   // VIDEO_PROFILE_ENCODING_FLAG_* constants
    // byte 0:
    //    bit 0..2  - scramble blocks count
    //    bit 3     - enables restransmission of missing packets
@@ -276,9 +277,14 @@ typedef struct
    bool enabled;
    int  volume;
    int  quality; // 0-3
-   u32 flags;
-      // byte 0: data packets
-      // byte 1: EC packets
+   u8  uECScheme; // high 4 bits data, low 4 bits ec
+   u16 uPacketLength;
+   u32 uFlags;
+      // byte 0:
+      //   bit 0,1: mic type: 0 - none, 1 - internal, 2 - external
+      // byte 1:
+      //   0...255 buffering size
+   u32 uDummyA1;
 } audio_parameters_t;
 
 
@@ -592,6 +598,7 @@ class Model
       void updateRadioInterfacesRadioFlagsFromRadioLinksFlags();
       bool check_update_radio_links();
       void resetToDefaults(bool generateId);
+      void resetAudioParams();
       void resetHWCapabilities();
       void resetRadioLinksParams();
       void resetOSDFlags();
@@ -613,7 +620,7 @@ class Model
       bool validate_settings();
       bool validate_relay_links_flags();
       void validate_radio_flags();
-      u32 getLinkRealDataRate(int nLinkId);
+
       int getRadioInterfaceIndexForRadioLink(int iRadioLink);
       bool canSwapEnabledHighCapacityRadioInterfaces();
       bool swapEnabledHighCapacityRadioInterfaces();
@@ -621,6 +628,9 @@ class Model
       int getLastSwappedRadioInterface2();
       bool rotateRadioLinksOrder();
 
+      u32 getRadioLinkVideoDataRateBSP(int iLinkId);
+      int getRadioLinkDownlinkDataRate(int iLinkId);
+      int getRadioLinkUplinkDataRate(int iLinkId);
       bool radioInterfaceIsWiFiRadio(int iRadioInterfaceIndex);
       bool radioLinkIsWiFiRadio(int iRadioLinkIndex);
       bool radioLinkIsSiKRadio(int iRadioLinkIndex);
@@ -660,6 +670,7 @@ class Model
       int get_level_shift_ec_scheme(int iTotalLevelsShift, int* piData, int* piEC);
       int get_current_max_video_packets_for_all_profiles();
 
+      bool isAudioCapableAndEnabled();
       void constructLongName();
       const char* getShortName();
       const char* getLongName();

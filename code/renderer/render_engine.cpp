@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
          * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -495,11 +496,20 @@ int RenderEngine::loadRawFont(const char* szFontFile)
       return -4;
    }
    if ( 2 != fscanf(fd, "%d %d", &(m_pRawFonts[m_iCountRawFonts]->lineHeight), &(m_pRawFonts[m_iCountRawFonts]->baseLine) ) )
+   {
+      fclose(fd);
       return -5;
+   }
    if ( 1 != fscanf(fd, "%d", &(m_pRawFonts[m_iCountRawFonts]->charCount) ) )
+   {
+      fclose(fd);
       return -5;
+   }
    if ( m_pRawFonts[m_iCountRawFonts]->charCount < 0 || m_pRawFonts[m_iCountRawFonts]->charCount >= MAX_FONT_CHARS )
+   {
+      fclose(fd);
       return -5;
+   }
    log_line("Loaded font: size: lineheight: %d, baseline: %d, count: %d", m_pRawFonts[m_iCountRawFonts]->lineHeight, m_pRawFonts[m_iCountRawFonts]->baseLine, m_pRawFonts[m_iCountRawFonts]->charCount);
    for( int i=0; i<m_pRawFonts[m_iCountRawFonts]->charCount; i++ )
    {
@@ -510,6 +520,7 @@ int RenderEngine::loadRawFont(const char* szFontFile)
                               &(m_pRawFonts[m_iCountRawFonts]->chars[i].height) ) )
       {
          log_softerror_and_alarm("Failed to load font, invalid c-description.");
+         fclose(fd);
          return 0;
       }
       if ( 3 != fscanf(fd, "%d %d %d", &(m_pRawFonts[m_iCountRawFonts]->chars[i].xOffset),
@@ -517,12 +528,14 @@ int RenderEngine::loadRawFont(const char* szFontFile)
                               &(m_pRawFonts[m_iCountRawFonts]->chars[i].xAdvance) ) )
       {
          log_softerror_and_alarm("Failed to load font, invalid cc-description.");
+         fclose(fd);
          return 0;
       }
       int page, ch;
       if ( 2 != fscanf(fd, "%d %d", &page, &ch ) )
       {
          log_softerror_and_alarm("Failed to load font, invalid p-description.");
+         fclose(fd);
          return 0;
       }
      //printf("loaded char: %d %d %d %d %d\n", m_pFonts[m_iCountFonts]->chars[i].charId, 

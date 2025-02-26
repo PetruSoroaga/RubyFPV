@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -349,7 +350,7 @@ float _compute_controller_rc_value_axe(Model* pModel, int nChannel, float prevRC
 
       bool bIsInReverse = false;
 
-      u32 dwAssignment = pModel->rc_params.rcChAssignmentThrotleReverse;
+      dwAssignment = pModel->rc_params.rcChAssignmentThrotleReverse;
 
       if ( pModel->rc_params.rcChAssignmentThrotleReverse & RC_CH_ASSIGNMENT_FLAG_BUTTON )
       {
@@ -377,10 +378,10 @@ float _compute_controller_rc_value_axe(Model* pModel, int nChannel, float prevRC
       }
       else
       {
-         int nAxe = ((dwAssignment & 0xFF) >> 4) - 1;
+         nAxe = ((dwAssignment & 0xFF) >> 4) - 1;
          if ( nAxe < pJoystick->countAxes )
          {
-            int rawValue = pJoystick->axesValues[nAxe];
+            rawValue = pJoystick->axesValues[nAxe];
             fNormalizedValue = (float)(rawValue - pCtrlInterface->axesMinValue[nAxe])/(float)(pCtrlInterface->axesMaxValue[nAxe] - pCtrlInterface->axesMinValue[nAxe]);
             if ( fNormalizedValue < 0.0 ) fNormalizedValue = 0.0;
             if ( fNormalizedValue > 1.0 ) fNormalizedValue = 1.0;
@@ -849,10 +850,10 @@ void log_current_full_radio_configuration(Model* pModel)
          }
       }
       if ( pModel->relay_params.isRelayEnabledOnRadioLinkId == i )
+      {
          strcpy(szPrefix, "Relay ");
-
-      if ( pModel->relay_params.isRelayEnabledOnRadioLinkId == i )
          log_line("* %sRadio Link %d Info:  %s, radio interface(s) assigned to this link: [%s]", szPrefix, i+1, str_format_frequency(pModel->relay_params.uRelayFrequencyKhz), szBuff);
+      }
       else
          log_line("* %sRadio Link %d Info:  %s, radio interface(s) assigned to this link: [%s]", szPrefix, i+1, str_format_frequency(pModel->radioLinksParams.link_frequency_khz[i]), szBuff);
       
@@ -901,7 +902,7 @@ void log_current_full_radio_configuration(Model* pModel)
 
 bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAssignedModelRadioLink, u32 uFrequencyKhz, shared_mem_process_stats* pProcessStats, u32 uDelayMs)
 {
-   if ( uFrequencyKhz <= 0 )
+   if ( uFrequencyKhz == 0 )
    {
       log_softerror_and_alarm("Skipping setting card (%d) due to invalid uFrequencyKhz 0.", iRadioIndex+1);
       return false;
@@ -914,7 +915,7 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
    if ( hardware_is_station() && (uDelayMs > 0) )
    {
       delayMs = uDelayMs;
-      if ( delayMs<1 || delayMs > 200 )
+      if ( delayMs > 200 )
          delayMs = DEFAULT_DELAY_WIFI_CHANGE;
    }
    else if ( NULL != pModel )
@@ -948,11 +949,16 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
          pProcessStats->lastActiveTime = get_current_timestamp_ms();
       
       radio_hw_info_t* pRadioInfo = hardware_get_radio_info(i);
-      if ( NULL == pRadioInfo || (0 == hardware_radioindex_supports_frequency(i, uFrequencyKhz)) )
+      if ( (NULL == pRadioInfo) || (0 == hardware_radioindex_supports_frequency(i, uFrequencyKhz)) )
       {
-         log_line("Radio interface %d (%s, %s) does not support %s. Skipping it.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->iRadioDriver), str_format_frequency(uFrequencyKhz));
-         pRadioInfo->lastFrequencySetFailed = 1;
-         pRadioInfo->uFailedFrequencyKhz = uFrequencyKhz;
+         if ( NULL == pRadioInfo )
+            log_line("Radio interface %d is NULL", i+1);
+         else
+         {
+            log_line("Radio interface %d (%s, %s) does not support %s. Skipping it.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->iRadioDriver), str_format_frequency(uFrequencyKhz));
+            pRadioInfo->lastFrequencySetFailed = 1;
+            pRadioInfo->uFailedFrequencyKhz = uFrequencyKhz;
+         }
          failed = true;
          continue;
       }
@@ -1024,10 +1030,11 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
          if ( pRadioInfo->isHighCapacityInterface )
          {
             int len = strlen(szOutput);
-            for( int i=0; i<len; i++ )
-               if ( szOutput[i] == 10 || szOutput[i] == 13 )
-                  szOutput[i] = '.';
-
+            for( int k=0; k<len; k++ )
+            {
+               if ( szOutput[k] == 10 || szOutput[k] == 13 )
+                  szOutput[k] = '.';
+            }
             log_softerror_and_alarm("Failed to switch radio interface %d (%s, %s) to frequency %s in HT40 mode, returned error: [%s]. Retry operation.", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->iRadioDriver), str_format_frequency(uFrequencyKhz), szOutput);
             hardware_sleep_ms(delayMs);
             szOutput[0] = 0;
@@ -1052,9 +1059,11 @@ bool radio_utils_set_interface_frequency(Model* pModel, int iRadioIndex, int iAs
             pRadioInfo->uCurrentFrequencyKhz = 0;
             failed = true;
             int len = strlen(szOutput);
-            for( int i=0; i<len; i++ )
-               if ( szOutput[i] == 10 || szOutput[i] == 13 )
-                  szOutput[i] = '.';
+            for( int k=0; k<len; k++ )
+            {
+               if ( szOutput[k] == 10 || szOutput[k] == 13 )
+                  szOutput[k] = '.';
+            }
             log_softerror_and_alarm("Failed to switch radio interface %d (%s, %s) to frequency %s, returned error: [%s]", i+1, pRadioInfo->szName, str_get_radio_driver_description(pRadioInfo->iRadioDriver), str_format_frequency(uFrequencyKhz), szOutput);
             hardware_sleep_ms(delayMs);
             continue;
@@ -1092,7 +1101,7 @@ bool radio_utils_set_datarate_atheros(Model* pModel, int iCard, int dataRate_bps
    if ( hardware_is_station() && (uDelayMs > 0) )
    {
       delayMs = uDelayMs;
-      if ( delayMs<1 || delayMs > 200 )
+      if ( delayMs > 200 )
          delayMs = DEFAULT_DELAY_WIFI_CHANGE;
    }
    else if ( NULL != pModel )
@@ -1195,12 +1204,14 @@ int check_write_filesystem()
    if ( 1 != fscanf(fd, "%s", szComm) )
    {
       log_softerror_and_alarm("Check write file system failed: error -3");
+      fclose(fd);
       return -3;
    }
 
    if ( 0 != strcmp(szComm, "test1234") )
    {
       log_softerror_and_alarm("Check write file system failed: error -4");
+      fclose(fd);
       return -4;
    }
    fclose(fd);

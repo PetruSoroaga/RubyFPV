@@ -6,11 +6,11 @@
 #include "../radio/radiopackets2.h"
 
 
-//  [packet header][video segment header][video seg header important][video debug][video data][000]
-//  | pPH          | pPHVS               | pPHVSImp                  |pHVSDebug   |pActualVideoData
+//  [packet header][video segment header][video seg header important][video data][000]
+//  | pPH          | pPHVS               | pPHVSImp                  |pActualVideoData
 //  | pRawData ptr                       | pVideoData ptr
-//                                       [             <- video block packet size ->              ]
-//                                                                                [-vid size-]
+//                                       [    <- video block packet size ->          ]
+//                                                                   [-vid size-]
 
 typedef struct
 {

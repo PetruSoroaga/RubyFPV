@@ -2,6 +2,8 @@
 
 #define FIFO_RUBY_CAMERA1 "/tmp/ruby/fifocam1"
 #define FIFO_RUBY_AUDIO1 "/tmp/ruby/fifoaudio1"
+#define FIFO_RUBY_AUDIO_QUEUE "/tmp/ruby/fifoaudioqueue"
+#define FIFO_RUBY_AUDIO_BUFF "/tmp/ruby/fifoaudiobuff"
 
 // Must be same name used by video player when it's using fifo pipes
 #define FIFO_RUBY_STATION_VIDEO_STREAM_DISPLAY "/tmp/ruby/fifovideo_disp"
@@ -18,3 +20,7 @@
 #define RUBY_SEM_RX_RADIO_HIGH_PRIORITY "RUBY_SEM_RX_RADIO_HIGH_PRIORITY"
 #define RUBY_SEM_RX_RADIO_REG_PRIORITY "RUBY_SEM_RX_RADIO_REG_PRIORITY"
 
+#define SEMAPHORE_SM_VIDEO_DATA_AVAILABLE "RUBY_SEM_SM_VIDEO_DATA_AVAILABLE"
+#define SEMAPHORE_MPP_DISPLAY_FRAME_READY "RUBY_SEM_MPP_DISPLAY_FRAME_READY"
+#define SEMAPHORE_MPP_DECODER_STALLED "RUBY_SEM_MPP_STALLED"
+#define SEMAPHORE_MPP_DECODER_NO_NEW_OUTPUT "RUBY_SEM_MPP_NO_NEW_OUTPUT"

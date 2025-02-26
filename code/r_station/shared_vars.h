@@ -67,6 +67,7 @@ extern shared_mem_radio_stats* g_pSM_RadioStats;
 //extern shared_mem_video_link_stats_and_overwrites* g_pSM_VideoLinkStats;
 extern shared_mem_video_link_graphs* g_pSM_VideoLinkGraphs;
 extern shared_mem_process_stats* g_pProcessStats;
+extern shared_mem_process_stats* g_pProcessStatsCentral;
 extern t_packet_data_controller_link_stats g_PD_ControllerLinkStats;
 
 extern int g_fIPCFromCentral;

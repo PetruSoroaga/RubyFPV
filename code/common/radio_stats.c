@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga  petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -662,6 +663,24 @@ void radio_stats_log_info(shared_mem_radio_stats* pSMRS, u32 uTimeNow)
          log_line(szBuff);
    }
 }
+void radio_stats_log_tx_info(shared_mem_radio_stats* pSMRS, u32 uTimeNow)
+{
+   if ( NULL == pSMRS )
+      return;
+
+   log_line( "Radio streams Tx throughput:");
+   for( int iVehicle=0; iVehicle<MAX_CONCURENT_VEHICLES; iVehicle++ )
+   {
+      for( int i=0; i<MAX_RADIO_STREAMS; i++ )
+      {
+         if ( pSMRS->radio_streams[iVehicle][i].uVehicleId != 0 )
+         if ( (0 < pSMRS->radio_streams[iVehicle][i].txBytesPerSec) || (0 < pSMRS->radio_streams[iVehicle][i].txPacketsPerSec) )
+         {
+            log_line("VID %u, Stream %d (%s): %u bps / %u pckts/s", pSMRS->radio_streams[iVehicle][i].uVehicleId, i, str_get_radio_stream_name(i), pSMRS->radio_streams[iVehicle][i].txBytesPerSec*8, pSMRS->radio_streams[iVehicle][i].txPacketsPerSec);
+         }
+      }
+   }
+}
 
 void _radio_stats_update_kbps_values(shared_mem_radio_stats* pSMRS, u32 uDeltaTime)
 {
@@ -842,7 +861,7 @@ int radio_stats_periodic_update(shared_mem_radio_stats* pSMRS, u32 timeNow)
          u32 totalRecvBad = 0;
          u32 totalRecvLost = 0;
          int iIndex = pSMRS->radio_interfaces[i].hist_rxPacketsCurrentIndex;
-         for( int i=0; i<iIntervalsToUse; i++ )
+         for( int k=0; k<iIntervalsToUse; k++ )
          {
             totalRecv += pSMRS->radio_interfaces[i].hist_rxPacketsCount[iIndex];
             totalRecvBad += pSMRS->radio_interfaces[i].hist_rxPacketsBadCount[iIndex];
@@ -1239,14 +1258,15 @@ int radio_stats_update_on_unique_packet_received(shared_mem_radio_stats* pSMRS, 
          if ( 0 == pSMRS->radio_streams[i][0].uVehicleId )
          {
             iStreamsVehicleIndex = i;
-            log_line("[RadioStats] Rx: Start using vehicle index %d in radio stats structure", iStreamsVehicleIndex, uVehicleId);
+            pSMRS->radio_streams[iStreamsVehicleIndex][0].uVehicleId = uVehicleId;
+            log_line("[RadioStats] Start using vehicle index %d in radio stats structure", iStreamsVehicleIndex, uVehicleId);
             char szTmp[256];
             szTmp[0] = 0;
-            for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+            for( int k=0; k<MAX_CONCURENT_VEHICLES; k++ )
             {
                char szT[32];
-               sprintf(szT, "%u", pSMRS->radio_streams[i][0].uVehicleId);
-               if ( 0 != i )
+               sprintf(szT, "%u", pSMRS->radio_streams[k][0].uVehicleId);
+               if ( 0 != k )
                   strcat(szTmp, ", ");
                strcat(szTmp, szT);
             }
@@ -1406,11 +1426,11 @@ void radio_stats_update_on_packet_sent_for_radio_stream(shared_mem_radio_stats* 
             log_line("[RadioStats] Tx: VID dest: %u, packet type: %s", uVehicleId, str_get_packet_type(uPacketType));
             char szTmp[256];
             szTmp[0] = 0;
-            for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+            for( int k=0; k<MAX_CONCURENT_VEHICLES; k++ )
             {
                char szT[32];
-               sprintf(szT, "%u", pSMRS->radio_streams[i][0].uVehicleId);
-               if ( 0 != i )
+               sprintf(szT, "%u", pSMRS->radio_streams[k][0].uVehicleId);
+               if ( 0 != k )
                   strcat(szTmp, ", ");
                strcat(szTmp, szT);
             }

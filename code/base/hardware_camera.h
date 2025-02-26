@@ -12,3 +12,5 @@ int hardware_getVeyeCameraHWVer();
 int hardware_isCameraVeye();
 int hardware_isCameraVeye307();
 int hardware_isCameraHDMI();
+char* hardware_camera_get_oipc_sensor_raw_name(char* pszOutput);
+void hardware_camera_check_set_oipc_sensor();

@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -265,10 +266,10 @@ int _must_inject_ping_now()
    if ( g_bUpdateInProgress || g_bSearching || (NULL == g_pCurrentModel) || g_pCurrentModel->is_spectator || g_pCurrentModel->b_mustSyncFromVehicle )
       return 0;
 
-   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_RUBY) )
+   if ( g_pCurrentModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_RUBY )
       return 0;
 
-   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
+   if ( g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY )
       return 0;
 
    u32 ping_interval_ms = compute_ping_interval_ms(g_pCurrentModel->uModelFlags, g_pCurrentModel->rxtx_sync_type, g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags);
@@ -440,7 +441,7 @@ void _check_free_storage_space()
       if ( iFreeSpaceKb < 0 )
       {
          s_bWaitingForFreeSpaceyAsync = false;
-         int iFreeSpaceKb = hardware_get_free_space_kb();
+         iFreeSpaceKb = hardware_get_free_space_kb();
          if ( (iFreeSpaceKb >= 0) && (iFreeSpaceKb < iMinFreeKb) )
             send_alarm_to_central(ALARM_ID_CONTROLLER_LOW_STORAGE_SPACE, (u32)iFreeSpaceKb/1000, 0);
       }
@@ -455,7 +456,7 @@ void _check_free_storage_space()
       {
          log_line("Free space: %d kb", iFreeSpaceKb);
          s_bWaitingForFreeSpaceyAsync = false;
-         if ( (iFreeSpaceKb >= 0) && (iFreeSpaceKb < iMinFreeKb) )
+         if ( iFreeSpaceKb < iMinFreeKb )
             send_alarm_to_central(ALARM_ID_CONTROLLER_LOW_STORAGE_SPACE, (u32)iFreeSpaceKb/1000, 0);
       }
    }
@@ -521,35 +522,45 @@ void router_periodic_loop()
             memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
       }
 
-      bool bHasRecentRxData = false;
-      for( int i=0; i<g_SM_RadioStats.countLocalRadioLinks; i++ )
+      for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
       {
-         if ( (g_TimeNow > 2000) && (g_SM_RadioStats.radio_links[i].timeLastRxPacket + 1000 >= g_TimeNow) )
+         if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_DATA].uVehicleId == 0 )
+            continue;
+         type_global_state_vehicle_runtime_info* pVehicleRuntimeInfo = getVehicleRuntimeInfo(g_SM_RadioStats.radio_streams[i][STREAM_ID_DATA].uVehicleId);
+         if ( NULL == pVehicleRuntimeInfo )
+            continue;
+         bool bHasRecentData = false;
+         u32 uLastRxTime = pVehicleRuntimeInfo->uLastTimeRecvDataFromVehicle;
+         if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_DATA].timeLastRxPacket + 1000 > g_TimeNow )
          {
-            bHasRecentRxData = true;
-            break;
+            bHasRecentData = true;
+            if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_DATA].timeLastRxPacket > pVehicleRuntimeInfo->uLastTimeRecvDataFromVehicle )
+               pVehicleRuntimeInfo->uLastTimeRecvDataFromVehicle = g_SM_RadioStats.radio_streams[i][STREAM_ID_DATA].timeLastRxPacket;
          }
-      }
-
-      static bool s_bIsControllerLinkToVehicleLost = false;
-      if ( ! g_bSearching )
-      {
-         if ( bHasRecentRxData )
+         if ( ! bHasRecentData )
+         if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_TELEMETRY].timeLastRxPacket + 1000 > g_TimeNow )
          {
-            if ( s_bIsControllerLinkToVehicleLost )
-            {
-                log_line("Link to vehicle recovered (received vehicle radio packets)");
-                s_bIsControllerLinkToVehicleLost = false;
-            }
+            bHasRecentData = true;
+            if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_TELEMETRY].timeLastRxPacket > pVehicleRuntimeInfo->uLastTimeRecvDataFromVehicle )
+               pVehicleRuntimeInfo->uLastTimeRecvDataFromVehicle = g_SM_RadioStats.radio_streams[i][STREAM_ID_TELEMETRY].timeLastRxPacket;
          }
-         else
+         if ( ! bHasRecentData )
+         if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_AUDIO].timeLastRxPacket + 1000 > g_TimeNow )
          {
-             if ( ! s_bIsControllerLinkToVehicleLost )
-             {
-                log_line("Link to vehicle lost (stopped receiving radio packets from vehicle)");
-                s_bIsControllerLinkToVehicleLost = true;
-             }
+            bHasRecentData = true;
+            if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_AUDIO].timeLastRxPacket > pVehicleRuntimeInfo->uLastTimeRecvDataFromVehicle )
+               pVehicleRuntimeInfo->uLastTimeRecvDataFromVehicle = g_SM_RadioStats.radio_streams[i][STREAM_ID_AUDIO].timeLastRxPacket;
          }
+         if ( ! bHasRecentData )
+         if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_VIDEO_1].timeLastRxPacket + 1000 > g_TimeNow )
+         {
+            bHasRecentData = true;
+            if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_VIDEO_1].timeLastRxPacket > pVehicleRuntimeInfo->uLastTimeRecvDataFromVehicle )
+               pVehicleRuntimeInfo->uLastTimeRecvDataFromVehicle = g_SM_RadioStats.radio_streams[i][STREAM_ID_VIDEO_1].timeLastRxPacket;
+         }
+         if ( ! bHasRecentData )
+         if ( uLastRxTime > g_TimeNow-2000 )
+            log_line("Link to vehicle VID %u is lost (no rx packets. last rx packets: %u ms ago)", pVehicleRuntimeInfo->uVehicleId, g_TimeNow - uLastRxTime);
       }
    }
 
@@ -602,9 +613,9 @@ void router_periodic_loop()
          memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8), szBuff, strlen(szBuff)+1);
          radio_packet_compute_crc(packet, PH.total_length);
          if ( ! ruby_ipc_channel_send_message(g_fIPCToCentral, packet, PH.total_length) )
-            log_softerror_and_alarm("No pipe to central to send message to.");
-
-         log_line("Send back to central Sik current config for vehicle radio link %d", (int)g_uGetSiKConfigAsyncVehicleLinkIndex+1);
+            log_ipc_send_central_error(packet, PH.total_length);
+         else
+            log_line("Send back to central Sik current config for vehicle radio link %d", (int)g_uGetSiKConfigAsyncVehicleLinkIndex+1);
 
          g_iGetSiKConfigAsyncResult = 0;
       }

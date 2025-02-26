@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -98,6 +99,38 @@ void update_openipc_cpu(Model* pModel)
    if ( NULL != pModel )
       pModel->processesPriorities.iFreqARM = DEFAULT_FREQ_OPENIPC_SIGMASTAR;
 }
+
+
+void do_update_to_105()
+{
+   log_line("Doing update to 10.5");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_ControllerSettings();
+      ControllerSettings* pCS = get_ControllerSettings();
+      pCS->iStreamerOutputMode = 0;
+      pCS->iDeveloperMode = 0;
+      save_ControllerSettings();
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   hardware_camera_check_set_oipc_sensor();
+   pModel->resetAudioParams();
+   #endif
+
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
+      pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME;
+   }
+   log_line("Updated model VID %u (%s) to v10.5", pModel->uVehicleId, pModel->getLongName());
+}
+
 
 void do_update_to_104()
 {
@@ -217,7 +250,7 @@ void do_update_to_103()
    {
       pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
       pModel->video_link_profiles[i].video_data_length = DEFAULT_VIDEO_DATA_LENGTH;
-      pModel->video_link_profiles[i].uProfileFlags = 2; // auto
+      pModel->video_link_profiles[i].uProfileFlags = VIDEO_PROFILE_FLAGS_NOISE_AUTO; // auto
    }
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileFlags = 0; // lowest
 
@@ -997,8 +1030,8 @@ int main(int argc, char *argv[])
 
    if ( argc >= 3 )
    {
-      int iMajor = atoi(argv[1]);
-      int iMinor = atoi(argv[2]);
+      iMajor = atoi(argv[1]);
+      iMinor = atoi(argv[2]);
       if ( iMinor >= 10 )
          iMinor /= 10;
       if ( (iMajor < 9) || ((iMajor == 9) && (iMinor <= 4)) )
@@ -1017,9 +1050,6 @@ int main(int argc, char *argv[])
    if ( NULL != strstr(szUpdateCommand, "pre" ) )
    {
       log_line("Pre-update step...");
-      #if defined (HW_PLATFORM_OPENIPC_CAMERA)
-      hw_execute_bash_command("fw_setenv sensor", NULL); 
-      #endif
       log_line("Done executing pre-update step. Exit.");
       return 0;
    }
@@ -1136,6 +1166,8 @@ int main(int argc, char *argv[])
       do_update_to_103();
    if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 4) )
       do_update_to_104();
+   if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 5) )
+      do_update_to_105();
 
 
    saveCurrentModel();

@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
          * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -252,7 +253,6 @@ int r_start_rx_rc(int argc, char *argv[])
       if ( g_TimeNow >= g_TimeLastQualityMeasurement + 500 )
       {
          int quality = 0;
-         if ( NULL != s_pPHDownstreamInfoRC )
          if ( 0 != sModelVehicle.rc_params.rc_frames_per_second )
             quality = (100.0 * (s_QualityRecvCount[0] + s_QualityRecvCount[1]))/(float)sModelVehicle.rc_params.rc_frames_per_second;
          if ( quality < 0 ) quality = 0;
@@ -330,10 +330,10 @@ int r_start_rx_rc(int argc, char *argv[])
                  changeType == MODEL_CHANGED_SWAPED_RADIO_INTERFACES )
             {
                log_line("Received request from router to reload model.");
-               char szFile[128];
-               strcpy(szFile, FOLDER_CONFIG);
-               strcat(szFile, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
-               sModelVehicle.loadFromFile(szFile, true);
+               char szFile2[MAX_FILE_PATH_SIZE];
+               strcpy(szFile2, FOLDER_CONFIG);
+               strcat(szFile2, FILE_CONFIG_CURRENT_VEHICLE_MODEL);
+               sModelVehicle.loadFromFile(szFile2, true);
                log_line("RC Failsafe timeout: %d ms", sModelVehicle.rc_params.rc_failsafe_timeout_ms);
             }
             else

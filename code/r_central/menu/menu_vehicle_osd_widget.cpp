@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -37,6 +38,7 @@
 #include "menu_item_section.h"
 #include "menu_confirmation.h"
 
+#include "../osd/osd.h"
 #include "../osd/osd_common.h"
 #include "../osd/osd_widgets.h"
 
@@ -137,7 +139,7 @@ void MenuVehicleOSDWidget::stopAction()
    m_bIsResizingH = false;
    m_bIsResizingV = false;
    menu_setGlobalAlpha(m_fMenuOrgAlpha);
-
+   osd_enable_rendering();
    osd_widgets_save();
 }
 
@@ -147,7 +149,7 @@ bool MenuVehicleOSDWidget::periodicLoop()
 }
 
 
-void MenuVehicleOSDWidget::onMoveUp(bool bIgnoreReversion)
+void MenuVehicleOSDWidget::onMinusAction()
 {
    type_osd_widget* pWidget = osd_widgets_get(m_nWidgetIndex);
    if ( NULL == pWidget )
@@ -165,67 +167,138 @@ void MenuVehicleOSDWidget::onMoveUp(bool bIgnoreReversion)
    float fWPixel = g_pRenderEngine->getPixelWidth();
    float fHPixel = g_pRenderEngine->getPixelHeight();
 
+   if ( m_bIsMovingH )
+   {
+      fXPos -= WIDGET_MOVE_MARGIN;
+      if ( fXPos <= 0 )
+         fXPos = fWPixel;
+   }
+   if ( m_bIsMovingV )
+   {
+      fYPos -= WIDGET_MOVE_MARGIN;
+      if ( fYPos <= 0 )
+        fYPos = fHPixel;
+   }
+
+   float fAspect = 1.0;
+   if ( 0 < fHeight )
+      fAspect = fWidth / fHeight;
+
+   if ( m_bIsResizing )
+   if ( fWidth > WIDGET_MOVE_MARGIN )
+   if ( fHeight > WIDGET_MOVE_MARGIN/fAspect )
+   {
+      fWidth -= WIDGET_MOVE_MARGIN;
+      fHeight -= WIDGET_MOVE_MARGIN/fAspect;
+
+      fXPos += WIDGET_MOVE_MARGIN*0.5;
+      fYPos += WIDGET_MOVE_MARGIN*0.5/fAspect;
+   }
+
+   if ( m_bIsResizingH && (fWidth > WIDGET_MOVE_MARGIN) )
+   {
+      fWidth -= WIDGET_MOVE_MARGIN;
+      fXPos += WIDGET_MOVE_MARGIN*0.5;
+   }
+
+   if ( m_bIsResizingV && (fHeight > WIDGET_MOVE_MARGIN) )
+   {
+      fHeight -= WIDGET_MOVE_MARGIN;
+      fYPos += WIDGET_MOVE_MARGIN*0.5;
+   }
+
+   pWidget->display_info[iIndexModel][iIndexProfile].fXPos = fXPos;
+   pWidget->display_info[iIndexModel][iIndexProfile].fYPos = fYPos;
+   pWidget->display_info[iIndexModel][iIndexProfile].fWidth = fWidth;
+   pWidget->display_info[iIndexModel][iIndexProfile].fHeight = fHeight;
+}
+
+void MenuVehicleOSDWidget::onPlusAction()
+{
+   type_osd_widget* pWidget = osd_widgets_get(m_nWidgetIndex);
+   if ( NULL == pWidget )
+      return;
+   int iIndexModel = osd_widget_get_model_index(pWidget, g_pCurrentModel->uVehicleId);
+   int iIndexProfile = osd_get_current_layout_index();
+   if ( (iIndexModel < 0) || (iIndexProfile < 0) )
+      return;
+
+   float fXPos = pWidget->display_info[iIndexModel][iIndexProfile].fXPos;
+   float fYPos = pWidget->display_info[iIndexModel][iIndexProfile].fYPos;
+   float fWidth = pWidget->display_info[iIndexModel][iIndexProfile].fWidth;
+   float fHeight = pWidget->display_info[iIndexModel][iIndexProfile].fHeight;
+   float fWPixel = g_pRenderEngine->getPixelWidth();
+   float fHPixel = g_pRenderEngine->getPixelHeight();
+
+   if ( m_bIsMovingH )
+   {
+      fXPos += WIDGET_MOVE_MARGIN;
+      if ( fXPos + fWidth >= 1.0 )
+         fXPos = 1.0 - fWidth - fWPixel;
+   }
+
+   if ( m_bIsMovingV )
+   {
+      fYPos += WIDGET_MOVE_MARGIN;
+      if ( fYPos + fHeight >= 1.0 )
+         fYPos = 1.0 - fHeight - fHPixel;
+   }
+
+   float fAspect = 1.0;
+   if ( 0 < fHeight )
+      fAspect = fWidth/fHeight;
+
+   if ( m_bIsResizing )
+   if ( fXPos + fWidth <= (1.0-WIDGET_MOVE_MARGIN) )
+   if ( fYPos + fHeight <= 1.0-WIDGET_MOVE_MARGIN/fAspect )
+   {
+      fWidth += WIDGET_MOVE_MARGIN;
+      fHeight += WIDGET_MOVE_MARGIN/fAspect;
+
+      fXPos -= WIDGET_MOVE_MARGIN*0.5;
+      if ( fXPos < 0 )
+         fXPos = fWPixel;
+
+      fYPos -= WIDGET_MOVE_MARGIN*0.5/fAspect;
+      if ( fYPos < 0 )
+         fYPos = fHPixel;
+   }
+  
+   if ( m_bIsResizingH && (fWidth < 1.0) )
+   {
+      fWidth += WIDGET_MOVE_MARGIN;
+      fXPos -= WIDGET_MOVE_MARGIN*0.5;
+      if ( fXPos < 0 )
+         fXPos = fWPixel;
+      if ( fXPos + fWidth >= 1.0 )
+         fXPos = 1.0 - fWidth - fWPixel;
+   }
+
+   if ( m_bIsResizingV && (fHeight < 1.0) )
+   {
+      fHeight += WIDGET_MOVE_MARGIN;
+      fYPos -= WIDGET_MOVE_MARGIN*0.5;
+      if ( fYPos < 0 )
+         fYPos = fHPixel;
+      if ( fYPos + fHeight >= 1.0 )
+         fYPos = 1.0 - fHeight - fHPixel;
+   }
+
+   pWidget->display_info[iIndexModel][iIndexProfile].fXPos = fXPos;
+   pWidget->display_info[iIndexModel][iIndexProfile].fYPos = fYPos;
+   pWidget->display_info[iIndexModel][iIndexProfile].fWidth = fWidth;
+   pWidget->display_info[iIndexModel][iIndexProfile].fHeight = fHeight;
+}
+
+void MenuVehicleOSDWidget::onMoveUp(bool bIgnoreReversion)
+{
    if ( m_bIsMovingH || m_bIsMovingV || m_bIsResizing || m_bIsResizingH || m_bIsResizingV )
    {
-     
-      if ( m_bIsMovingH )
-      {
-         fXPos += WIDGET_MOVE_MARGIN;
-         if ( fXPos + fWidth >= 1.0 )
-            fXPos = 1.0 - fWidth - fWPixel;
-      }
-      if ( m_bIsMovingV )
-      {
-         fYPos -= WIDGET_MOVE_MARGIN;
-         if ( fYPos <= 0 )
-           fYPos = fHPixel;
-      }
-
-      float fAspect = 1.0;
-      if ( 0 < fHeight )
-         fAspect = fWidth / fHeight;
-
-      if ( m_bIsResizing )
-      if ( fXPos + fWidth <= (1.0-WIDGET_MOVE_MARGIN) )
-      if ( fYPos + fHeight <= 1.0-WIDGET_MOVE_MARGIN/fAspect )
-      {
-         fWidth += WIDGET_MOVE_MARGIN;
-         fHeight += WIDGET_MOVE_MARGIN/fAspect;
-
-         fXPos -= WIDGET_MOVE_MARGIN*0.5;
-         if ( fXPos < 0 )
-            fXPos = fWPixel;
-
-         fYPos -= WIDGET_MOVE_MARGIN*0.5/fAspect;
-         if ( fYPos < 0 )
-            fYPos = fHPixel;
-      }
-
-      if ( m_bIsResizingH && (fWidth < 1.0) )
-      {
-         fWidth += WIDGET_MOVE_MARGIN;
-         fXPos -= WIDGET_MOVE_MARGIN*0.5;
-         if ( fXPos < 0 )
-            fXPos = fWPixel;
-         if ( fXPos + fWidth >= 1.0 )
-            fXPos = 1.0 - fWidth - fWPixel;
-      }
-
-      if ( m_bIsResizingV && (fHeight < 1.0) )
-      {
-         fHeight += WIDGET_MOVE_MARGIN;
-         fYPos -= WIDGET_MOVE_MARGIN*0.5;
-         if ( fYPos < 0 )
-            fYPos = fHPixel;
-         if ( fYPos + fHeight >= 1.0 )
-            fYPos = 1.0 - fHeight - fHPixel;
-      }
-
-      pWidget->display_info[iIndexModel][iIndexProfile].fXPos = fXPos;
-      pWidget->display_info[iIndexModel][iIndexProfile].fYPos = fYPos;
-      pWidget->display_info[iIndexModel][iIndexProfile].fWidth = fWidth;
-      pWidget->display_info[iIndexModel][iIndexProfile].fHeight = fHeight;
-
+      Preferences* pP = get_Preferences();
+      if ( bIgnoreReversion || (pP->iSwapUpDownButtonsValues == 0) )
+         onMinusAction();
+      else
+         onPlusAction();
       return;
    }
    Menu::onMoveUp(bIgnoreReversion);
@@ -233,71 +306,16 @@ void MenuVehicleOSDWidget::onMoveUp(bool bIgnoreReversion)
 
 void MenuVehicleOSDWidget::onMoveDown(bool bIgnoreReversion)
 {
-   type_osd_widget* pWidget = osd_widgets_get(m_nWidgetIndex);
-   if ( NULL == pWidget )
-      return;
-   int iIndexModel = osd_widget_get_model_index(pWidget, g_pCurrentModel->uVehicleId);
-   int iIndexProfile = osd_get_current_layout_index();
-   if ( (iIndexModel < 0) || (iIndexProfile < 0) )
-      return;
-
-   float fXPos = pWidget->display_info[iIndexModel][iIndexProfile].fXPos;
-   float fYPos = pWidget->display_info[iIndexModel][iIndexProfile].fYPos;
-   float fWidth = pWidget->display_info[iIndexModel][iIndexProfile].fWidth;
-   float fHeight = pWidget->display_info[iIndexModel][iIndexProfile].fHeight;
-   float fWPixel = g_pRenderEngine->getPixelWidth();
-   float fHPixel = g_pRenderEngine->getPixelHeight();
-
    if ( m_bIsMovingH || m_bIsMovingV || m_bIsResizing || m_bIsResizingH || m_bIsResizingV )
    {
-      if ( m_bIsMovingH )
-      {
-         fXPos -= WIDGET_MOVE_MARGIN;
-         if ( fXPos <= 0 )
-            fXPos = fWPixel;
-      }
-
-      if ( m_bIsMovingV )
-      {
-         fYPos += WIDGET_MOVE_MARGIN;
-         if ( fYPos + fHeight >= 1.0 )
-            fYPos = 1.0 - fHeight - fHPixel;
-      }
-
-      float fAspect = 1.0;
-      if ( 0 < fHeight )
-         fAspect = fWidth/fHeight;
-
-      if ( m_bIsResizing )
-      if ( fWidth > WIDGET_MOVE_MARGIN )
-      if ( fHeight > WIDGET_MOVE_MARGIN/fAspect )
-      {
-         fWidth -= WIDGET_MOVE_MARGIN;
-         fHeight -= WIDGET_MOVE_MARGIN/fAspect;
-
-         fXPos += WIDGET_MOVE_MARGIN*0.5;
-         fYPos += WIDGET_MOVE_MARGIN*0.5/fAspect;
-      }
-
-      if ( m_bIsResizingH && (fWidth > WIDGET_MOVE_MARGIN) )
-      {
-         fWidth -= WIDGET_MOVE_MARGIN;
-         fXPos += WIDGET_MOVE_MARGIN*0.5;
-      }
-
-      if ( m_bIsResizingV && (fHeight > WIDGET_MOVE_MARGIN) )
-      {
-         fHeight -= WIDGET_MOVE_MARGIN;
-         fYPos += WIDGET_MOVE_MARGIN*0.5;
-      }
-
-      pWidget->display_info[iIndexModel][iIndexProfile].fXPos = fXPos;
-      pWidget->display_info[iIndexModel][iIndexProfile].fYPos = fYPos;
-      pWidget->display_info[iIndexModel][iIndexProfile].fWidth = fWidth;
-      pWidget->display_info[iIndexModel][iIndexProfile].fHeight = fHeight;
-
+      Preferences* pP = get_Preferences();
+      if ( bIgnoreReversion || (pP->iSwapUpDownButtonsValues == 0) )
+         onPlusAction();
+      else
+         onMinusAction();
       return;
    }
+
    Menu::onMoveDown(bIgnoreReversion);
 }
 
@@ -346,6 +364,7 @@ int MenuVehicleOSDWidget::onBack()
       return 1;
    }
    menu_setGlobalAlpha(1.0);
+   osd_enable_rendering();
    return Menu::onBack();
 }
 
@@ -380,7 +399,8 @@ void MenuVehicleOSDWidget::onSelectItem()
       m_fHOrg = pWidget->display_info[iIndexModel][iIndexProfile].fHeight;
 
       m_bIsMovingH = true;
-      menu_setGlobalAlpha(0.2);
+      menu_setGlobalAlpha(0.0);
+      osd_disable_rendering();
       return;
    }
    if ( m_IndexMoveY == m_SelectedIndex )
@@ -391,7 +411,8 @@ void MenuVehicleOSDWidget::onSelectItem()
       m_fHOrg = pWidget->display_info[iIndexModel][iIndexProfile].fHeight;
 
       m_bIsMovingV = true;
-      menu_setGlobalAlpha(0.2);
+      menu_setGlobalAlpha(0.0);
+      osd_disable_rendering();
       return;
    }
 
@@ -403,7 +424,8 @@ void MenuVehicleOSDWidget::onSelectItem()
       m_fHOrg = pWidget->display_info[iIndexModel][iIndexProfile].fHeight;
 
       m_bIsResizing = true;
-      menu_setGlobalAlpha(0.2);
+      menu_setGlobalAlpha(0.0);
+      osd_disable_rendering();
       return;
    }
 
@@ -415,7 +437,8 @@ void MenuVehicleOSDWidget::onSelectItem()
       m_fHOrg = pWidget->display_info[iIndexModel][iIndexProfile].fHeight;
 
       m_bIsResizingH = true;
-      menu_setGlobalAlpha(0.2);
+      menu_setGlobalAlpha(0.0);
+      osd_disable_rendering();
       return;
    }
 
@@ -427,7 +450,8 @@ void MenuVehicleOSDWidget::onSelectItem()
       m_fHOrg = pWidget->display_info[iIndexModel][iIndexProfile].fHeight;
 
       m_bIsResizingV = true;
-      menu_setGlobalAlpha(0.2);
+      menu_setGlobalAlpha(0.0);
+      osd_disable_rendering();
       return;
    }
 

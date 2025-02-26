@@ -333,14 +333,14 @@ void hw_get_proc_priority(const char* szProgName, char* szOutput)
    strcat(szOutput, ";");
 }
 
-void hw_set_proc_affinity(const char* szProgName, int iCoreStart, int iCoreEnd)
+void hw_set_proc_affinity(const char* szProgName, int iExceptThreadId, int iCoreStart, int iCoreEnd)
 {
    if ( NULL == szProgName || 0 == szProgName[0] )
    {
       log_softerror_and_alarm("Tried to adjus affinity for NULL process");
       return;
    }
-   log_line("Adjusting affinity for process [%s]...", szProgName);
+   log_line("Adjusting affinity for process [%s] except thread id: %d ...", szProgName, iExceptThreadId);
 
    char szComm[128];
    char szOutput[256];
@@ -391,22 +391,27 @@ void hw_set_proc_affinity(const char* szProgName, int iCoreStart, int iCoreEnd)
           return;
        }
 
-       // Set affinity
-       if ( iCoreStart == iCoreEnd )
-       {
-          sprintf(szComm, "taskset -cp %d %d 2>/dev/null", iCoreStart-1, iTask);
-          hw_execute_bash_command(szComm, NULL);
-       }
+       if ( iTask == iExceptThreadId )
+          log_line("Skip exception thread id: %d", iExceptThreadId);
        else
        {
-          sprintf(szComm, "taskset -cp %d-%d %d", iCoreStart-1, iCoreEnd-1, iTask);
-          hw_execute_bash_command(szComm, NULL);        
+          // Set affinity
+          if ( iCoreStart == iCoreEnd )
+          {
+             sprintf(szComm, "taskset -cp %d %d 2>/dev/null", iCoreStart-1, iTask);
+             hw_execute_bash_command(szComm, NULL);
+          }
+          else
+          {
+             sprintf(szComm, "taskset -cp %d-%d %d", iCoreStart-1, iCoreEnd-1, iTask);
+             hw_execute_bash_command(szComm, NULL);        
+          }
        }
        // Go to next task in string
        while ( (*pTmp) && (*pTmp != ' ') )
           pTmp++;
 
-       while ( (*pTmp) && (*pTmp == ' ') )
+       while ( (*pTmp) == ' ' )
           pTmp++;
    }
    while(*pTmp);
@@ -498,8 +503,7 @@ int hw_execute_bash_command_nonblock(const char* command, char* outBuffer)
       if ( fgets(szBuff, 254, fp) != NULL)
       {
          szBuff[254] = 0;
-         if ( NULL != outBuffer )
-            strcpy(outBuffer, szBuff);
+         strcpy(outBuffer, szBuff);
       }
       else
          log_line("Empty response from executing command.");
@@ -639,8 +643,7 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
       if ( fgets(szBuff, 254, fp) != NULL)
       {
          szBuff[254] = 0;
-         if ( NULL != szOutput )
-            strcpy(szOutput, szBuff);
+         strcpy(szOutput, szBuff);
       }
       else
          log_line("Empty response from Ruby process.");

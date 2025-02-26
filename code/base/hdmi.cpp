@@ -100,12 +100,12 @@ int _hdmi_detect_current_mode()
    if ( 0 != szBuff[0] )
       sscanf(szBuff, "%d", &hmode);
 
-   if ( hgroup <= 0 || hmode <= 0 )
+   if ( (hgroup <= 0) || (hmode <= 0) )
    {
       log_softerror_and_alarm("[HDMI] Failed to detect current HDMI mode (g:%d, m:%d)", hgroup, hmode);
       return -1;
    }
-   if ( hgroup != 1 && hgroup != 2 )
+   if ( (hgroup != 1) && (hgroup != 2) )
    {
       log_softerror_and_alarm("[HDMI] Failed to detect current HDMI mode. (g:%d, m:%d)", hgroup, hmode);
       return -1;

@@ -167,7 +167,7 @@ drmutil.o: code/r_tests/drmutil.c
 MODULE_MINIMUM_BASE := $(FOLDER_BASE)/base.o $(FOLDER_BASE)/config.o $(FOLDER_BASE)/gpio.o $(FOLDER_BASE)/hardware_i2c.o $(FOLDER_BASE)/hardware_radio_sik.o $(FOLDER_BASE)/hardware_radio_serial.o $(FOLDER_BASE)/hardware_serial.o $(FOLDER_BASE)/hardware.o $(FOLDER_BASE)/hardware_radio.o $(FOLDER_BASE)/hardware_radio_txpower.o $(FOLDER_BASE)/hw_procs.o
 MODULE_MINIMUM_RADIO := $(FOLDER_COMMON)/radio_stats.o $(FOLDER_RADIO)/radio_duplicate_det.o $(FOLDER_RADIO)/radio_rx.o $(FOLDER_RADIO)/radio_tx.o $(FOLDER_RADIO)/radiolink.o $(FOLDER_RADIO)/radiopackets_rc.o $(FOLDER_RADIO)/radiopackets_short.o $(FOLDER_RADIO)/radiopackets_wfbohd.o $(FOLDER_RADIO)/radiopackets2.o $(FOLDER_RADIO)/radiopacketsqueue.o $(FOLDER_RADIO)/radiotap.o $(FOLDER_BASE)/tx_powers.o
 MODULE_MINIMUM_COMMON := $(FOLDER_COMMON)/string_utils.o
-MODULE_BASE := $(FOLDER_BASE)/base.o $(FOLDER_BASE)/shared_mem.o $(FOLDER_BASE)/config.o $(FOLDER_BASE)/hardware.o $(FOLDER_BASE)/hardware_camera.o $(FOLDER_BASE)/hardware_cam_maj.o $(FOLDER_BASE)/hardware_files.o $(FOLDER_BASE)/hw_procs.o $(FOLDER_BASE)/utils.o $(FOLDER_BASE)/encr.o $(FOLDER_BASE)/hardware_i2c.o $(FOLDER_BASE)/alarms.o $(FOLDER_BASE)/hardware_radio.o $(FOLDER_BASE)/hardware_radio_serial.o $(FOLDER_BASE)/hardware_serial.o $(FOLDER_BASE)/hardware_radio_sik.o $(FOLDER_BASE)/hardware_radio_txpower.o $(FOLDER_BASE)/ruby_ipc.o $(FOLDER_BASE)/commands.o $(FOLDER_BASE)/hardware_files.o
+MODULE_BASE := $(FOLDER_BASE)/base.o $(FOLDER_BASE)/shared_mem.o $(FOLDER_BASE)/config.o $(FOLDER_BASE)/hardware.o $(FOLDER_BASE)/hardware_camera.o $(FOLDER_BASE)/hardware_cam_maj.o $(FOLDER_BASE)/hardware_files.o $(FOLDER_BASE)/hardware_audio.o $(FOLDER_BASE)/hw_procs.o $(FOLDER_BASE)/utils.o $(FOLDER_BASE)/encr.o $(FOLDER_BASE)/hardware_i2c.o $(FOLDER_BASE)/alarms.o $(FOLDER_BASE)/hardware_radio.o $(FOLDER_BASE)/hardware_radio_serial.o $(FOLDER_BASE)/hardware_serial.o $(FOLDER_BASE)/hardware_radio_sik.o $(FOLDER_BASE)/hardware_radio_txpower.o $(FOLDER_BASE)/ruby_ipc.o $(FOLDER_BASE)/commands.o $(FOLDER_BASE)/hardware_files.o
 MODULE_BASE2 := $(FOLDER_BASE)/gpio.o $(FOLDER_BASE)/ctrl_settings.o $(FOLDER_UTILS)/utils_controller.o $(FOLDER_UTILS)/utils_vehicle.o $(FOLDER_BASE)/controller_rt_info.o $(FOLDER_BASE)/vehicle_rt_info.o $(FOLDER_BASE)/ctrl_preferences.o $(FOLDER_BASE)/ctrl_interfaces.o
 MODULE_COMMON := $(FOLDER_COMMON)/string_utils.o $(FOLDER_COMMON)/relay_utils.o
 MODULE_MODELS := $(FOLDER_BASE)/models.o $(FOLDER_BASE)/models_list.o
@@ -209,7 +209,7 @@ ruby_central: $(FOLDER_CENTRAL)/ruby_central.o $(MODULE_BASE) $(MODULE_MODELS) $
 ruby_utils: ruby_logger ruby_initdhcp ruby_sik_config ruby_alive ruby_video_proc ruby_update ruby_update_worker
 
 ruby_start: $(FOLDER_START)/ruby_start.o $(FOLDER_START)/r_start_vehicle.o $(FOLDER_START)/r_test.o $(FOLDER_START)/r_initradio.o $(FOLDER_START)/first_boot.o \
-	$(FOLDER_VEHICLE)/ruby_rx_commands.o $(FOLDER_BASE)/parser_h264.o $(FOLDER_BASE)/camera_utils.o $(FOLDER_VEHICLE)/video_source_csi.o $(FOLDER_VEHICLE)/ruby_rx_rc.o  $(FOLDER_VEHICLE)/process_upload.o $(FOLDER_BASE)/commands.o $(FOLDER_BASE)/vehicle_settings.o $(FOLDER_BASE)/hardware_radio_txpower.o $(FOLDER_RADIO)/radiopackets2.o $(FOLDER_BASE)/ctrl_preferences.o $(FOLDER_BASE)/ctrl_interfaces.o $(FOLDER_VEHICLE)/hw_config_check.o $(MODULE_MINIMUM_BASE) $(MODULE_MODELS) $(MODULE_MINIMUM_COMMON) $(FOLDER_BASE)/ruby_ipc.o $(FOLDER_BASE)/ctrl_settings.o $(FOLDER_UTILS)/utils_controller.o $(FOLDER_UTILS)/utils_vehicle.o $(FOLDER_BASE)/utils.o $(FOLDER_BASE)/shared_mem.o $(FOLDER_VEHICLE)/launchers_vehicle.o $(FOLDER_VEHICLE)/shared_vars.o $(FOLDER_VEHICLE)/timers.o $(FOLDER_UTILS)/utils_vehicle.o $(FOLDER_BASE)/encr.o \
+	$(FOLDER_VEHICLE)/ruby_rx_commands.o $(FOLDER_BASE)/parser_h264.o $(FOLDER_BASE)/hardware_audio.o $(FOLDER_BASE)/camera_utils.o $(FOLDER_VEHICLE)/video_source_csi.o $(FOLDER_VEHICLE)/ruby_rx_rc.o  $(FOLDER_VEHICLE)/process_upload.o $(FOLDER_BASE)/commands.o $(FOLDER_BASE)/vehicle_settings.o $(FOLDER_BASE)/hardware_radio_txpower.o $(FOLDER_RADIO)/radiopackets2.o $(FOLDER_BASE)/ctrl_preferences.o $(FOLDER_BASE)/ctrl_interfaces.o $(FOLDER_VEHICLE)/hw_config_check.o $(MODULE_MINIMUM_BASE) $(MODULE_MODELS) $(MODULE_MINIMUM_COMMON) $(FOLDER_BASE)/ruby_ipc.o $(FOLDER_BASE)/ctrl_settings.o $(FOLDER_UTILS)/utils_controller.o $(FOLDER_UTILS)/utils_vehicle.o $(FOLDER_BASE)/utils.o $(FOLDER_BASE)/shared_mem.o $(FOLDER_VEHICLE)/launchers_vehicle.o $(FOLDER_VEHICLE)/shared_vars.o $(FOLDER_VEHICLE)/timers.o $(FOLDER_UTILS)/utils_vehicle.o $(FOLDER_BASE)/encr.o \
 	$(FOLDER_BASE)/core_plugins_settings.o $(FOLDER_BASE)/hardware_camera.o $(FOLDER_BASE)/hardware_cam_maj.o $(FOLDER_BASE)/hardware_files.o $(FOLDER_BASE)/tx_powers.o
 	$(CXX) $(_CFLAGS) -o $@ $^ $(_LDFLAGS) -ldl
 
@@ -274,7 +274,7 @@ ruby_plugin_gauge_ahi: $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_ahi.o osd_plugins
 ruby_plugin_gauge_heading: $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_heading.o osd_plugins_utils.o core_plugins_utils.o
 	gcc $(FOLDER_PLUGINS_OSD)/ruby_plugin_gauge_heading.o osd_plugins_utils.o core_plugins_utils.o -shared -Wl,-soname,ruby_plugin_gauge_heading2.so.1 -o ruby_plugin_gauge_heading2.so.1.0.1 -lc
 
-ruby_player_radxa:code/r_player/ruby_player_radxa.o code/r_player/mpp_core.o $(FOLDER_BASE)/hdmi.o $(CENTRAL_RENDER_CODE) $(MODULE_MINIMUM_BASE)
+ruby_player_radxa:code/r_player/ruby_player_radxa.o code/r_player/mpp_core.o $(FOLDER_BASE)/hdmi.o $(FOLDER_BASE)/ctrl_settings.o $(FOLDER_BASE)/shared_mem.o $(CENTRAL_RENDER_CODE) $(MODULE_MINIMUM_BASE)
 	$(CXX) $(_CFLAGS) $(CFLAGS_RENDERER) -o $@ $^ $(_LDFLAGS) $(LDFLAGS_RENDERER) $(LDFLAGS_CENTRAL) $(LDFLAGS_CENTRAL2) -ldl -lc -lrockchip_mpp
 
 ifeq ($(RUBY_BUILD_ENV),radxa)
@@ -290,6 +290,9 @@ test_log:$(FOLDER_TESTS)/test_log.o core_plugins_utils.o $(MODULE_BASE) $(MODULE
 	$(CXX) $(_CFLAGS) -o $@ $^ $(_LDFLAGS) -ldl -lc
 
 test_gpio:$(FOLDER_TESTS)/test_gpio.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)
+	$(CXX) $(_CFLAGS) -o $@ $^ $(_LDFLAGS) -ldl -lc
+
+test_audio2:$(FOLDER_TESTS)/test_audio2.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)
 	$(CXX) $(_CFLAGS) -o $@ $^ $(_LDFLAGS) -ldl -lc
 
 test_socket_in:$(FOLDER_TESTS)/test_socket_in.o $(MODULE_BASE) $(MODULE_BASE2) $(MODULE_COMMON) $(MODULE_RADIO) $(MODULE_MODELS)

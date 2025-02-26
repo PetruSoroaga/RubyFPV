@@ -2,11 +2,12 @@
 Copyright (c) 2012, Broadcom Europe Ltd
 All rights reserved.
 
-Redistribution and use in source and/or binary forms, with or without
+Redistribution and/or use in source and/or binary forms, with or without
 modification, are permitted provided that the following conditions are met:
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-    * Redistributions in binary form must reproduce the above copyright
+    * Redistributions and/or use of the source code (partially or complete) must retain
+      the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+    * Redistributions in binary form (partially or complete) must reproduce
       notice, this list of conditions and the following disclaimer in the
       documentation and/or other materials provided with the distribution.
     * Neither the name of the copyright holder nor the
@@ -38,7 +39,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-   
+#include <semaphore.h>
+
 #include "bcm_host.h"
 #include "ilclient.h"
 #include "base.h"
@@ -49,6 +51,7 @@ typedef struct
    u32 uInBlockingOperation;
 } shared_mem_player_process_stats;
 shared_mem_player_process_stats* g_pSMProcessStats = NULL;
+sem_t* s_pSemaphoreSMData = NULL;
 
 int g_bQuit = 0;
 int g_iClockSync = 0;
@@ -270,8 +273,29 @@ static int video_decode()
             uWritePos2 = *pTmp2;
             if ( (g_uSharedMemReadPos == uWritePos1) || (uWritePos1 != uWritePos2) )
             {
-               hardware_sleep_ms(1);
-               continue;
+               struct timespec ts;
+               clock_gettime(CLOCK_REALTIME, &ts);
+               ts.tv_nsec += 1000LL*(long long)10000; // 10 milisec
+               int iResSem = sem_timedwait(s_pSemaphoreSMData, &ts);
+               if ( 0 != iResSem )
+                  continue;
+               int iSemVal = 0;
+               if ( 0 == sem_getvalue(s_pSemaphoreSMData, &iSemVal) )
+               {
+                  //log_line("DBG value: %d", iSemVal);
+                  if ( iSemVal > 0 )
+                  {
+                     for( int i=0; i<iSemVal; i++ )
+                        sem_trywait(s_pSemaphoreSMData);
+                  }
+               }
+               else
+                  log_softerror_and_alarm("DBG Failed to get SM data sem value.");
+
+               uWritePos1 = *pTmp1;
+               uWritePos2 = *pTmp2;
+               if ( (g_uSharedMemReadPos == uWritePos1) || (uWritePos1 != uWritePos2) )
+                  continue;
             }
             if ( uWritePos1 > g_uSharedMemReadPos )
             {
@@ -419,7 +443,7 @@ int main(int argc, char **argv)
 {
    if ( strcmp(argv[argc-1], "-ver") == 0 )
    {
-      printf("%d.%d (b%d)", 10,3,263);
+      printf("%d.%d (b%d)", 10,5,270);
       return 0;
    }
 
@@ -482,8 +506,28 @@ int main(int argc, char **argv)
       g_pSMProcessStats->lastActiveTime = get_current_timestamp_ms();
    }
 
+   char* SEMAPHORE_SM_VIDEO_DATA_AVAILABLE = "RUBY_SEM_SM_VIDEO_DATA_AVAILABLE";
+   //s_pSemaphoreSMData = sem_open(SEMAPHORE_SM_VIDEO_DATA_AVAILABLE, O_RDONLY);
+   //s_pSemaphoreSMData = sem_open(SEMAPHORE_SM_VIDEO_DATA_AVAILABLE, O_RDWR);
+   s_pSemaphoreSMData = sem_open(SEMAPHORE_SM_VIDEO_DATA_AVAILABLE, O_CREAT, S_IWUSR | S_IRUSR, 0); 
+
+   if ( (NULL == s_pSemaphoreSMData) || (SEM_FAILED == s_pSemaphoreSMData) )
+   {
+      log_error_and_alarm("Failed to create SM data read semaphore: %s", SEMAPHORE_SM_VIDEO_DATA_AVAILABLE);
+      return 0;
+   }
+   int iSemVal = 0;
+   if ( 0 == sem_getvalue(s_pSemaphoreSMData, &iSemVal) )
+      log_line("SM data semaphore initial value: %d", iSemVal);
+   else
+      log_softerror_and_alarm("Failed to get SM data sem value.");
+
+
    int iRet = video_decode();
 
+   if ( NULL != s_pSemaphoreSMData )
+      sem_close(s_pSemaphoreSMData);
+   s_pSemaphoreSMData = NULL;
    _close_sm();
    if ( NULL != g_pSMProcessStats )
       munmap(g_pSMProcessStats, sizeof(shared_mem_player_process_stats));   

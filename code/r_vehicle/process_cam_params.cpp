@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -175,15 +176,16 @@ void process_camera_params_changed(u8* pPacketBuffer, int iPacketLength)
    memcpy(&(g_pCurrentModel->camera_params[uCameraChangedIndex]), (u8*)&newCamParams, sizeof(type_camera_parameters));
    g_pCurrentModel->iCurrentCamera = uCameraChangedIndex;
 
-   g_pCurrentModel->log_camera_profiles_differences(&(oldCamParams.profiles[oldCamParams.iCurrentProfile]), &(newCamParams.profiles[newCamParams.iCurrentProfile]), oldCamParams.iCurrentProfile, newCamParams.iCurrentProfile);
 
    // Do changes on the fly, if possible
    _try_process_live_changes(uCameraChangedIndex, &newCamParams, iOldCameraIndex, &oldCamParams);
    
    // Do all the other remaining changes if any are remaining
    if ( 0 != memcmp(&newCamParams, &oldCamParams, sizeof(type_camera_parameters)) )
+   {
+      g_pCurrentModel->log_camera_profiles_differences(&(oldCamParams.profiles[oldCamParams.iCurrentProfile]), &(newCamParams.profiles[newCamParams.iCurrentProfile]), oldCamParams.iCurrentProfile, newCamParams.iCurrentProfile);
       _apply_all_camera_params(&(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera]), &oldCamParams);
-
+   }
    #if defined HW_PLATFORM_RASPBERRY
    if ( g_pCurrentModel->isActiveCameraVeye() )
        g_uTimeToSaveVeyeCameraParams = g_TimeNow + 5000;

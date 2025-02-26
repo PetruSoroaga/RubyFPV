@@ -11,6 +11,7 @@
 #define PACKET_TYPE_LOCAL_CONTROL_RESUME_VIDEO 152
 #define PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM 153
 #define PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED 154  // vehicle_id_src is the component id that triggered the change (first byte) and the type of change (second byte)
+#define PACKET_TYPE_LOCAL_CONTROL_PAUSE_RESUME_AUDIO 155 // vehicle_id_dest: 1: pause, 0: resume
 #define PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED 157  // vehicle_id_src is the component id that triggered the change
 #define PACKET_TYPE_LOCAL_CONTROL_START_VIDEO_PROGRAM 158
 #define PACKET_TYPE_LOCAL_CONTROL_REBOOT 160  // vehicle_id_src is the component id that triggered the change

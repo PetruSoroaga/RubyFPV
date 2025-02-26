@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -54,15 +55,18 @@ u16 s_uPendingKFValue = 0;
 int s_iPendingAdaptiveRadioDataRate = 0;
 u32 s_uTimeSetPendingAdaptiveRadioDataRate = 0;
 
-u32 s_uTemporaryAdaptiveVideoBitrate = 0;
-
 void adaptive_video_init()
 {
    log_line("[AdaptiveVideo] Init...");
+   s_uPendingKFValue = 0;
    s_uCurrentKFValue = g_pCurrentModel->getInitialKeyframeIntervalMs(g_pCurrentModel->video_params.user_selected_video_link_profile);
    s_uTimeLastTimeAdaptivePeriodicLoop = get_current_timestamp_ms();
-   s_uTimeSetPendingAdaptiveRadioDataRate = 0;
+
    s_iPendingAdaptiveRadioDataRate = 0;
+   s_uTimeSetPendingAdaptiveRadioDataRate = 0;
+
+   s_uLastVideoProfileRequestedByController = 0;
+   s_uTimeLastVideoProfileRequestedByController = 0;
    log_line("[AdaptiveVideo] Current KF ms: %d, pending KF ms: %d", s_uCurrentKFValue, s_uPendingKFValue);
 }
 
@@ -172,17 +176,17 @@ u16 adaptive_video_get_current_kf()
    return s_uCurrentKFValue;
 }
 
-bool _adaptive_video_send_kf_to_capture_program(u16 uNewKeyframeMs)
+void _adaptive_video_send_kf_to_capture_program(u16 uNewKeyframeMs)
 {
+   if ( NULL == g_pCurrentModel )
+      return;
    // Send the actual keyframe change to video source/capture
 
    int iVideoProfile = g_pCurrentModel->video_params.user_selected_video_link_profile;
    if ( 0xFF != s_uLastVideoProfileRequestedByController )
       iVideoProfile = s_uLastVideoProfileRequestedByController;
    
-   int iCurrentFPS = 30;
-   if ( NULL != g_pCurrentModel )
-     iCurrentFPS = g_pCurrentModel->video_link_profiles[iVideoProfile].fps;
+   int iCurrentFPS = g_pCurrentModel->video_link_profiles[iVideoProfile].fps;
 
    int iKeyFrameCountValue = (iCurrentFPS * (int)uNewKeyframeMs) / 1000; 
 
@@ -195,10 +199,9 @@ bool _adaptive_video_send_kf_to_capture_program(u16 uNewKeyframeMs)
       fGOP = ((float)uNewKeyframeMs)/1000.0;
       hardware_camera_maj_set_keyframe(fGOP);                
    }
-   return true;
 }
 
-u32 adaptive_video_set_temporary_bitrate(u32 uBitrate)
+u32 adaptive_video_set_bitrate(u32 uBitrateBPS)
 {
    if ( ! g_pCurrentModel->hasCamera() )
       return 0;
@@ -207,31 +210,15 @@ u32 adaptive_video_set_temporary_bitrate(u32 uBitrate)
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       uReturn = video_source_csi_get_last_set_videobitrate();
    if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-      uReturn = hardware_camera_maj_get_temporary_bitrate();
+      uReturn = hardware_camera_maj_get_current_bitrate();
 
-   log_line("[AdaptiveVideo] Set temporary video bitrate to %u bps (current (temp) videobitrate is: %u bps)", uBitrate, uReturn);
+   log_line("[AdaptiveVideo] Set video bitrate to %u bps (current (temp) videobitrate is: %u bps)", uBitrateBPS, uReturn);
 
-   s_uTemporaryAdaptiveVideoBitrate = uBitrate;
+   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, uBitrateBPS/100000, 0);
+   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+      hardware_camera_maj_set_bitrate(uBitrateBPS);
 
-   if ( 0 != uBitrate )
-   {
-      if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-         video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, s_uTemporaryAdaptiveVideoBitrate/100000, 0);
-      if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-         hardware_camera_maj_set_temporary_bitrate(s_uTemporaryAdaptiveVideoBitrate);
-
-   }
-   else
-   {
-      int iCurrentVideoProfile = adaptive_video_get_current_active_video_profile();
-      u32 uBitrateBPS = g_pCurrentModel->video_link_profiles[iCurrentVideoProfile].bitrate_fixed_bps;
-      if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-      {
-         video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, uBitrateBPS/100000, 0);
-      }
-      if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-         hardware_camera_maj_set_temporary_bitrate(uBitrateBPS);
-   }
    return uReturn;
 }
 
@@ -251,13 +238,11 @@ void adaptive_video_on_new_camera_read(bool bIsEndOfFrame)
    if ( NULL != g_pVideoTxBuffers )
    if ( bIsEndOfFrame )
    {
-      if ( _adaptive_video_send_kf_to_capture_program(s_uPendingKFValue) )
-      {
-         log_line("[AdaptiveVideo] Changed KF ms value from %d to %d", s_uCurrentKFValue, s_uPendingKFValue);
-         s_uCurrentKFValue = s_uPendingKFValue;
-         s_uPendingKFValue = 0;
-         g_pVideoTxBuffers->updateCurrentKFValue();
-      }
+      _adaptive_video_send_kf_to_capture_program(s_uPendingKFValue);
+      log_line("[AdaptiveVideo] Changed KF ms value from %d to %d", s_uCurrentKFValue, s_uPendingKFValue);
+      s_uCurrentKFValue = s_uPendingKFValue;
+      s_uPendingKFValue = 0;
+      g_pVideoTxBuffers->updateCurrentKFValue();
    }
 }
 

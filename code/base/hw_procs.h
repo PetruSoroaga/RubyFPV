@@ -19,7 +19,7 @@ void hw_set_priority_current_proc(int nice);
 void hw_set_proc_priority(const char* szProgName, int nice, int ionice, int waitForProcess);
 void hw_get_proc_priority(const char* szProgName, char* szOutput);
 
-void hw_set_proc_affinity(const char* szProgName, int iCoreStart, int iCoreEnd);
+void hw_set_proc_affinity(const char* szProgName, int iExceptThreadId, int iCoreStart, int iCoreEnd);
 
 int hw_execute_bash_command_nonblock(const char* command, char* outBuffer);
 int hw_execute_bash_command(const char* command, char* outBuffer);

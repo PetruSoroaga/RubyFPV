@@ -34,8 +34,8 @@ typedef u32 __le32;
 #define SYSTEM_NAME "Ruby"
 // dword[3...0]: BB.BB.MM.mm  (BB.BB: build number (highest bytes), MM: major ver, mm: minor ver (lowest byte)) 
 #define SYSTEM_SW_VERSION_MAJOR 10
-#define SYSTEM_SW_VERSION_MINOR 40
-#define SYSTEM_SW_BUILD_NUMBER  269
+#define SYSTEM_SW_VERSION_MINOR 50
+#define SYSTEM_SW_BUILD_NUMBER  273
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define le16_to_cpu(x) (x)

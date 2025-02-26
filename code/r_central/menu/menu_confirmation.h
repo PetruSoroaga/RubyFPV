@@ -15,6 +15,7 @@ class MenuConfirmation: public Menu
       virtual int onBack();
       virtual void onSelectItem();
 
+      void setOkActionText(const char* szText);
       void setIconId(u32 uIconId);
       void setUniqueId(int iUniqueId);
       void enableShowDoNotShowAgain();
@@ -25,6 +26,7 @@ class MenuConfirmation: public Menu
       bool m_bShowDoNotShowAgain;
       u32 m_uIconId;
       int m_iUniqueId;
+      char m_szButtonOk[64];
 
       int m_iIndexMenuOk;
       int m_iIndexMenuCancel;

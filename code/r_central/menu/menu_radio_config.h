@@ -38,8 +38,8 @@ class MenuRadioConfig: public Menu
 
       float drawRadioHeader(float xStart, float xEnd, float yStart);
       float drawRadioLinks(float xStart, float xEnd, float yStart);
-      float drawVehicleRadioLink(float xStart, float xEnd, float yStart, int iVehicleRadioLink);
-      void drawVehicleRadioLinkCapabilities(float xStart, float xEnd, float yStart, int iVehicleRadioLink, bool bIsLinkActive, bool bIsRelayLink);
+      float drawOneRadioLink(float xStart, float xEnd, float yStart, int iVehicleRadioLink);
+      void  drawOneRadioLinkCapabilities(float xStart, float xEnd, float yStart, int iVehicleRadioLink, bool bIsLinkActive, bool bIsRelayLink);
       float drawRadioInterfaceController(float xStart, float xEnd, float yStart, int iRadioLink, int iRadioInterface);
 
       float drawRadioInterfaceCtrlInfo(float xStart, float xEnd, float yStart, int iRadioLink, int iRadioInterface, bool bSelected);

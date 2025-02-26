@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -32,6 +33,7 @@
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/hardware.h"
+#include "../base/hardware_audio.h"
 #include "../base/plugins_settings.h"
 #include "../base/ctrl_preferences.h"
 #include "../radio/radiolink.h"
@@ -250,10 +252,11 @@ void onEventBeforePairing()
       }
    }
 
-   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->audio_params.has_audio_device )
+   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->audio_params.has_audio_device && g_pCurrentModel->audio_params.enabled )
    {
       ControllerSettings* pCS = get_ControllerSettings();
-      hardware_set_audio_output(pCS->iAudioOutputDevice, pCS->iAudioOutputVolume);
+      hardware_enable_audio_output();
+      hardware_set_audio_output_volume(pCS->iAudioOutputVolume);
    }
    compute_controller_radio_tx_powers(g_pCurrentModel, &g_SM_RadioStats);
 
@@ -518,6 +521,28 @@ bool _onEventCheckChangesToModel(Model* pCurrentlyStoredModel, Model* pNewReceiv
       }
    }
 
+   // Check camera sensor change
+   if ( pNewReceivedModel->iCurrentCamera != pCurrentlyStoredModel->iCurrentCamera )
+      warnings_add(pCurrentlyStoredModel->uVehicleId, L("Current active camera changed on the vehicle"), g_idIconCamera);
+   int iCurrentCamType = 0;
+   int iNewCamType = 0;
+
+   if ( pCurrentlyStoredModel->iCurrentCamera >= 0 )
+      iCurrentCamType = pCurrentlyStoredModel->camera_params[pCurrentlyStoredModel->iCurrentCamera].iCameraType;
+   if ( pNewReceivedModel->iCurrentCamera >= 0 )
+      iNewCamType = pNewReceivedModel->camera_params[pNewReceivedModel->iCurrentCamera].iCameraType;
+
+   if ( iCurrentCamType != iNewCamType )
+   {
+      char szBuff[256];
+      char szCam1[128];
+      char szCam2[128];
+      str_get_hardware_camera_type_string_to_string(iCurrentCamType, szCam1);
+      str_get_hardware_camera_type_string_to_string(iNewCamType, szCam2);
+      sprintf(szBuff, L("Current camera sensor changed from %s to %s"), szCam1, szCam2);
+      warnings_add(pCurrentlyStoredModel->uVehicleId, szBuff, g_idIconCamera);
+   }
+
    osd_parameters_t oldOSDParams;
    video_parameters_t oldVideoParams;
    memcpy((u8*)&oldOSDParams, (u8*)&(pCurrentlyStoredModel->osd_params), sizeof(osd_parameters_t));
@@ -591,7 +616,7 @@ bool _onEventCheckNewModelForActionsToTake(Model* pCurrentlyStoredModel, Model* 
       getSystemVersionString(szBuff2, pNewReceivedModel->sw_version);
       getSystemVersionString(szBuff3, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
       strcpy(szBuff4, pNewReceivedModel->getVehicleTypeString());
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s has Ruby version %s (b%d) and your controller %s (b%d). You should update your %s.", szBuff4, szBuff2, pNewReceivedModel->sw_version>>16, szBuff3, SYSTEM_SW_BUILD_NUMBER, szBuff4);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s has Ruby version %s (b%u) and your controller %s (b%u). You should update your %s.", szBuff4, szBuff2, pNewReceivedModel->sw_version>>16, szBuff3, SYSTEM_SW_BUILD_NUMBER, szBuff4);
       warnings_add(pNewReceivedModel->uVehicleId, szBuff, 0, NULL, 12);
       bool bArmed = false;
       if ( -1 != iCurrentModelActiveRuntimeIndex )
@@ -736,9 +761,7 @@ void _onEventCheckModelAddNonBlockingPopupWarnings(Model* pModel, bool bUnsolici
          warnings_add(pModel->uVehicleId, "Your vehicle has audio enabled but no audio capture device", g_idIconError);
       else if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
       {
-         char szOutput[4096];
-         hw_execute_bash_command_raw("aplay -l 2>&1", szOutput );
-         if ( NULL != strstr(szOutput, "no soundcards") )
+         if ( ! hardware_has_audio_playback() )
             warnings_add(pModel->uVehicleId, "Your vehicle has audio enabled but your controller can't output audio.", g_idIconError);
       }
    }
@@ -754,8 +777,8 @@ void _onEventCheckModelAddNonBlockingPopupWarnings(Model* pModel, bool bUnsolici
          char szBuff[256];
          char szBuff1[128];
          char szBuff2[128];
-         str_get_hardware_camera_type_string(pModel->camera_params[i].iCameraType, szBuff1);
-         str_get_hardware_camera_type_string(pModel->camera_params[i].iForcedCameraType, szBuff2);
+         str_get_hardware_camera_type_string_to_string(pModel->camera_params[i].iCameraType, szBuff1);
+         str_get_hardware_camera_type_string_to_string(pModel->camera_params[i].iForcedCameraType, szBuff2);
          if ( pModel->iCameraCount > 1 )
             snprintf(szBuff, 255, "Your camera %d is autodetected as %s but you forced to work as %s", i+1, szBuff1, szBuff2);
          else
@@ -894,7 +917,11 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
 
    log_line("Current (before update) local model (VID: %u) mode: %s, has negociated radio? %s, controller id: %u", pCurrentlyStoredModel->uVehicleId, pCurrentlyStoredModel->is_spectator?"spectator mode":"control mode", (pCurrentlyStoredModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no", pCurrentlyStoredModel->uControllerId);
    log_line("Current (before update) current model (g_pCurrentModel) (VID: %u) mode: %s, has negociated radio? %s", g_pCurrentModel->uVehicleId, g_pCurrentModel->is_spectator?"spectator mode":"control mode", (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
-
+   log_line("Current (before update) current camera index: %d, type: %s", g_pCurrentModel->iCurrentCamera,
+      (g_pCurrentModel->iCurrentCamera < 0)?"N/A":str_get_hardware_camera_type_string(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType));
+   
+   log_line("Current received temp model camera index: %d, type: %s", receivedModel.iCurrentCamera,
+      (receivedModel.iCurrentCamera < 0)?"N/A":str_get_hardware_camera_type_string(receivedModel.camera_params[receivedModel.iCurrentCamera].iCameraType));
    log_line("Currently received temp model (VID: %u) controller ID: %u", receivedModel.uVehicleId, receivedModel.uControllerId);
    log_line("Currently received temp model (VID: %u) mode: %s. has negociated radio? %s", receivedModel.uVehicleId, receivedModel.is_spectator?"spectator mode":"control mode", (receivedModel.radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
    log_line("Currently received temp model osd layout: %d, enabled: %s", receivedModel.osd_params.iCurrentOSDLayout, (receivedModel.osd_params.osd_flags2[receivedModel.osd_params.iCurrentOSDLayout] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");

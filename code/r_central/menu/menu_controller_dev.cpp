@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -63,6 +64,7 @@ void MenuControllerDev::addItems()
 
    removeAllItems();
 
+   m_IndexMPPBuffers = -1;
    if ( (NULL == pCS) || (NULL == pP) )
       return;
 
@@ -152,13 +154,23 @@ void MenuControllerDev::addItems()
    m_pItemsSelect[1]->setSelectedIndex(pCS->iStreamerOutputMode);
    m_IndexStreamerMode = addMenuItem(m_pItemsSelect[1]);
 
+   m_IndexMPPBuffers = -1;
+   if ( hardware_board_is_radxa(hardware_getOnlyBoardType()) )
+   {
+      m_pItemsSlider[0] = new MenuItemSlider("Video Buffers Size", "Sets a relative size for the video buffers used by live video stream player.", 5,100,30, fSliderWidth);
+      m_pItemsSlider[0]->setStep(1);
+      m_pItemsSlider[0]->setCurrentValue(pCS->iVideoMPPBuffersSize);
+      m_IndexMPPBuffers = addMenuItem(m_pItemsSlider[0]);
+   }
+
    m_IndexResetDev = addMenuItem(new MenuItem("Reset Developer Settings", "Resets all the developer settings to the factory default values."));
    m_IndexExit = addMenuItem(new MenuItem("Exit to shell", "Closes Ruby and exits to linux shell."));
 
    for( int i=0; i<m_ItemsCount; i++ )
       m_pMenuItems[i]->setTextColor(get_Color_Dev());
 
-   m_SelectedIndex = iTmp;
+   if ( iTmp >= 0 )
+      m_SelectedIndex = iTmp;
    if ( m_SelectedIndex >= m_ItemsCount )
       m_SelectedIndex = m_ItemsCount-1;
 }
@@ -279,6 +291,17 @@ void MenuControllerDev::onSelectItem()
       pP->iShowCPULoad = m_pItemsSelect[13]->getSelectedIndex();
       save_Preferences();
       valuesToUI();
+      return;
+   }
+
+   if ( (-1 != m_IndexMPPBuffers) && (m_IndexMPPBuffers == m_SelectedIndex) )
+   {
+      pCS->iVideoMPPBuffersSize = m_pItemsSlider[0]->getCurrentValue();
+      save_ControllerSettings();
+      // Force a restart of video streamer
+      if ( pairing_isStarted() )
+      if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->hasCamera()) )
+         send_model_changed_message_to_router(MODEL_CHANGED_VIDEO_CODEC, 0);
       return;
    }
 

@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -268,6 +269,8 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
                bool bCameraChanged = false;
                if ( NULL != g_VehiclesRuntimeInfo[i].pModel )
                {
+                  if ( modelTemp.iCameraCount != g_VehiclesRuntimeInfo[i].pModel->iCameraCount )
+                     bCameraChanged = true;
                   if ( modelTemp.iCurrentCamera != g_VehiclesRuntimeInfo[i].pModel->iCurrentCamera )
                      bCameraChanged = true;
                   if ( (modelTemp.iCurrentCamera >= 0) && (modelTemp.iCameraCount > 0) )
@@ -280,10 +283,10 @@ int handle_commands_on_full_model_settings_received(u32 uVehicleId, int iRespons
                   if ( bCameraChanged )
                      log_line("[Commands] Was not waiting for model settings for vehicle id %u, but it's active camera changed.", modelTemp.uVehicleId);
                   else
-                  {
-                     log_line("[Commands] Was not waiting for model settings for vehicle id %u and radio config did not changed. Ignoring it.", modelTemp.uVehicleId);
-                     return 0;
-                  }
+                  //{
+                     log_line("[Commands] Was not waiting for model settings for vehicle id %u and radio config did not changed.", modelTemp.uVehicleId);
+                  //   return 0;
+                  //}
                }
             }
          }
@@ -668,7 +671,7 @@ void _handle_download_file_segment_response()
       s_uLastTimeDownloadProgress = g_TimeNow;
       char szBuff[128];
       if ( s_uCountFileSegmentsToDownload > 0 )
-         sprintf(szBuff, "Downloading %d%%", s_uCountFileSegmentsDownloaded*100 / s_uCountFileSegmentsToDownload );
+         sprintf(szBuff, "Downloading %u%%", s_uCountFileSegmentsDownloaded*100 / s_uCountFileSegmentsToDownload );
       else
          strcpy(szBuff, "Downloading ...");
       warnings_add(0, szBuff);
@@ -971,9 +974,9 @@ bool handle_last_command_result()
             {
                g_pCurrentModel->radioInterfacesParams.interface_card_model[0] = -CARD_MODEL_RTL8812AU_AF1;
             }
-
+            g_pCurrentModel->resetAudioParams();
             saveControllerModel(g_pCurrentModel);
-            send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+            send_model_changed_message_to_router(MODEL_CHANGED_AUDIO_PARAMS, 0);
             if ( menu_has_menu(MENU_ID_VEHICLE_BOARD) )
             {
                Menu* pMenu = menu_get_menu_by_id(MENU_ID_VEHICLE_BOARD);
@@ -1005,7 +1008,7 @@ bool handle_last_command_result()
          else
             g_pCurrentModel->uDeveloperFlags &= (~DEVELOPER_FLAGS_BIT_LIVE_LOG);
          saveControllerModel(g_pCurrentModel);  
-         sprintf(szBuff, "Switched vehicle live log stream to: %d", s_CommandParam);
+         sprintf(szBuff, "Switched vehicle live log stream to: %u", s_CommandParam);
          send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
          break;
 
@@ -1060,7 +1063,7 @@ bool handle_last_command_result()
          s_pMenuVehicleHWInfo = new Menu(0,"Vehicle Hardware Info",NULL);
          s_pMenuVehicleHWInfo->m_xPos = 0.32; s_pMenuVehicleHWInfo->m_yPos = 0.17;
          s_pMenuVehicleHWInfo->m_Width = 0.6;
-         sprintf(szBuff, "Board type: %s (id: %d.%d), software version: %d.%d (b%d)", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType), (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK), (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT, ((g_pCurrentModel->sw_version)>>8) & 0xFF, (g_pCurrentModel->sw_version) & 0xFF, ((g_pCurrentModel->sw_version)>>16));
+         sprintf(szBuff, "Board type: %s (id: %u.%u), software version: %u.%u (b%u)", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType), (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK), (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT, ((g_pCurrentModel->sw_version)>>8) & 0xFF, (g_pCurrentModel->sw_version) & 0xFF, ((g_pCurrentModel->sw_version)>>16));
          s_pMenuVehicleHWInfo->addTopLine(szBuff);
          s_pMenuVehicleHWInfo->addTopLine(" ");
          s_pMenuVehicleHWInfo->addTopLine(" ");
@@ -1126,7 +1129,7 @@ bool handle_last_command_result()
          pTmp32 = (u32*)pBuffer;
          if ( iDataLength >= 2*(int)sizeof(u32) )
          {
-            sprintf(szBuff, "Memory: %d Mb free out of %d Mb total", *(pTmp32+1), *pTmp32);
+            sprintf(szBuff, "Memory: %u Mb free out of %u Mb total", *(pTmp32+1), *pTmp32);
             s_pMenuVehicleHWInfo->addTopLine(" ");
             s_pMenuVehicleHWInfo->addTopLine(szBuff);
          }
@@ -1775,7 +1778,15 @@ bool handle_last_command_result()
 
             saveControllerModel(g_pCurrentModel);
 
-            if ( (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) != (oldParams.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) )
+            if ( g_pCurrentModel->video_params.user_selected_video_link_profile != oldParams.user_selected_video_link_profile )
+            {
+               g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].fps = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps;
+               g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_MQ].keyframe_ms = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
+               g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].fps = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].fps;
+               g_pCurrentModel->video_link_profiles[VIDEO_PROFILE_LQ].keyframe_ms = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
+               send_model_changed_message_to_router(MODEL_CHANGED_USER_SELECTED_VIDEO_PROFILE, 0);
+            }
+            else if ( (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) != (oldParams.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265) )
             {
                log_line("Changed video codec. New codec: %s", (g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265)?"H265":"H264");
                send_model_changed_message_to_router(MODEL_CHANGED_VIDEO_CODEC, 0);
@@ -1792,9 +1803,7 @@ bool handle_last_command_result()
             memcpy(&params, s_CommandBuffer, sizeof(audio_parameters_t));
             memcpy(&(g_pCurrentModel->audio_params), &params, sizeof(audio_parameters_t));
             saveControllerModel(g_pCurrentModel);
-            pairing_stop();
-            hardware_sleep_ms(50);
-            pairing_start_normal();
+            send_model_changed_message_to_router(MODEL_CHANGED_AUDIO_PARAMS, 0);
             menu_refresh_all_menus();
             break;
          }
@@ -2549,7 +2558,8 @@ bool handle_commands_send_command_once_to_vehicle(u8 commandType, u8 resendCount
    u8 buffer[MAX_PACKET_TOTAL_SIZE];
    memcpy(buffer, (u8*)&PH, sizeof(t_packet_header));
    memcpy(buffer+sizeof(t_packet_header), (u8*)&PHC, sizeof(t_packet_header_command));
-   memcpy(buffer+sizeof(t_packet_header)+sizeof(t_packet_header_command), pBuffer, length);
+   if ( NULL != pBuffer )
+      memcpy(buffer+sizeof(t_packet_header)+sizeof(t_packet_header_command), pBuffer, length);
    
    send_packet_to_router(buffer, PH.total_length);
  

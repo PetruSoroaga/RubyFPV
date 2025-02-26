@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -297,6 +298,7 @@ char* str_get_packet_type(int iPacketType)
       case PACKET_TYPE_NEGOCIATE_RADIO_LINKS: strcpy(s_szPacketType, "PACKET_TYPE_NEGOCIATE_RADIO_LINKS"); break;       
       // Local packets
 
+      case PACKET_TYPE_LOCAL_CONTROL_PAUSE_RESUME_AUDIO:    strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_PAUSE_RESUME_AUDIO"); break;
       case PACKET_TYPE_LOCAL_CONTROL_PAUSE_VIDEO:           strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_PAUSE_VIDEO"); break;
       case PACKET_TYPE_LOCAL_CONTROL_RESUME_VIDEO:          strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_RESUME_VIDEO"); break;
       case PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM:  strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_UPDATE_VIDEO_PROGRAM"); break;
@@ -455,7 +457,7 @@ void str_getDataRateDescription(int dataRateBPS, int iHT40, char* szOutput)
    }
    else if ( 0 == dataRateBPS )
    {
-      strcpy(szOutput, "None (0)");
+      strcpy(szOutput, "-");
    }
    else if ( dataRateBPS <= 56 )
    {
@@ -492,6 +494,8 @@ void str_getDataRateDescriptionNoSufix(int dataRateBPS, char* szOutput)
       else
          sprintf(szOutput, "MCS-?");
    }
+   else if ( 0 == dataRateBPS )
+      strcpy(szOutput,"-");
    else if ( dataRateBPS <= 56 )
    {
        sprintf(szOutput, "*%d", dataRateBPS);
@@ -806,13 +810,20 @@ const char* str_get_hardware_wifi_name(u32 wifi_type)
    return s_szWiFiTypeUnknown;
 }
 
-void str_get_hardware_camera_type_string(u32 camType, char* szOutput)
+const char* str_get_hardware_camera_type_string(u32 uCamType)
+{
+   static char s_szStrCameraTypeName[128];
+   str_get_hardware_camera_type_string_to_string(uCamType, s_szStrCameraTypeName);
+   return s_szStrCameraTypeName;
+}
+
+void str_get_hardware_camera_type_string_to_string(u32 uCamType, char* szOutput)
 {
    if ( NULL == szOutput )
       return;
    szOutput[0] = 0;
 
-   if ( camType == 0 )
+   if ( uCamType == 0 )
    {
       strcpy(szOutput, "None");
       return;
@@ -820,26 +831,24 @@ void str_get_hardware_camera_type_string(u32 camType, char* szOutput)
    
    strcpy(szOutput, "Unknown");
 
-   if ( camType == CAMERA_TYPE_CSI )
+   if ( uCamType == CAMERA_TYPE_CSI )
       strcpy(szOutput, "Standard CSI");
-   else if ( camType == CAMERA_TYPE_VEYE290 )
+   else if ( uCamType == CAMERA_TYPE_VEYE290 )
       strcpy(szOutput, "VEYE/IMX290");
-   else if ( camType == CAMERA_TYPE_VEYE307 )
+   else if ( uCamType == CAMERA_TYPE_VEYE307 )
       strcpy(szOutput, "VEYE/IMX307");
-   else if ( camType == CAMERA_TYPE_VEYE327 )
+   else if ( uCamType == CAMERA_TYPE_VEYE327 )
       strcpy(szOutput, "VEYE/IMX327");
-   else if ( camType == CAMERA_TYPE_HDMI )
+   else if ( uCamType == CAMERA_TYPE_HDMI )
       strcpy(szOutput, "HDMI CSI");
-   else if ( camType == CAMERA_TYPE_USB )
-      strcpy(szOutput, "USB");
-   else if ( camType == CAMERA_TYPE_IP )
+   else if ( uCamType == CAMERA_TYPE_IP )
       strcpy(szOutput, "IP");
 
-   if ( camType == CAMERA_TYPE_OPENIPC_IMX307 )
+   if ( uCamType == CAMERA_TYPE_OPENIPC_IMX307 )
       strcpy(szOutput, "Sony IMX307");
-   else if ( camType == CAMERA_TYPE_OPENIPC_IMX335 )
+   else if ( uCamType == CAMERA_TYPE_OPENIPC_IMX335 )
       strcpy(szOutput, "Sony IMX335");
-   else if ( camType == CAMERA_TYPE_OPENIPC_IMX415 )
+   else if ( uCamType == CAMERA_TYPE_OPENIPC_IMX415 )
       strcpy(szOutput, "Sony IMX415");
 }
 
@@ -1184,7 +1193,7 @@ char* str_format_video_frame_and_nal_flags(u32 uFrameAndNALFlags)
    {
       strcat(s_szFrameNALFlags, " E-Of-TrFrame");
       char szTmp[32];
-      sprintf(szTmp, "-%d", uFrameAndNALFlags & 0x03);
+      sprintf(szTmp, "-%u", uFrameAndNALFlags & 0x03);
       strcat(s_szFrameNALFlags, szTmp);
    }
 
@@ -1290,12 +1299,14 @@ char* str_get_radio_stream_name(int iStreamId)
    strcpy(s_szStreamName, "N/A");
    if ( iStreamId == STREAM_ID_DATA )
       strcpy(s_szStreamName, "Data Stream 1");
-   if ( iStreamId == STREAM_ID_TELEMETRY )
+   else if ( iStreamId == STREAM_ID_TELEMETRY )
       strcpy(s_szStreamName, "Telemetry Stream");
-   else if ( iStreamId < STREAM_ID_VIDEO_1 )
-      sprintf(s_szStreamName, "Data Stream %d", iStreamId);
+   else if ( iStreamId == STREAM_ID_AUDIO )
+      strcpy(s_szStreamName, "Audio Stream");
+   else if ( iStreamId == STREAM_ID_DATA2 )
+      strcpy(s_szStreamName, "Data Stream 2");
    else
-      sprintf(s_szStreamName, "Video Stream %d", iStreamId-STREAM_ID_VIDEO_1+1);
+      sprintf(s_szStreamName, "Video Stream %d", iStreamId-((int)STREAM_ID_VIDEO_1)+1);
 
    return s_szStreamName;
 }

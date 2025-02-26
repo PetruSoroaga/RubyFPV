@@ -19,6 +19,8 @@
 #define VIDEO_PROFILE_PIP 5
 #define VIDEO_PROFILE_LAST 6
 
+#define VIDEO_PROFILE_FLAGS_MASK_NOISE ((u32)0x03)
+#define VIDEO_PROFILE_FLAGS_NOISE_AUTO ((u32)0x10)
 #define VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS ((u32)(((u32)0x01)<<3))
 //#define VIDEO_PROFILE_ENCODING_FLAG_STATUS_ON_LOWER_BITRATE ((u32)(((u32)0x01)<<4))
 // Deprecated in 9.5, not used, moved to status flags 2 in video radio packet

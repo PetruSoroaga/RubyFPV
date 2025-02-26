@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -48,7 +49,7 @@ MenuVehicleCamera::MenuVehicleCamera(void)
 
    char szCam[256];
    char szCam2[256];
-   str_get_hardware_camera_type_string( g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType, szCam2);
+   str_get_hardware_camera_type_string_to_string(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType, szCam2);
    snprintf(szCam, 255, "Camera: %s", szCam2);
 
    char* szCamName = g_pCurrentModel->getCameraName(g_pCurrentModel->iCurrentCamera);
@@ -107,8 +108,8 @@ void MenuVehicleCamera::addItems()
    {
       char szBuff1[128];
       char szBuff2[128];
-      str_get_hardware_camera_type_string(g_pCurrentModel->camera_params[i].iCameraType, szBuff1);
-      str_get_hardware_camera_type_string(g_pCurrentModel->camera_params[i].iForcedCameraType, szBuff2);
+      str_get_hardware_camera_type_string_to_string(g_pCurrentModel->camera_params[i].iCameraType, szBuff1);
+      str_get_hardware_camera_type_string_to_string(g_pCurrentModel->camera_params[i].iForcedCameraType, szBuff2);
       log_line("MenuCamera: Camera %d hardware type: %s, overwrite type: %s, current profile: %d", i+1, szBuff1, szBuff2, g_pCurrentModel->camera_params[i].iCurrentProfile);
    }
 
@@ -141,7 +142,7 @@ void MenuVehicleCamera::addItems()
    {
       szCam[0] = 0;
       szCam2[0] = 0;
-      str_get_hardware_camera_type_string( g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType, szCam2);
+      str_get_hardware_camera_type_string_to_string(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraType, szCam2);
       sprintf(szCam, "%s", szCam2);
 
       szCamName = g_pCurrentModel->getCameraName(g_pCurrentModel->iCurrentCamera);
@@ -168,7 +169,7 @@ void MenuVehicleCamera::addItems()
    m_pItemsSelect[12]->addSelection("OpenIPC IMX307", g_pCurrentModel->isRunningOnOpenIPCHardware());
    m_pItemsSelect[12]->addSelection("OpenIPC IMX335", g_pCurrentModel->isRunningOnOpenIPCHardware());
    m_pItemsSelect[12]->addSelection("OpenIPC IMX415", g_pCurrentModel->isRunningOnOpenIPCHardware());
-   m_pItemsSelect[12]->addSelection("USB Camera", false);
+   //m_pItemsSelect[12]->addSelection("USB Camera", false);
    m_pItemsSelect[12]->addSelection("IP Camera", false);
    m_pItemsSelect[12]->setIsEditable();
    m_IndexForceMode = addMenuItem(m_pItemsSelect[12]);
@@ -447,8 +448,6 @@ void MenuVehicleCamera::updateUIValues(int iCameraProfileIndex)
       m_pItemsSelect[12]->setSelection(7);
    else if ( CAMERA_TYPE_OPENIPC_IMX415 == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType )
       m_pItemsSelect[12]->setSelection(8);
-   else if ( CAMERA_TYPE_USB == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType )
-      m_pItemsSelect[12]->setSelection(9);
    else if ( CAMERA_TYPE_IP == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType )
       m_pItemsSelect[12]->setSelection(10);
    else

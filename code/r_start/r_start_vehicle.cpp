@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -53,6 +54,7 @@
 #include "../base/encr.h"
 #include "../base/models.h"
 #include "../base/hardware.h"
+#include "../base/hardware_audio.h"
 #include "../base/hw_procs.h"
 #include "../base/utils.h"
 #include "../base/ruby_ipc.h"
@@ -511,6 +513,11 @@ int r_start_vehicle(int argc, char *argv[])
    else
       log_line("Start sequence: Checking the file system for write access: Succeeded.");
 
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   hw_execute_bash_command("ulimit -i 1024", NULL);
+   hw_execute_bash_command("ulimit -l 1024", NULL);
+   #endif
+
    // Detect serial UARTs
 
    hardware_init_serial_ports();
@@ -547,22 +554,30 @@ int r_start_vehicle(int argc, char *argv[])
    #ifdef HW_PLATFORM_RASPBERRY
    hw_execute_bash_command_raw( "arecord -l 2>&1 | grep card | grep USB", szBuff );
    if ( 0 < strlen(szBuff) && NULL != strstr(szBuff, "USB") )
+   {
       modelVehicle.audio_params.has_audio_device = true;
+      modelVehicle.audio_params.uFlags &= ~((u32)0x03);
+      modelVehicle.audio_params.uFlags |= (u32)0x02;
+   }
    else
    {
       modelVehicle.audio_params.has_audio_device = false;
+      modelVehicle.audio_params.uFlags &= ~((u32)0x03);
       modelVehicle.audio_params.enabled = false;
    }
    #endif
 
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
-   modelVehicle.audio_params.has_audio_device = false;
-   modelVehicle.audio_params.enabled = false;
-   hw_execute_bash_command("ulimit -i 1024", NULL);
-   hw_execute_bash_command("ulimit -l 1024", NULL);
+   
+   modelVehicle.audio_params.has_audio_device = true;
+   if ( hardware_board_has_audio_builtin(modelVehicle.hwCapabilities.uBoardType) )
+   {
+      modelVehicle.audio_params.uFlags &= ~((u32)0x03);
+      modelVehicle.audio_params.uFlags |= (u32)0x01;
+   }
    #endif
 
-   log_line("Start sequence: Finished detecting audio device. %s", modelVehicle.audio_params.has_audio_device?"Audio capture device found.":"No audio capture devices found.");
+   log_line("Start sequence: Finished detecting audio device for board %s: %s", str_get_hardware_board_name(modelVehicle.hwCapabilities.uBoardType), modelVehicle.audio_params.has_audio_device?"Audio capture device found.":"No audio capture devices found.");
 
    if ( bHadAudioDevice != modelVehicle.audio_params.has_audio_device )
       bMustSave = true;
@@ -683,7 +698,7 @@ int r_start_vehicle(int argc, char *argv[])
    int counter = 0;
    bool bMustRestart = false;
    int iRestartCount = 0;
-   u32 uTimeToAdjustAffinities = get_current_timestamp_ms() + 5000;
+   u32 uTimeToAdjustAffinities = get_current_timestamp_ms() + 6000;
    u32 uTimeLoopLog = g_TimeStart;
 
    char szFileUpdate[MAX_FILE_PATH_SIZE];
@@ -722,8 +737,7 @@ int r_start_vehicle(int argc, char *argv[])
          {
             hardware_sleep_ms(500);
          }
-         if ( s_bQuit )
-            break;
+         break;
       }
 
       if ( g_TimeNow > g_TimeLastCheckRadioSilenceFailsafe + 10000 )
@@ -748,8 +762,7 @@ int r_start_vehicle(int argc, char *argv[])
 
          if ( bCheckRadioFailSafe )
          if ( s_pProcessStatsRouter->lastRadioRxTime > 0 )
-         if ( (s_pProcessStatsRouter->lastRadioRxTime+10000 < g_TimeNow) ||
-              (s_pProcessStatsRouter->lastRadioRxTime+10000 < g_TimeNow) )
+         if ( (s_pProcessStatsRouter->lastRadioRxTime+10000 < g_TimeNow) )
          {
             char szComm[128];
             sprintf(szComm, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_ALARM_ON);
@@ -760,9 +773,9 @@ int r_start_vehicle(int argc, char *argv[])
             {
                if ( 0 == s_iRadioSilenceFailsafeTimeoutCounts )
                {
-                  char szComm[64];
-                  sprintf(szComm, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_REINIT_RADIO_REQUEST);
-                  hw_execute_bash_command_silent(szComm, NULL);
+                  char szComm5[MAX_FILE_PATH_SIZE];
+                  sprintf(szComm5, "touch %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_REINIT_RADIO_REQUEST);
+                  hw_execute_bash_command_silent(szComm5, NULL);
                   s_iRadioSilenceFailsafeTimeoutCounts++;
                }
                else
@@ -949,7 +962,7 @@ int r_start_vehicle(int argc, char *argv[])
 
          log_line("Restarting processes. Done.");
 
-         uTimeToAdjustAffinities = get_current_timestamp_ms() + 5000;
+         uTimeToAdjustAffinities = get_current_timestamp_ms() + 6000;
          s_failCountProcessRouter = 0;
          s_failCountProcessTelemetry = 0;
          s_failCountProcessCommands = 0;

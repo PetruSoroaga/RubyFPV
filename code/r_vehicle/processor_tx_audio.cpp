@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -41,6 +42,9 @@
 #include "packets_utils.h"
 #include "shared_vars.h"
 #include "timers.h"
+#if defined (HW_PLATFORM_OPENIPC_CAMERA)
+#include "video_source_majestic.h"
+#endif
 
 FILE* s_pFileRawStream = NULL;
 
@@ -58,20 +62,12 @@ ProcessorTxAudio::ProcessorTxAudio()
    m_StatsTimeLastComputeAudioInputBps = 0;
    
    m_iBreakStampMatchPosition = 0;
-   m_iCurrentInputReadPacketIndex = 0;
-   m_iCurrentInputReadPacketPosition = 0;
-
-   m_iCurrentInputBufferPacketToSend = 0;
-   m_uCurrentTxAudioBlockIndex = 0;
-   m_uCurrentTxAudioSegmentIndex = 0;
-
-   m_iSchemePacketSize = MAX_PACKET_PAYLOAD - 100;
-   m_uSchemeDataPackets = 4;
-   m_uSchemeECPackets = 2;
 
    strcpy(m_szBreakStamp, "0123456789");
    m_szBreakStamp[10] = 10;
    m_szBreakStamp[11] = 0;
+
+   resetState(NULL);
 }
 
 ProcessorTxAudio::~ProcessorTxAudio()
@@ -79,6 +75,43 @@ ProcessorTxAudio::~ProcessorTxAudio()
    stopLocalRecording();
    closeAudioStream();
 }
+
+void ProcessorTxAudio::init(Model* pModel)
+{
+   resetState(pModel);
+}
+
+void ProcessorTxAudio::resetState(Model* pModel)
+{
+   m_iCurrentInputReadPacketIndex = 0;
+   m_iCurrentInputReadPacketPosition = 0;
+
+   m_iCurrentInputBufferPacketToSend = 0;
+   m_uCurrentTxAudioBlockIndex = 0;
+   m_uCurrentTxAudioSegmentIndex = 0;
+
+   m_iSchemePacketSize = DEFAULT_AUDIO_PACKET_LENGTH;
+   m_iSchemeDataPackets = 4;
+   m_iSchemeECPackets = 2;
+
+   if ( NULL == pModel )
+   {
+      log_line("[AudioTx] Reset state (no model). Current EC scheme: %d/%d, packet length: %d bytes", m_iSchemeDataPackets, m_iSchemeECPackets, m_iSchemePacketSize);
+      return;
+   }
+   m_iSchemePacketSize = (int)pModel->audio_params.uPacketLength;
+   m_iSchemeDataPackets = (int)((pModel->audio_params.uECScheme >> 4) & 0x0F);
+   m_iSchemeECPackets = (int)(pModel->audio_params.uECScheme & 0x0F);
+
+   if ( m_iSchemeDataPackets < 1 )
+      m_iSchemeDataPackets = 1;
+
+   if ( m_iSchemePacketSize > MAX_PACKET_PAYLOAD )
+      m_iSchemePacketSize = MAX_PACKET_PAYLOAD;
+
+   log_line("[AudioTx] Reset state. Current EC scheme: %d/%d, packet length: %d bytes", m_iSchemeDataPackets, m_iSchemeECPackets, m_iSchemePacketSize);
+}
+
 
 u32 ProcessorTxAudio::getAverageAudioInputBps()
 {
@@ -106,37 +139,37 @@ int ProcessorTxAudio::openAudioStream()
 
    if ( NULL == g_pCurrentModel )
    {
-      log_softerror_and_alarm("[Audio-Tx] Invalid params to open audio stream. Null model.");
+      log_softerror_and_alarm("[AudioTx] Invalid params to open audio stream. Null model.");
       return 0;
    }
    if ( ! g_pCurrentModel->audio_params.enabled )
    {
-      log_line("[Audio-Tx] Audio is disabled on vehicle. No audio stream to open.");
+      log_line("[AudioTx] Audio is disabled on vehicle. No audio stream to open.");
       return 0;
    }
    if ( ! g_pCurrentModel->audio_params.has_audio_device )
    {
-      log_line("[Audio-Tx] No audio devices on vehicle. No audio stream to open.");
+      log_line("[AudioTx] No audio devices on vehicle. No audio stream to open.");
       return 0;
    }
   
-   log_line("[Audio-Tx] Opening audio input stream: %s", FIFO_RUBY_AUDIO1);
+   log_line("[AudioTx] Current EC scheme: %u/%u, packet size: %d bytes",
+       m_iSchemeDataPackets, m_iSchemeECPackets, m_iSchemePacketSize);
+
+   #if defined (HW_PLATFORM_RASPBERRY)
+   log_line("[AudioTx] Opening audio input stream: %s", FIFO_RUBY_AUDIO1);
    m_iAudioStream = open(FIFO_RUBY_AUDIO1, O_RDONLY);
    if ( m_iAudioStream < 0 )
    {
-      log_softerror_and_alarm("[Audio-TX] Failed to open audio input stream: %s", FIFO_RUBY_AUDIO1);
+      log_softerror_and_alarm("[AudioTx] Failed to open audio input stream: %s", FIFO_RUBY_AUDIO1);
       return 0;
    }
-   log_line("[Audio-TX] Opened audio input stream: %s successfully. fd = %d", FIFO_RUBY_AUDIO1, m_iAudioStream);
+   log_line("[AudioTx] Opened audio input stream: %s successfully. fd = %d", FIFO_RUBY_AUDIO1, m_iAudioStream);
+   #endif
 
-   m_uSchemeDataPackets = g_pCurrentModel->audio_params.flags & 0xFF;
-   m_uSchemeECPackets = (g_pCurrentModel->audio_params.flags >> 8 ) & 0xFF;
-   if ( m_uSchemeDataPackets >= MAX_BUFFERED_AUDIO_PACKETS )
-      m_uSchemeDataPackets = MAX_BUFFERED_AUDIO_PACKETS - 1;
-   if ( m_uSchemeECPackets > 10 )
-      m_uSchemeECPackets = 10;
-   log_line("[Audio-Tx] Current EC scheme: data/EC: %u/%u, packet size: %d bytes",
-       m_uSchemeDataPackets, m_uSchemeECPackets, m_iSchemePacketSize);
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   video_source_majestic_clear_audio_buffers();
+   #endif
 
    #ifdef FEATURE_LOCAL_AUDIO_RECORDING
    startLocalRecording();
@@ -153,10 +186,14 @@ void ProcessorTxAudio::closeAudioStream()
 
    if ( -1 != m_iAudioStream )
    {
-      log_line("[Audio-Tx] Closed audio input stream %s", FIFO_RUBY_AUDIO1);
+      log_line("[AudioTx] Closed audio input stream %s", FIFO_RUBY_AUDIO1);
       close(m_iAudioStream);
    }
    m_iAudioStream = -1;
+
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   video_source_majestic_clear_audio_buffers();
+   #endif
 
    m_StatsAudioInputComputedBps = 0;
 }
@@ -176,42 +213,44 @@ int ProcessorTxAudio::startLocalRecording()
 
    if ( NULL == g_pCurrentModel )
    {
-      log_softerror_and_alarm("[Audio-Tx] Invalid params to start recording. Null model.");
+      log_softerror_and_alarm("[AudioTx] Invalid params to start recording. Null model.");
       return 0;
    }
    if ( ! g_pCurrentModel->audio_params.enabled )
    {
-      log_line("[Audio-Tx] Audio is disabled on vehicle. No audio stream to record.");
+      log_line("[AudioTx] Audio is disabled on vehicle. No audio stream to record.");
       return 0;
    }
    if ( ! g_pCurrentModel->audio_params.has_audio_device )
    {
-      log_line("[Audio-Tx] No audio devices on vehicle. No audio stream to record.");
+      log_line("[AudioTx] No audio devices on vehicle. No audio stream to record.");
       return 0;
    }
 
    m_bLocalRecording = true;
    m_iBreakStampMatchPosition = 0;
    
-#ifdef FEATURE_LOCAL_AUDIO_RECORDING
-   log_line("[Audio-Tx] Local recording started. Opening local recording output file...");
+   #ifdef FEATURE_LOCAL_AUDIO_RECORDING
+   log_line("[AudioTx] Local recording started. Opening local recording output file...");
    m_iRecordingFileNumber = 0;
    if ( NULL != m_fAudioRecordingFile )
       fclose(m_fAudioRecordingFile);
 
-   char szBuff[128];
-   sprintf(szBuff, "%s%s%d", FOLDER_RUBY_TEMP, FILE_TEMP_AUDIO_RECORDING, m_iRecordingFileNumber);
-   m_fAudioRecordingFile = fopen(szBuff, "wb");
+   char szFile[512];
+   sprintf(szFile, "%s%s%d", FOLDER_RUBY_TEMP, FILE_TEMP_AUDIO_RECORDING, m_iRecordingFileNumber);
+   m_fAudioRecordingFile = fopen(szFile, "wb");
    if ( NULL == m_fAudioRecordingFile )
    {
-      log_softerror_and_alarm("[Audio-Tx] Failed to open output recording file %s", szBuff);
+      log_softerror_and_alarm("[AudioTx] Failed to open output recording file %s", szFile);
       return 0;
    }
    else
-      log_line("[Audio-Tx] Opened audio recording output file %s, fd:%d", szBuff, fileno(m_fAudioRecordingFile));
-#endif
+      log_line("[AudioTx] Opened audio recording output file %s, fd:%d", szFile, fileno(m_fAudioRecordingFile));
+   #endif
 
-   //s_pFileRawStream = fopen("raw_audio_out_stream.data", "wb");
+   // To remove
+   hw_execute_bash_command("rm -rf /tmp/audio.raw", NULL);
+   s_pFileRawStream = fopen("/tmp/audio.raw", "wb");
 
    return 1;
 }
@@ -223,8 +262,8 @@ int ProcessorTxAudio::stopLocalRecording()
 
    m_bLocalRecording = false;
 
-#ifdef FEATURE_LOCAL_AUDIO_RECORDING
-   log_line("[Audio-Tx] Local recording stopped. Closing local recording output file...");
+   #ifdef FEATURE_LOCAL_AUDIO_RECORDING
+   log_line("[AudioTx] Local recording stopped. Closing local recording output file...");
    if ( NULL != m_fAudioRecordingFile )
       fclose(m_fAudioRecordingFile);
    m_fAudioRecordingFile = NULL;
@@ -237,7 +276,7 @@ int ProcessorTxAudio::stopLocalRecording()
       hw_execute_bash_command(szBuff, NULL);
    }
    m_iRecordingFileNumber = 0;
-#endif
+   #endif
 
    if ( NULL != s_pFileRawStream )
       fclose(s_pFileRawStream);
@@ -248,10 +287,8 @@ int ProcessorTxAudio::stopLocalRecording()
 
 int ProcessorTxAudio::tryReadAudioInputStream()
 {
-   if ( -1 == m_iAudioStream )
+   if ( (NULL == g_pCurrentModel) || (! g_pCurrentModel->audio_params.enabled) || (!g_pCurrentModel->audio_params.has_audio_device) )
       return 0;
-
-
    // Try to read only every 10 ms (100 times/sec)
 
    if ( g_TimeNow < m_uTimeLastTryReadAudioInputStream + 10 )
@@ -259,9 +296,14 @@ int ProcessorTxAudio::tryReadAudioInputStream()
    
    m_uTimeLastTryReadAudioInputStream = g_TimeNow;
 
-   fd_set readset;
-   u8 buffer[MAX_PACKET_PAYLOAD];
+   u8 uBuffer[MAX_PACKET_PAYLOAD];
+   int iCountRead = 0;
+
+   #if defined (HW_PLATFORM_RASPBERRY)
+   if ( -1 == m_iAudioStream )
+      return 0;
    
+   fd_set readset;
    FD_ZERO(&readset);
    FD_SET(m_iAudioStream, &readset);
 
@@ -276,51 +318,63 @@ int ProcessorTxAudio::tryReadAudioInputStream()
    if( 0 == FD_ISSET(m_iAudioStream, &readset) )
       return 0;
 
-   int countRead = read(m_iAudioStream, buffer, m_iSchemePacketSize);
-   if ( countRead < 0 )
+   iCountRead = read(m_iAudioStream, uBuffer, m_iSchemePacketSize);
+   if ( iCountRead < 0 )
    {
-      log_error_and_alarm("[Audio-Tx] Failed to read from audio input fifo: %s, returned code: %d, error: %s", FIFO_RUBY_AUDIO1, countRead, strerror(errno));
+      log_error_and_alarm("[AudioTx] Failed to read from audio input fifo: %s, returned code: %d, error: %s", FIFO_RUBY_AUDIO1, iCountRead, strerror(errno));
       return -1;
    }
+   #endif
 
-   if ( countRead == 0 )
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   iCountRead = video_source_majestic_get_audio_data(uBuffer, m_iSchemePacketSize);
+   #endif
+
+   if ( iCountRead == 0 )
       return 0;
 
-   m_StatsTmpAudioInputReadBytes += countRead;
+   if ( NULL != s_pFileRawStream )
+      fwrite(uBuffer, 1, iCountRead, s_pFileRawStream);
 
-   if ( g_TimeNow >= m_StatsTimeLastComputeAudioInputBps+1000 )
+   m_StatsTmpAudioInputReadBytes += iCountRead;
+
+   if ( g_TimeNow >= m_StatsTimeLastComputeAudioInputBps+500 )
    {
       m_StatsTimeLastComputeAudioInputBps = g_TimeNow;
-      m_StatsAudioInputComputedBps = m_StatsTmpAudioInputReadBytes * 8;
+      m_StatsAudioInputComputedBps = m_StatsTmpAudioInputReadBytes * 8 * 2;
       m_StatsTmpAudioInputReadBytes = 0;
+      static int s_iCounterAudioTxStats = 0;
+      s_iCounterAudioTxStats++;
+      if ( (s_iCounterAudioTxStats%10) == 0 )
+         log_line("[AudioTx] Output audio bitrate: %u bps", m_StatsAudioInputComputedBps);
    }
 
-#ifdef FEATURE_LOCAL_AUDIO_RECORDING
+   #ifdef FEATURE_LOCAL_AUDIO_RECORDING
    if ( m_bLocalRecording )
-      _localRecordBuffer(buffer, countRead);
-#endif
+      _localRecordBuffer(uBuffer, iCountRead);
+   #endif
 
-   while ( countRead > 0 )
+   while ( iCountRead > 0 )
    {
       // Still room in the current input packet ?
-      if ( m_iCurrentInputReadPacketPosition + countRead <= m_iSchemePacketSize )
+      if ( m_iCurrentInputReadPacketPosition + iCountRead <= m_iSchemePacketSize )
       {
-         memcpy(&m_ListBufferedInputPackets[m_iCurrentInputReadPacketIndex][m_iCurrentInputReadPacketPosition], buffer, countRead );
-         m_iCurrentInputReadPacketPosition += countRead;
-         countRead = 0;
+         memcpy(&m_ListBufferedInputPackets[m_iCurrentInputReadPacketIndex][m_iCurrentInputReadPacketPosition], uBuffer, iCountRead );
+         m_iCurrentInputReadPacketPosition += iCountRead;
+         iCountRead = 0;
          break;
       }
 
       int iAvailableRoom = m_iSchemePacketSize - m_iCurrentInputReadPacketPosition;
-      memcpy(&m_ListBufferedInputPackets[m_iCurrentInputReadPacketIndex][m_iCurrentInputReadPacketPosition], buffer, iAvailableRoom );
+      memcpy(&m_ListBufferedInputPackets[m_iCurrentInputReadPacketIndex][m_iCurrentInputReadPacketPosition], uBuffer, iAvailableRoom );
       m_iCurrentInputReadPacketPosition = 0;
       m_iCurrentInputReadPacketIndex++;
       if ( m_iCurrentInputReadPacketIndex >= MAX_BUFFERED_AUDIO_PACKETS )
          m_iCurrentInputReadPacketIndex = 0;
 
-      countRead -= iAvailableRoom;
-      for( int i=0; i<=countRead; i++ )
-         buffer[i] = buffer[i+iAvailableRoom];
+      for( int i=iAvailableRoom; i<iCountRead; i++ )
+         uBuffer[i-iAvailableRoom] = uBuffer[i];
+      iCountRead -= iAvailableRoom;
    }
    return 1;
 }
@@ -357,7 +411,7 @@ void ProcessorTxAudio::_localRecordBuffer(u8* pBuffer, int iLength)
       {
          int iWrite = fwrite(pBuffer, 1, iLength, m_fAudioRecordingFile);
          if ( iWrite != iLength )
-            log_softerror_and_alarm("[Audio-Tx] Failed to write to output recording file. Write %d of %d bytes.", iWrite, iLength);
+            log_softerror_and_alarm("[AudioTx] Failed to write to output recording file. Write %d of %d bytes.", iWrite, iLength);
       }
       return;
    }
@@ -369,7 +423,7 @@ void ProcessorTxAudio::_localRecordBuffer(u8* pBuffer, int iLength)
       { 
          int iWrite = fwrite(pBuffer, 1, iBreakFoundPosition-11, m_fAudioRecordingFile);
          if ( iWrite != iBreakFoundPosition-11 )
-            log_softerror_and_alarm("[Audio-Tx] Failed to write to output recording file. Write %d of %d bytes.", iWrite, iBreakFoundPosition);
+            log_softerror_and_alarm("[AudioTx] Failed to write to output recording file. Write %d of %d bytes.", iWrite, iBreakFoundPosition);
       }
       fclose(m_fAudioRecordingFile);
    }
@@ -381,18 +435,18 @@ void ProcessorTxAudio::_localRecordBuffer(u8* pBuffer, int iLength)
    m_fAudioRecordingFile = fopen(szBuff, "wb");
    if ( NULL == m_fAudioRecordingFile )
    {
-      log_softerror_and_alarm("[Audio-Tx] Failed to open output recording file %s", szBuff);
+      log_softerror_and_alarm("[AudioTx] Failed to open output recording file %s", szBuff);
       return;
    }
 
-   log_line("[Audio-Tx] Opened audio recording output file %s, fd:%d", szBuff, fileno(m_fAudioRecordingFile));
+   log_line("[AudioTx] Opened audio recording output file %s, fd:%d", szBuff, fileno(m_fAudioRecordingFile));
 
    int toWrite = iLength - iBreakFoundPosition;
    if ( toWrite > 0 )
    {
       int iWrite = fwrite(&pBuffer[iBreakFoundPosition], 1, toWrite, m_fAudioRecordingFile);
       if ( iWrite != toWrite )
-         log_softerror_and_alarm("[Audio-Tx] Failed to write to output recording file. Write %d of %d bytes.", iWrite, toWrite);
+         log_softerror_and_alarm("[AudioTx] Failed to write to output recording file. Write %d of %d bytes.", iWrite, toWrite);
    }
 }
 
@@ -402,7 +456,7 @@ void ProcessorTxAudio::_sendAudioPacket(u8* pBuffer, int iLength, u32 uAudioPack
       return;
    
    t_packet_header PH;
-   radio_packet_init(&PH, PACKET_COMPONENT_AUDIO, PACKET_TYPE_AUDIO_SEGMENT, STREAM_ID_VIDEO_1);
+   radio_packet_init(&PH, PACKET_COMPONENT_AUDIO, PACKET_TYPE_AUDIO_SEGMENT, STREAM_ID_AUDIO);
    PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
    PH.vehicle_id_dest = 0;
    PH.total_length = sizeof(t_packet_header) + sizeof(u32) + iLength;
@@ -413,16 +467,13 @@ void ProcessorTxAudio::_sendAudioPacket(u8* pBuffer, int iLength, u32 uAudioPack
    memcpy(packet+sizeof(t_packet_header)+sizeof(u32), pBuffer, iLength);
 
    send_packet_to_radio_interfaces(packet, PH.total_length, -1);
-
-   if ( NULL != s_pFileRawStream )
-      fwrite(packet, 1, PH.total_length, s_pFileRawStream);
 }
 
 // Returns number of packets sent (no matter if they where data or EC packets )
 
 int ProcessorTxAudio::sendAudioPackets()
 {
-   if ( (m_iAudioStream < 0) || (NULL == g_pCurrentModel) )
+   if ( (NULL == g_pCurrentModel) || (! g_pCurrentModel->audio_params.enabled) || (!g_pCurrentModel->audio_params.has_audio_device) )
       return 0;
    
    // No full packet read from input?
@@ -457,23 +508,23 @@ int ProcessorTxAudio::sendAudioPackets()
       m_uCurrentTxAudioSegmentIndex++;
 
       // Must send EC packets now?
-      if ( m_uCurrentTxAudioSegmentIndex >= m_uSchemeDataPackets )
-      if ( m_uSchemeECPackets > 0 )
+      if ( m_uCurrentTxAudioSegmentIndex >= (u32)m_iSchemeDataPackets )
+      if ( m_iSchemeECPackets > 0 )
       {
-         for( u32 u=0; u<m_uSchemeDataPackets; u++ )
+         for(int u=0; u<m_iSchemeDataPackets; u++ )
          {
-            int iIndex = m_iCurrentInputBufferPacketToSend - (int)m_uSchemeDataPackets;
+            int iIndex = m_iCurrentInputBufferPacketToSend - m_iSchemeDataPackets;
             if ( iIndex < 0 )
                iIndex += MAX_BUFFERED_AUDIO_PACKETS;
             p_ec_audio_packets[u] = &m_ListBufferedInputPackets[iIndex][0];
          }
 
-         for( u32 u=0; u<m_uSchemeECPackets; u++ )
+         for(int u=0; u<m_iSchemeECPackets; u++ )
             p_ec_audio_ecs[u] = &m_ListBufferedInputECPackets[u][0];
 
-         fec_encode(m_iSchemePacketSize, p_ec_audio_packets, (unsigned int)m_uSchemeDataPackets, p_ec_audio_ecs, (unsigned int)m_uSchemeECPackets);
+         fec_encode(m_iSchemePacketSize, p_ec_audio_packets, (unsigned int)m_iSchemeDataPackets, p_ec_audio_ecs, (unsigned int)m_iSchemeECPackets);
          
-         for( u32 u=0; u<m_uSchemeECPackets; u++ )
+         for(int u=0; u<m_iSchemeECPackets; u++ )
          {
             uAudioPacketIndex = ((m_uCurrentTxAudioBlockIndex & 0xFFFFFF)<<8) | m_uCurrentTxAudioSegmentIndex;
             _sendAudioPacket(m_ListBufferedInputECPackets[u], m_iSchemePacketSize, uAudioPacketIndex);
@@ -483,7 +534,7 @@ int ProcessorTxAudio::sendAudioPackets()
          }
       }
 
-      if ( m_uCurrentTxAudioSegmentIndex >= m_uSchemeDataPackets + m_uSchemeECPackets )
+      if ( m_uCurrentTxAudioSegmentIndex >= (u32)(m_iSchemeDataPackets + m_iSchemeECPackets) )
       {
          m_uCurrentTxAudioSegmentIndex = 0;
          m_uCurrentTxAudioBlockIndex++;

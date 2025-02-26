@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -40,16 +41,35 @@
 
 #include "../../base/hdmi.h"
 #include "../../base/hardware_files.h"
+#include "../../base/hardware_audio.h"
 
 #include "../process_router_messages.h"
 
 #include <time.h>
 #include <sys/resource.h>
+#include <pthread.h>
 
 const char* s_szHDMIInfo = "Note: Changing the HDMI options requires a restart of the controller for the changes to take effect.";
+pthread_t s_pThreadAudioTest;
+bool s_bStopAudioTest = false;
+
+void* _thread_audio_test_async(void *argument)
+{
+   log_line("[BGThreadAudio] Started audio thread test.");
+   srand(get_current_timestamp_ms());
+   while ( ! s_bStopAudioTest )
+   {
+      int iSample = 1 + (rand()%3);
+      char szComm[256];
+      sprintf(szComm, "aplay -q res/sample%d.wav 2>&1", iSample);
+      hw_execute_bash_command(szComm, NULL);
+   }
+   log_line("[BGThreadAudio] Ended audio thread test.");
+   return NULL;
+}
 
 MenuControllerVideo::MenuControllerVideo(void)
-:Menu(MENU_ID_CONTROLLER_VIDEO, "Video Output Settings", NULL)
+:Menu(MENU_ID_CONTROLLER_VIDEO, "Audio & Video Output Settings", NULL)
 {
    m_Width = 0.32;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.25;
@@ -131,16 +151,16 @@ MenuControllerVideo::MenuControllerVideo(void)
 
    addMenuItem(new MenuItemSection("Audio Output"));
 
-   m_pItemsSelect[12] = new MenuItemSelect("Audio Output Device", "Where to output audio to.");
-   m_pItemsSelect[12]->addSelection("Disabled");
-   m_pItemsSelect[12]->addSelection("HDMI");
-   m_pItemsSelect[12]->addSelection("Analog");
-   m_pItemsSelect[12]->setIsEditable();
-   m_IndexAudioOutput = addMenuItem(m_pItemsSelect[12]);
+   m_IndexAudioVolume = -1;
 
-   m_pItemsSlider[1] = new MenuItemSlider("Audio Output Volume", "Sets the audio output volume", 10,100,50, 0.1);
-   m_pItemsSlider[1]->setStep(10);
-   m_IndexAudioVolume = addMenuItem(m_pItemsSlider[1]);
+   if ( hardware_has_audio_volume() )
+   {
+      m_pItemsSlider[1] = new MenuItemSlider("Audio Output Volume", "Sets the audio output volume", 10,100,50, 0.1);
+      m_pItemsSlider[1]->setStep(1);
+      m_IndexAudioVolume = addMenuItem(m_pItemsSlider[1]);
+   }
+   m_IndexAudioTest = addMenuItem(new MenuItem("Audio Test", "Test local audio output."));
+   m_pMenuItems[m_IndexAudioTest]->showArrow();
 }
 
 MenuControllerVideo::~MenuControllerVideo(void)
@@ -163,6 +183,7 @@ MenuControllerVideo::~MenuControllerVideo(void)
          fprintf(fd, "%d %d\n", m_hdmigroupOrg, m_hdmimodeOrg );
          fclose(fd);
       }
+
       #endif
    }
 }
@@ -219,8 +240,8 @@ void MenuControllerVideo::valuesToUI()
       m_pItemsRange[11]->setEnabled(true);
    }
 
-   m_pItemsSelect[12]->setSelectedIndex(pCS->iAudioOutputDevice);
-   m_pItemsSlider[1]->setCurrentValue(pCS->iAudioOutputVolume);
+   if ( -1 != m_IndexAudioVolume )
+      m_pItemsSlider[1]->setCurrentValue(pCS->iAudioOutputVolume);
 }
 
 void MenuControllerVideo::Render()
@@ -247,6 +268,13 @@ void MenuControllerVideo::onReturnFromChild(int iChildMenuId, int returnValue)
       return;
    }
    #endif
+
+   if ( 5 == iChildMenuId/1000 )
+   {
+      s_bStopAudioTest = true;
+      hw_stop_process("aplay");
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_PAUSE_RESUME_AUDIO, 0);
+   }
    valuesToUI();
 }
 
@@ -404,23 +432,47 @@ void MenuControllerVideo::onSelectItem()
       return;
    }
 
-   if ( m_IndexAudioOutput == m_SelectedIndex )
+   if ( (-1 != m_IndexAudioVolume) && (m_IndexAudioVolume == m_SelectedIndex) )
    {
-      pCS->iAudioOutputDevice = m_pItemsSelect[12]->getSelectedIndex();
+      pCS->iAudioOutputVolume = m_pItemsSlider[1]->getCurrentValue();
       save_ControllerSettings();
-      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
-      invalidate();
+      hardware_set_audio_output_volume(pCS->iAudioOutputVolume);
       valuesToUI();
       return;
    }
 
-   if ( m_IndexAudioVolume == m_SelectedIndex )
+   if ( m_IndexAudioTest == m_SelectedIndex )
    {
-      pCS->iAudioOutputVolume = m_pItemsSlider[1]->getCurrentValue();
-      save_ControllerSettings();
-      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
-      invalidate();
-      valuesToUI();
+      if ( ! hardware_has_audio_playback() )
+      {
+         addMessage(L("Your device does not have audio output capabilities. Can't play audio."));
+         return;
+      }
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_PAUSE_RESUME_AUDIO, 1);
+      s_bStopAudioTest = false;
+      pthread_attr_t attr;
+      struct sched_param params;
+
+      pthread_attr_init(&attr);
+      pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+      pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+      pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
+      params.sched_priority = 0;
+      pthread_attr_setschedparam(&attr, &params);
+      if ( 0 != pthread_create(&s_pThreadAudioTest, &attr, &_thread_audio_test_async, NULL) )
+      {
+         pthread_attr_destroy(&attr);
+         MenuConfirmation* pMC = new MenuConfirmation(L("Audio Test"),L("Failed to test audio."), 6, true);
+         add_menu_to_stack(pMC);
+         send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_PAUSE_RESUME_AUDIO, 0);
+         return;
+      }
+      pthread_attr_destroy(&attr);
+      MenuConfirmation* pMC = new MenuConfirmation(L("Audio Test"),L("Now you should hear an sample audio."), 5, true);
+      pMC->setOkActionText(L("Stop"));
+      pMC->addTopLine(L("If you don't hear anything, increase audio volume or check your speakers."));
+      add_menu_to_stack(pMC);
+      //send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_PAUSE_RESUME_AUDIO, 0);
       return;
    }
 }

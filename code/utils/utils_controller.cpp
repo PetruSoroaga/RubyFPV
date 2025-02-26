@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -208,7 +209,7 @@ int controller_utils_import_all_from_usb(bool bImportAnyFound)
                   szOutput[i] = 0;
 
             strcpy(szInFile, szOutput);
-            snprintf(szUSBFile, 511, "%s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szInFile);
+            snprintf(szUSBFile, sizeof(szUSBFile)/sizeof(szUSBFile[0]), "%s/Ruby_Exports/%s", FOLDER_USB_MOUNT, szInFile);
          }
          if( access( szUSBFile, R_OK ) == -1 )
          {
@@ -484,11 +485,11 @@ void propagate_video_profile_changes(type_video_link_profile* pOrgProfile, type_
    pAllProfiles[VIDEO_PROFILE_LQ].video_data_length = pUpdatedProfile->video_data_length;
    pAllProfiles[VIDEO_PROFILE_MQ].video_data_length = pUpdatedProfile->video_data_length;
 
-   u32 uNoiseLevel = pUpdatedProfile->uProfileFlags & 0x03;
+   u32 uNoiseLevel = pUpdatedProfile->uProfileFlags & VIDEO_PROFILE_FLAGS_MASK_NOISE;
 
-   pAllProfiles[VIDEO_PROFILE_MQ].uProfileFlags &= ~ (u32)0x03;
+   pAllProfiles[VIDEO_PROFILE_MQ].uProfileFlags &= ~ VIDEO_PROFILE_FLAGS_MASK_NOISE;
    pAllProfiles[VIDEO_PROFILE_MQ].uProfileFlags |= uNoiseLevel;
-   pAllProfiles[VIDEO_PROFILE_LQ].uProfileFlags &= ~ (u32)0x03;
+   pAllProfiles[VIDEO_PROFILE_LQ].uProfileFlags &= ~ VIDEO_PROFILE_FLAGS_MASK_NOISE;
    pAllProfiles[VIDEO_PROFILE_LQ].uProfileFlags |= uNoiseLevel;
 }
 
@@ -527,7 +528,6 @@ int tx_powers_get_max_usable_power_mw_for_controller()
 void compute_controller_radio_tx_powers(Model* pModel, shared_mem_radio_stats* pSMRS)
 {
    ControllerSettings* pCS = get_ControllerSettings();
-   ControllerInterfacesSettings* pCIS = get_ControllerInterfacesSettings();
 
    log_line("Computing controller radio tx powers. Is fixed power? %s, current model: %s",
       pCS->iFixedTxPower?"yes":"no", (NULL != pModel)?pModel->getLongName():"None");
@@ -608,7 +608,6 @@ void apply_controller_radio_tx_powers(Model* pModel, shared_mem_radio_stats* pSM
    compute_controller_radio_tx_powers(pModel, pSMRS);
 
    ControllerSettings* pCS = get_ControllerSettings();
-   ControllerInterfacesSettings* pCIS = get_ControllerInterfacesSettings();
 
    log_line("Applying controller radio tx powers. Is fixed power? %s, current model: %s",
       pCS->iFixedTxPower?"yes":"no", (NULL != pModel)?pModel->getLongName():"None");

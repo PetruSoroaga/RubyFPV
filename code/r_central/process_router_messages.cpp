@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -188,7 +189,8 @@ int send_packet_to_router(u8* pPacket, int nLength)
 {
    if ( (NULL == pPacket) || (nLength <= 0) )
       return 0;
-
+   if ( ! pairing_isStarted() )
+      return 0;
    if ( -1 == s_fIPCToRouter )
    {
       log_softerror_and_alarm("[Router COMM] No IPC to router to send message to.");
@@ -1374,7 +1376,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
 
 int try_read_messages_from_router(u32 uMaxMiliseconds)
 {
-   u32 uTimeStart = get_current_timestamp_ms();
+   u32 uTimeStart = g_TimeNow = get_current_timestamp_ms();
    if ( -1 == s_fIPCFromRouter )
    {
        hardware_sleep_ms(uMaxMiliseconds/2+1);
@@ -1397,6 +1399,7 @@ int try_read_messages_from_router(u32 uMaxMiliseconds)
       if ( s_bThreadInitOk )
       {
          pthread_mutex_lock(&s_pThreadIPCMutex);
+         g_pProcessStatsCentral->lastIPCIncomingTime = g_TimeNow;
          int iTmpCount = s_iCountMessagesFromRouter;
          if ( 0 == iTmpCount )
          {
@@ -1412,10 +1415,9 @@ int try_read_messages_from_router(u32 uMaxMiliseconds)
             for( int i=0; i<s_iCountMessagesFromRouter; i++ )
             {
                s_MessagesFromRouterSize[i] = s_MessagesFromRouterSize[i+1];
-               memcpy(&(s_pMessagesFromRouter[i][0]), &(s_pMessagesFromRouter[i+1][0]), s_MessagesFromRouterSize[i]);
+               memcpy(&(s_pMessagesFromRouter[i][0]), &(s_pMessagesFromRouter[i+1][0]), s_MessagesFromRouterSize[i+1]);
             }
             pthread_mutex_unlock(&s_pThreadIPCMutex);
-            hardware_sleep_micros(500);
          }        
       }
       else
@@ -1423,8 +1425,8 @@ int try_read_messages_from_router(u32 uMaxMiliseconds)
       
       if ( NULL != pResult )
       {
-         iCountMessagesProcessed++;
          t_packet_header* pPH = (t_packet_header*) pResult;
+         iCountMessagesProcessed++;
          if ( ! radio_packet_check_crc(pResult, pPH->total_length) )
              log_softerror_and_alarm("[Router COMM] Received invalid message (invalid CRC) from router. Ignoring it.");
          else
@@ -1437,11 +1439,9 @@ int try_read_messages_from_router(u32 uMaxMiliseconds)
          }
       }
 
-      u32 uTimeNow = get_current_timestamp_ms();
-      if ( uTimeNow >= uTimeStart + uMaxMiliseconds )
-      {
+      g_TimeNow = get_current_timestamp_ms();
+      if ( g_TimeNow >= uTimeStart + uMaxMiliseconds )
          return iCountMessagesProcessed;
-      }
    }
    return iCountMessagesProcessed;
 }
@@ -1468,13 +1468,18 @@ void * _router_ipc_thread_func(void *ignored_argument)
       }
       uWaitTimeMs = 5;
       pthread_mutex_lock(&s_pThreadIPCMutex);
+      t_packet_header* pPH = (t_packet_header*)pResult;
       if ( s_iCountMessagesFromRouter >= MAX_ROUTER_MESSAGES )
       {
-         log_softerror_and_alarm("[Router COMM] The local router message queue is full. Ignoring message received from router.");
+         log_softerror_and_alarm("[Router COMM] The local router message queue is full (%d messages pending consumption, last consumed %u ms ago). Ignoring message received from router (msg type: %s)",
+             s_iCountMessagesFromRouter, get_current_timestamp_ms() - g_pProcessStatsCentral->lastIPCIncomingTime, str_get_packet_type(pPH->packet_type));
       }
       else
       {
-         t_packet_header* pPH = (t_packet_header*)pResult;
+         if ( s_iCountMessagesFromRouter >= MAX_ROUTER_MESSAGES/2 )
+            log_softerror_and_alarm("[Router COMM] The local router message queue is getting full (%d messages pending consumption of max %d, last consumed %u ms ago). Ignoring message received from router (msg type: %s)",
+                s_iCountMessagesFromRouter, MAX_ROUTER_MESSAGES, get_current_timestamp_ms() - g_pProcessStatsCentral->lastIPCIncomingTime, str_get_packet_type(pPH->packet_type));
+
          s_MessagesFromRouterSize[s_iCountMessagesFromRouter] = pPH->total_length;
          if ( (pPH->total_length >= MAX_PACKET_TOTAL_SIZE) || (pPH->total_length < sizeof(t_packet_header)) )
             log_softerror_and_alarm("[Router COMM] Received message from router too big or small (%d bytes). Ignoring it.", (int)pPH->total_length);

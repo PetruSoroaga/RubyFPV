@@ -4,6 +4,8 @@ bool osd_is_debug();
 float osd_show_home(float xPos, float yPos, bool showHeading, float fScale);
 float osd_render_radio_link_tag(float xPos, float yPos, int iRadioLink, bool bVehicle, bool bDraw);
 
+void osd_disable_rendering();
+void osd_enable_rendering();
 void osd_render_all();
 
 void osd_add_stats_flight_end();

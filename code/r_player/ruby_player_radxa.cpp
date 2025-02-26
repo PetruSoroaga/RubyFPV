@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -63,6 +64,7 @@
 #error "ONLY FOR RADXA PLATFORM!"
 #endif
 
+#include "../base/ctrl_settings.h"
 #include "../renderer/drm_core.h"
 #include "../renderer/render_engine.h"
 #include "../renderer/render_engine_cairo.h"
@@ -94,9 +96,12 @@ int g_iPipeBufferWritePos = 0;
 int g_iPipeBufferReadPos = 0;
 
 
+sem_t* s_pSemaphoreSMData = NULL;
+
 void _do_player_mode()
 {
-   if ( mpp_init(g_bUseH265Decoder) != 0 )
+   ControllerSettings* pCS = get_ControllerSettings();
+   if ( mpp_init(g_bUseH265Decoder, pCS->iVideoMPPBuffersSize) != 0 )
       return;
 
    hdmi_enum_modes();
@@ -193,9 +198,9 @@ void _do_player_mode()
             {
                u32 uTimeNow = get_current_timestamp_ms();
 
-               long int miliSecs = (1000/g_iFileFPS);
+               //long int miliSecs = (1000/g_iFileFPS);
                // OpenIPC generates faster FPS as IFrames are not part of computation
-               miliSecs = (1000/(g_iFileFPS-4));
+               long int miliSecs = (1000/(g_iFileFPS-4));
                miliSecs = miliSecs - (uTimeNow - uTimeLastFrame);
                uTimeLastFrame = uTimeNow;
 
@@ -230,12 +235,17 @@ void _do_player_mode()
       }
    }
    fclose(fp);
-   log_line("Playback of file finished. End of file (%s).", g_szPlayFileName);
+   log_line("Playback of file finished. End of file (%s). Exit on end: %s", g_szPlayFileName, g_bExitOnEnd?"yes":"no");
 
    if ( g_bExitOnEnd )
    {
       log_line("Exit on End.");
-      system("rm -rf tmp/intro_playing");
+      char szFile[MAX_FILE_PATH_SIZE];
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, FILE_TEMP_INTRO_PLAYING);
+      char szComm[256];
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s", szFile);
+      hw_execute_bash_command(szComm, NULL);
    }
    mpp_mark_end_of_stream();
 
@@ -293,7 +303,8 @@ void* _thread_consume_pipe_buffer(void *param)
 
 void _do_stream_mode_pipe()
 {
-   if ( mpp_init(g_bUseH265Decoder) != 0 )
+   ControllerSettings* pCS = get_ControllerSettings();
+   if ( mpp_init(g_bUseH265Decoder, pCS->iVideoMPPBuffersSize) != 0 )
       return;
 
    hdmi_enum_modes();
@@ -417,6 +428,7 @@ void _do_stream_mode_pipe()
 
    while ( !g_bQuit )
    {
+      g_pSMProcessStats->lastActiveTime = get_current_timestamp_ms();
       nRead = read(readfd, g_uPipeBuffer, PIPE_BUFFER_SIZE); 
       if ( (nRead < 0) || g_bQuit )
       {
@@ -435,6 +447,7 @@ void _do_stream_mode_pipe()
             hardware_sleep_micros(1*1000);
          continue;
       }
+      g_pSMProcessStats->lastIPCIncomingTime = get_current_timestamp_ms();
 
       if ( ! bAnyInputEver )
       {
@@ -488,8 +501,22 @@ void _do_stream_mode_pipe()
 
 void _do_stream_mode_sm()
 {
-   if ( mpp_init(g_bUseH265Decoder) != 0 )
+   ControllerSettings* pCS = get_ControllerSettings();
+   if ( mpp_init(g_bUseH265Decoder, pCS->iVideoMPPBuffersSize) != 0 )
       return;
+
+   s_pSemaphoreSMData = sem_open(SEMAPHORE_SM_VIDEO_DATA_AVAILABLE, O_RDONLY);
+   if ( (NULL == s_pSemaphoreSMData) || (SEM_FAILED == s_pSemaphoreSMData) )
+   {
+      log_error_and_alarm("Failed to create SM data read semaphore: %s", SEMAPHORE_SM_VIDEO_DATA_AVAILABLE);
+      return;
+   }
+   int iSemVal = 0;
+   if ( 0 == sem_getvalue(s_pSemaphoreSMData, &iSemVal) )
+      log_line("SM data semaphore initial value: %d", iSemVal);
+   else
+      log_softerror_and_alarm("Failed to get SM data sem value.");
+
 
    hdmi_enum_modes();
    int iHDMIIndex = hdmi_load_current_mode();
@@ -508,8 +535,12 @@ void _do_stream_mode_sm()
 
    if( fdSMem < 0 )
    {
-       log_softerror_and_alarm("Failed to open shared memory for read: %s, error: %d %s", SM_STREAMER_NAME, errno, strerror(errno));
-       return;
+      log_softerror_and_alarm("Failed to open shared memory for read: %s, error: %d %s", SM_STREAMER_NAME, errno, strerror(errno));
+      
+      if ( NULL != s_pSemaphoreSMData )
+           sem_close(s_pSemaphoreSMData);
+      s_pSemaphoreSMData = NULL;
+      return;
    }
    
    pSMem = (unsigned char*) mmap(NULL, SM_STREAMER_SIZE, PROT_READ, MAP_SHARED, fdSMem, 0);
@@ -521,6 +552,9 @@ void _do_stream_mode_sm()
          munmap(pSMem, SM_STREAMER_SIZE);
          log_line("Unmapped shared mem: %s", SM_STREAMER_NAME);
       }
+      if ( NULL != s_pSemaphoreSMData )
+           sem_close(s_pSemaphoreSMData);
+      s_pSemaphoreSMData = NULL;
       return;
    }
    close(fdSMem); 
@@ -545,13 +579,32 @@ void _do_stream_mode_sm()
 
       while ((uBytesToRead == 0) && (!g_bQuit))
       {
+         g_pSMProcessStats->lastActiveTime = get_current_timestamp_ms();
          uWritePos1 = *pTmp1;
          uWritePos2 = *pTmp2;
          if ( (uSharedMemReadPos == uWritePos1) || (uWritePos1 != uWritePos2) )
          {
-            struct timespec to_sleep = { 0, (long int)(1*1000*1000) };
-            clock_nanosleep(RUBY_HW_CLOCK_ID, 0, &to_sleep, NULL);
-            continue;
+            struct timespec ts;
+            clock_gettime(CLOCK_REALTIME, &ts);
+            ts.tv_nsec += 1000LL*(long long)10000; // 10 milisec
+            int iResSem = sem_timedwait(s_pSemaphoreSMData, &ts);
+            if ( 0 != iResSem )
+               continue;
+            if ( 0 == sem_getvalue(s_pSemaphoreSMData, &iSemVal) )
+            {
+               if ( iSemVal > 0 )
+               {
+                  for( int i=0; i<iSemVal; i++ )
+                     sem_trywait(s_pSemaphoreSMData);
+               }
+            }
+            //else
+            //   log_softerror_and_alarm("DBG Failed to get SM data sem value.");
+
+            uWritePos1 = *pTmp1;
+            uWritePos2 = *pTmp2;
+            if ( (uSharedMemReadPos == uWritePos1) || (uWritePos1 != uWritePos2) )
+               continue;
          }
          if ( uWritePos1 > uSharedMemReadPos )
          {
@@ -587,6 +640,8 @@ void _do_stream_mode_sm()
       } 
       if ( g_bQuit )
          break;
+
+      g_pSMProcessStats->lastIPCIncomingTime = get_current_timestamp_ms();
 
       if ( ! bAnyInputEver )
       {
@@ -632,6 +687,9 @@ void _do_stream_mode_sm()
       munmap(pSMem, SM_STREAMER_SIZE);
       log_line("Unmapped shared mem: %s", SM_STREAMER_NAME);
    }
+   if ( NULL != s_pSemaphoreSMData )
+        sem_close(s_pSemaphoreSMData);
+   s_pSemaphoreSMData = NULL;
    ruby_drm_core_uninit();
    mpp_uninit();
 }
@@ -639,7 +697,8 @@ void _do_stream_mode_sm()
 
 void _do_stream_mode_udp()
 {
-   if ( mpp_init(g_bUseH265Decoder) != 0 )
+   ControllerSettings* pCS = get_ControllerSettings();
+   if ( mpp_init(g_bUseH265Decoder, pCS->iVideoMPPBuffersSize) != 0 )
       return;
 
    hdmi_enum_modes();
@@ -736,13 +795,10 @@ void _do_stream_mode_udp()
             }
             continue;
          }
-         if ( iRecv < 0 )
-         {
-            log_line("Reached end of input stream data, failed to read UDP port. Ending video streaming. errono: %d, (%s)", errno, strerror(errno));
-            break;
-         }
-         log_line("No read data. Continue");
-         continue;
+         log_line("Reached end of input stream data, failed to read UDP port. Ending video streaming. errono: %d, (%s)", errno, strerror(errno));
+         break;
+         //log_line("No read data. Continue");
+         //continue;
       }
       
 
@@ -813,6 +869,14 @@ int main(int argc, char *argv[])
       return 0;
    }
 
+   load_ControllerSettings();
+
+   g_pSMProcessStats = shared_mem_process_stats_open_write(SHARED_MEM_WATCHDOG_MPP_PLAYER);
+   if ( NULL == g_pSMProcessStats )
+      log_softerror_and_alarm("Failed to open shared mem for process watchdog for writing: %s", SHARED_MEM_WATCHDOG_MPP_PLAYER);
+   else
+      log_line("Opened shared mem for process watchdog for writing (%s).", SHARED_MEM_WATCHDOG_MPP_PLAYER);
+  
    g_szPlayFileName[0] = 0;
    int iParam = 0;
 
@@ -892,9 +956,9 @@ int main(int argc, char *argv[])
    if ( (!g_bPlayFile) && (!g_bPlayStreamPipe) && (!g_bPlayStreamUDP) && (!g_bPlayStreamSM) )
    {
       log_softerror_and_alarm("Invalid params, no mode specified. Exit.");
+      shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_MPP_PLAYER, g_pSMProcessStats);
       return 0;
    }
-
    else if ( g_bPlayFile )
       _do_player_mode();
    else if ( g_bPlayStreamPipe )
@@ -904,6 +968,7 @@ int main(int argc, char *argv[])
    else if ( g_bPlayStreamSM )
       _do_stream_mode_sm();
 
+   shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_MPP_PLAYER, g_pSMProcessStats);
    return 0;
 }
 

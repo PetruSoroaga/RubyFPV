@@ -10,3 +10,5 @@ void reasign_radio_links(bool bSilent);
 
 void video_processors_init();
 void video_processors_cleanup();
+
+void log_ipc_send_central_error(u8* pPacket, int iLength);

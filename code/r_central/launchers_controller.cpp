@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -229,14 +230,13 @@ const char* controller_validate_radio_settings(Model* pModel, u32* pVehicleNICFr
 
    // Check missing data capable cards on vehicle
 
-   if ( NULL != pModel && NULL != pVehicleNICFlags )
+   if ( (NULL != pModel) && (NULL != pVehicleNICFlags) )
    {
       bool bHasData = false;
       for( int i=0; i<pModel->radioInterfacesParams.interfaces_count; i++ )
       {
          if ( pVehicleNICFlags[i] & RADIO_HW_CAPABILITY_FLAG_DISABLED )
             continue;
-         if ( NULL != pModel )
          if ( (pModel->sw_version>>16) >= 79 )
          if ( pVehicleNICFlags[i] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
             continue;
@@ -314,13 +314,20 @@ void controller_wait_for_stop_all()
 
 static void * _thread_adjust_affinities(void *argument)
 {
+   sched_yield();
    log_line("[BGThread] Started background thread to adjust processes affinities...");
+   int iSelfPID = getpid();
+   int iSelfId = 0;
+   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   iSelfId = gettid();
+   #endif
+   log_line("[BGThread] Background thread id: %d, PID: %d", iSelfId, iSelfPID);
    if ( s_iCPUCoresCount > 2 )
    {
-      hw_set_proc_affinity("ruby_rt_station", 1,1);
-      hw_set_proc_affinity("ruby_central", 2,2);
-      hw_set_proc_affinity("ruby_rx_telemetry", 3, 3);
-      hw_set_proc_affinity("ruby_tx_rc", 3, 3);
+      hw_set_proc_affinity("ruby_rt_station", iSelfId, 1,1);
+      hw_set_proc_affinity("ruby_central", iSelfId, 2,2);
+      hw_set_proc_affinity("ruby_rx_telemetry", iSelfId, 3, 3);
+      hw_set_proc_affinity("ruby_tx_rc", iSelfId, 3, 3);
       #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
       char szFile[MAX_FILE_PATH_SIZE];
       ControllerSettings* pCS = get_ControllerSettings();
@@ -328,13 +335,13 @@ static void * _thread_adjust_affinities(void *argument)
          strcpy(szFile, VIDEO_PLAYER_SM);
       else
          strcpy(szFile, VIDEO_PLAYER_PIPE);
-      hw_set_proc_affinity(szFile, 3, s_iCPUCoresCount);
+      hw_set_proc_affinity(szFile, iSelfId, 3, s_iCPUCoresCount);
       #endif
    }
    else
    {
-      hw_set_proc_affinity("ruby_rt_station", 1,1);
-      hw_set_proc_affinity("ruby_central", 2,2); 
+      hw_set_proc_affinity("ruby_rt_station", iSelfId, 1,1);
+      hw_set_proc_affinity("ruby_central", iSelfId, 2,2); 
    }
    log_line("[BGThread] Background thread to adjust processes affinities completed.");
    return NULL;
@@ -357,11 +364,22 @@ void controller_check_update_processes_affinities()
    log_line("%d CPU cores, doing affinity adjustments for processes...", s_iCPUCoresCount);
 
    pthread_t pThreadBg;
+   pthread_attr_t attr;
+   struct sched_param params;
 
-   if ( 0 != pthread_create(&pThreadBg, NULL, &_thread_adjust_affinities, NULL) )
+   pthread_attr_init(&attr);
+   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+   pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+   pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
+   params.sched_priority = 0;
+   pthread_attr_setschedparam(&attr, &params);
+
+   if ( 0 != pthread_create(&pThreadBg, &attr, &_thread_adjust_affinities, NULL) )
    {
       log_error_and_alarm("Failed to create thread for adjusting processes affinities.");
+      pthread_attr_destroy(&attr);
       return;
    }
+   pthread_attr_destroy(&attr);
    log_line("Done launching worker thread to adjust affinities.");
 }

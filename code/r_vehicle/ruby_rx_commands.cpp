@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -134,20 +135,13 @@ bool _populate_camera_name()
 
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
 
-   char szBuff[128];
-   szBuff[0] = 0;
-   hw_execute_bash_command("ipcinfo -s 2>/dev/null", szBuff);
-   for( int i=0; i<(int)strlen(szBuff); i++ )
-   {
-      if ( (szBuff[i] == 10) || (szBuff[i] == 13) )
-      {
-         szBuff[i] = 0;
-         break;
-      }
-      szBuff[i] = toupper(szBuff[i]);
-   }
-   bCameraNameUpdated = g_pCurrentModel->setCameraName(g_pCurrentModel->iCurrentCamera, szBuff);
-   
+   char szOutput[4096];
+   memset(szOutput, 0, sizeof(szOutput)/sizeof(szOutput[0]));
+   char* pSensor = hardware_camera_get_oipc_sensor_raw_name(szOutput);
+   if ( NULL != pSensor )
+      bCameraNameUpdated = g_pCurrentModel->setCameraName(g_pCurrentModel->iCurrentCamera, pSensor);
+   else
+      bCameraNameUpdated = g_pCurrentModel->setCameraName(g_pCurrentModel->iCurrentCamera, "N/A");
    #else
 
    u8 dataCamera[1024];
@@ -175,7 +169,7 @@ bool _populate_camera_name()
    {
       log_line("Populating camera name buffer for veye cameras");
       char szCamName[64];
-      str_get_hardware_camera_type_string(hardware_getCameraType(), szCamName);
+      str_get_hardware_camera_type_string_to_string(hardware_getCameraType(), szCamName);
       char szTmp[128];
       //sprintf(szTmp, "%s 0x%02X/0x02%X", szCamName, (u32)hardware_getVeyeCameraDevId(), (u32)hardware_getVeyeCameraHWVer());
       sprintf(szTmp, "0x%02X/%02X", (u32)hardware_getVeyeCameraDevId(), (u32)hardware_getVeyeCameraHWVer());
@@ -788,7 +782,7 @@ bool process_command(u8* pBuffer, int length)
    int replyDelay = 0; //milisec
    int iParamsLength = length - sizeof(t_packet_header) - sizeof(t_packet_header_command);
 
-   char szBuff[1024];
+   char szBuff[2048];
    t_packet_header* pPH = (t_packet_header*)pBuffer;
    t_packet_header_command* pPHC = (t_packet_header_command*)(pBuffer + sizeof(t_packet_header));
 
@@ -928,7 +922,6 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_GET_SIK_CONFIG )
    {
-      char szBuff[256];
       strcpy(szBuff, "Done info");
       log_line("Sending back SiK info, %d bytes", strlen(szBuff)+1);
       setCommandReplyBuffer((u8*)szBuff, strlen(szBuff)+1);
@@ -1125,7 +1118,7 @@ bool process_command(u8* pBuffer, int length)
          strcat(szBuffer, "Stored board type: ");
          strcat(szBuffer, str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
          char szTemp[1024];
-         sprintf(szTemp, " (%d.%d)", (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK), (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT);
+         sprintf(szTemp, " (%d.%d)", (int)(g_pCurrentModel->hwCapabilities.uBoardType & BOARD_TYPE_MASK), (int)(g_pCurrentModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT);
          strcat(szBuffer, szTemp);
          strcat(szBuffer, "#");
 
@@ -1242,19 +1235,19 @@ bool process_command(u8* pBuffer, int length)
       sprintf(szComm, "rm -rf %s/tmp_usb_info.txt 2>/dev/null", FOLDER_RUBY_TEMP);
       hw_execute_bash_command(szComm, NULL);
 
-      char szBuff[6000];
+      char szBuffUSB[6000];
       char szBuff2[3000];
-      szBuff[0] = 0;
+      szBuffUSB[0] = 0;
       szBuff2[0] = 0;
-      hw_execute_bash_command_raw("lsusb", szBuff);
+      hw_execute_bash_command_raw("lsusb", szBuffUSB);
       hw_execute_bash_command_raw("lsusb -t", szBuff2);
-      int iLen1 = strlen(szBuff);
+      int iLen1 = strlen(szBuffUSB);
       int iLen2 = strlen(szBuff2);
       if ( iLen1 > 3000 )
          iLen1 = 3000;
-      strcat(szBuff, "\nTree:\n");
-      strcat(szBuff, szBuff2);
-      iLen1 = strlen(szBuff);
+      strcat(szBuffUSB, "\nTree:\n");
+      strcat(szBuffUSB, szBuff2);
+      iLen1 = strlen(szBuffUSB);
 
       char szFile[MAX_FILE_PATH_SIZE];
       strcpy(szFile, FOLDER_RUBY_TEMP);
@@ -1265,7 +1258,7 @@ bool process_command(u8* pBuffer, int length)
           sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
           return true;
       }
-      fwrite(szBuff, 1, iLen1, fd );
+      fwrite(szBuffUSB, 1, iLen1, fd );
       fclose(fd);
 
       sprintf(szComm, "rm -rf %s/tmp_usb_info.tar* 2>/dev/null", FOLDER_RUBY_TEMP);
@@ -1315,8 +1308,8 @@ bool process_command(u8* pBuffer, int length)
       sprintf(szComm, "rm -rf %s/tmp_usb_info.txt 2>/dev/null", FOLDER_RUBY_TEMP);
       hw_execute_bash_command(szComm, NULL);
 
-      char szBuff[3000];
-      szBuff[0] = 0;
+      char szBuffUSB[3000];
+      szBuffUSB[0] = 0;
     
       DIR *d;
       struct dirent *dir;
@@ -1334,9 +1327,9 @@ bool process_command(u8* pBuffer, int length)
             snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cat /sys/bus/usb/devices/%s/uevent | grep DRIVER", dir->d_name);
             szOutput[0] = 0;
             hw_execute_bash_command(szComm, szOutput);
-            strcat(szBuff, dir->d_name);
-            strcat(szBuff, " :  ");
-            strcat(szBuff, szOutput);
+            strcat(szBuffUSB, dir->d_name);
+            strcat(szBuffUSB, " :  ");
+            strcat(szBuffUSB, szOutput);
 
             for( int i=0; i<hardware_get_radio_interfaces_count()+1; i++ )
             {
@@ -1351,28 +1344,28 @@ bool process_command(u8* pBuffer, int length)
                   hw_execute_bash_command_silent(szComm, szOutput);
                   if ( strlen(szOutput) > 0 )
                   {
-                     strcat(szBuff, ", ");
-                     strcat(szBuff, szOutput);
-                     iLen = strlen(szBuff);
-                     if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
-                        szBuff[iLen-1] = 0;
-                     iLen = strlen(szBuff);
-                     if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
-                        szBuff[iLen-1] = 0;
+                     strcat(szBuffUSB, ", ");
+                     strcat(szBuffUSB, szOutput);
+                     iLen = strlen(szBuffUSB);
+                     if ( szBuffUSB[iLen-1] == 10 || szBuffUSB[iLen-1] == 13 )
+                        szBuffUSB[iLen-1] = 0;
+                     iLen = strlen(szBuffUSB);
+                     if ( szBuffUSB[iLen-1] == 10 || szBuffUSB[iLen-1] == 13 )
+                        szBuffUSB[iLen-1] = 0;
                   }
                   szOutput[0] = 0;
                   sprintf(szComm, "cat /sys/bus/usb/devices/%s/net/wlan%d/uevent 2>/dev/null | grep IFINDEX", dir->d_name, i);
                   hw_execute_bash_command_silent(szComm, szOutput);
                   if ( strlen(szOutput) > 0 )
                   {
-                     strcat(szBuff, ", ");
-                     strcat(szBuff, szOutput);
-                     iLen = strlen(szBuff);
-                     if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
-                        szBuff[iLen-1] = 0;
-                     iLen = strlen(szBuff);
-                     if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
-                        szBuff[iLen-1] = 0;
+                     strcat(szBuffUSB, ", ");
+                     strcat(szBuffUSB, szOutput);
+                     iLen = strlen(szBuffUSB);
+                     if ( szBuffUSB[iLen-1] == 10 || szBuffUSB[iLen-1] == 13 )
+                        szBuffUSB[iLen-1] = 0;
+                     iLen = strlen(szBuffUSB);
+                     if ( szBuffUSB[iLen-1] == 10 || szBuffUSB[iLen-1] == 13 )
+                        szBuffUSB[iLen-1] = 0;
                   }
 
                   szOutput[0] = 0;
@@ -1380,37 +1373,37 @@ bool process_command(u8* pBuffer, int length)
                   hw_execute_bash_command_silent(szComm, szOutput);
                   if ( strlen(szOutput) > 0 )
                   {
-                     strcat(szBuff, ", ");
-                     strcat(szBuff, szOutput);
-                     iLen = strlen(szBuff);
-                     if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
-                        szBuff[iLen-1] = 0;
-                     iLen = strlen(szBuff);
-                     if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
-                        szBuff[iLen-1] = 0;
+                     strcat(szBuffUSB, ", ");
+                     strcat(szBuffUSB, szOutput);
+                     iLen = strlen(szBuffUSB);
+                     if ( szBuffUSB[iLen-1] == 10 || szBuffUSB[iLen-1] == 13 )
+                        szBuffUSB[iLen-1] = 0;
+                     iLen = strlen(szBuffUSB);
+                     if ( szBuffUSB[iLen-1] == 10 || szBuffUSB[iLen-1] == 13 )
+                        szBuffUSB[iLen-1] = 0;
                   }
                   break;
                }
             }
 
-            iLen = strlen(szBuff);
+            iLen = strlen(szBuffUSB);
             if ( iLen > 0 )
-            if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
-               szBuff[iLen-1] = 0;
+            if ( szBuffUSB[iLen-1] == 10 || szBuffUSB[iLen-1] == 13 )
+               szBuffUSB[iLen-1] = 0;
 
-            iLen = strlen(szBuff);
+            iLen = strlen(szBuffUSB);
             if ( iLen > 0 )
-            if ( szBuff[iLen-1] == 10 || szBuff[iLen-1] == 13 )
-               szBuff[iLen-1] = 0;
+            if ( szBuffUSB[iLen-1] == 10 || szBuffUSB[iLen-1] == 13 )
+               szBuffUSB[iLen-1] = 0;
 
-            strcat(szBuff, "\n");
+            strcat(szBuffUSB, "\n");
          }
          closedir(d);
       }
 
-      if ( 0 == strlen(szBuff) )
-         strcpy(szBuff, "No info available.");
-      int iLen = strlen(szBuff);
+      if ( 0 == strlen(szBuffUSB) )
+         strcpy(szBuffUSB, "No info available.");
+      int iLen = strlen(szBuffUSB);
       strcpy(szFile, FOLDER_RUBY_TEMP);
       strcat(szFile, "tmp_usb_info2.txt");
       FILE* fd = fopen(szFile, "wb");
@@ -1419,7 +1412,7 @@ bool process_command(u8* pBuffer, int length)
           sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
           return true;
       }
-      fwrite(szBuff, 1, iLen, fd );
+      fwrite(szBuffUSB, 1, iLen, fd );
       fclose(fd);
 
       sprintf(szComm, "rm -rf %s/tmp_usb_info2.tar* 2>/dev/null", FOLDER_RUBY_TEMP);
@@ -1441,8 +1434,8 @@ bool process_command(u8* pBuffer, int length)
           hw_execute_bash_command(szComm, NULL);
           return true;       
       }
-      szBuff[0] = 0;
-      iLen = fread(szBuff, 1, 3000, fd);
+      szBuffUSB[0] = 0;
+      iLen = fread(szBuffUSB, 1, 3000, fd);
       fclose(fd);
 
       if ( iLen <= 0 )
@@ -1456,7 +1449,7 @@ bool process_command(u8* pBuffer, int length)
       }
 
       log_line("Send reply of %d bytes to get USB info command.", iLen);
-      setCommandReplyBuffer((u8*)szBuff, iLen);
+      setCommandReplyBuffer((u8*)szBuffUSB, iLen);
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 1, 0);
       return true;       
    }
@@ -1673,7 +1666,7 @@ bool process_command(u8* pBuffer, int length)
       }
       else
       {
-         strcat(szBuff, " router: N/A;");
+         strcat(szBuffer, " router: N/A;");
       }
 
       pProcessStats = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_TELEMETRY_TX);
@@ -1685,7 +1678,7 @@ bool process_command(u8* pBuffer, int length)
       }
       else
       {
-         strcat(szBuff, " tx_telemetry: N/A;");
+         strcat(szBuffer, " tx_telemetry: N/A;");
       }
 
       pProcessStats = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_RC_RX);
@@ -1697,7 +1690,7 @@ bool process_command(u8* pBuffer, int length)
       }
       else
       {
-         strcat(szBuff, " rx_rc: N/A;");
+         strcat(szBuffer, " rx_rc: N/A;");
       }
 
       strcat(szBuffer, "+");
@@ -1762,8 +1755,9 @@ bool process_command(u8* pBuffer, int length)
       {
          g_pCurrentModel->radioInterfacesParams.interface_card_model[0] = -CARD_MODEL_RTL8812AU_AF1;
       }
+      g_pCurrentModel->resetAudioParams();
       saveCurrentModel();
-      signalReloadModel(MODEL_CHANGED_GENERIC, 0);
+      signalReloadModel(MODEL_CHANGED_AUDIO_PARAMS, 0);
       return true;
    }
 
@@ -1813,7 +1807,7 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_CAMERA_PROFILE )
    {
-      if ( (pPHC->command_param < 0) || (pPHC->command_param >= MODEL_CAMERA_PROFILES) )
+      if ( pPHC->command_param >= MODEL_CAMERA_PROFILES )
       {
          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
          return true;
@@ -1852,12 +1846,12 @@ bool process_command(u8* pBuffer, int length)
    if ( uCommandType == COMMAND_ID_FORCE_CAMERA_TYPE )
    {
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      int iCamT = (int)pPHC->command_param;
+      int iCamType = (int)pPHC->command_param;
       if ( g_pCurrentModel->hasCamera() )
       if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
          vehicle_stop_video_capture_csi(g_pCurrentModel); 
       
-      g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType = iCamT;
+      g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType = iCamType;
       saveCurrentModel();
       signalReloadModel(0, 0);
 
@@ -1865,10 +1859,20 @@ bool process_command(u8* pBuffer, int length)
       {
          if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
          {
-            hw_execute_bash_command("fw_setenv sensor", NULL);
+            char szSensor[64];
+            szSensor[0] = 0;
+            switch( iCamType )
+            {
+               case CAMERA_TYPE_OPENIPC_IMX307: strcpy(szSensor, "imx307"); break;
+               case CAMERA_TYPE_OPENIPC_IMX335: strcpy(szSensor, "imx335"); break;
+               case CAMERA_TYPE_OPENIPC_IMX415: strcpy(szSensor, "imx415"); break;
+            }
+            char szComm[256];
+            sprintf(szComm, "fw_setenv sensor %s", szSensor);
+            hw_execute_bash_command(szComm, NULL);
             hardware_reboot();
          }
-         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_START_VIDEO_PROGRAM,0);
+         sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_START_VIDEO_PROGRAM, 0);
       }
       return true;
    }
@@ -2258,7 +2262,7 @@ bool process_command(u8* pBuffer, int length)
             if ( szName[i] <= ' ' )
                szName[i] = '-';
          }
-         fprintf(fd, "%u %u %d %d %d %s\n",
+         fprintf(fd, "%u %u %u %u %u %s\n",
            g_pCurrentModel->uVehicleId, g_pCurrentModel->uControllerId,
            g_pCurrentModel->radioLinksParams.link_frequency_khz[0],
            g_pCurrentModel->radioLinksParams.link_frequency_khz[1],
@@ -2431,10 +2435,7 @@ bool process_command(u8* pBuffer, int length)
          return true;
       }
 
-      if ( (g_pCurrentModel->hasCamera()) && bSelectedVideoProfileChanged )
-         signalReloadModel(MODEL_CHANGED_USER_SELECTED_VIDEO_PROFILE, 0);
-      else
-         signalReloadModel(0, 0);
+      signalReloadModel(0, 0);
 
       if ( bVideoResolutionChanged || bMustRestartCapture )
       {
@@ -3743,7 +3744,7 @@ int r_start_commands_rx(int argc, char* argv[])
                 uResendCount, pPH->vehicle_id_src, pPH->vehicle_id_dest, g_bDeveloperMode?"yes":"no");
             if ( NULL != g_pCurrentModel )
             {
-               if ( (NULL != g_pCurrentModel) && (0 != g_uControllerId) && (g_uControllerId != pPH->vehicle_id_src) )
+               if ( (0 != g_uControllerId) && (g_uControllerId != pPH->vehicle_id_src) )
                   g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags &= ~(MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS);
                g_uControllerId = pPH->vehicle_id_src;
                g_pCurrentModel->uControllerId = pPH->vehicle_id_src;

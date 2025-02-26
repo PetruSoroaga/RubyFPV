@@ -2,6 +2,7 @@
 
 #include "../base/base.h"
 #include "../base/config.h"
+#include "../base/models.h"
 #include "../radio/radiopackets2.h"
 
 class ProcessorTxAudio
@@ -10,6 +11,8 @@ class ProcessorTxAudio
       ProcessorTxAudio();
       virtual ~ProcessorTxAudio();
 
+      void init(Model* pModel);
+      void resetState(Model* pModel);
       u32 getAverageAudioInputBps();
 
       int openAudioStream();
@@ -31,8 +34,8 @@ class ProcessorTxAudio
       bool m_bLocalRecording;
       int m_iRecordingFileNumber;
       int m_iSchemePacketSize;
-      u32 m_uSchemeDataPackets;
-      u32 m_uSchemeECPackets;
+      int m_iSchemeDataPackets;
+      int m_iSchemeECPackets;
 
       u32 m_uTimeLastTryReadAudioInputStream;
 

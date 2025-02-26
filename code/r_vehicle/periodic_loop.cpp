@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -352,7 +353,7 @@ void _check_free_storage_space()
       if ( iFreeSpaceKb < 0 )
       {
          s_bWaitingForFreeSpaceyAsync = false;
-         int iFreeSpaceKb = hardware_get_free_space_kb();
+         iFreeSpaceKb = hardware_get_free_space_kb();
          if ( (iFreeSpaceKb >= 0) && (iFreeSpaceKb < iMinFreeKb) )
             _trigger_alarm_free_space(iFreeSpaceKb);
       }
@@ -365,7 +366,7 @@ void _check_free_storage_space()
       {
          log_line("Free space: %d kb", iFreeSpaceKb);
          s_bWaitingForFreeSpaceyAsync = false;
-         if ( (iFreeSpaceKb >= 0) && (iFreeSpaceKb < iMinFreeKb) )
+         if ( iFreeSpaceKb < iMinFreeKb )
             _trigger_alarm_free_space(iFreeSpaceKb);
       }
    }
@@ -447,14 +448,14 @@ void _send_radio_stats_to_controller()
       if ( g_pCurrentModel->radioLinkIsSiKRadio(iLinkId) )
       {
          g_SM_RadioStats.radio_interfaces[i].lastRecvDataRate = g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iLinkId];
-         g_SM_RadioStats.radio_interfaces[i].lastRecvDataRateData = g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iLinkId];
+         g_SM_RadioStats.radio_interfaces[i].lastRecvDataRateData = g_SM_RadioStats.radio_interfaces[i].lastRecvDataRateData;
          g_SM_RadioStats.radio_interfaces[i].lastRecvDataRateVideo = 0;
       }
       else if ( g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iLinkId] < 0 )
       {
          g_SM_RadioStats.radio_interfaces[i].lastRecvDataRate = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iLinkId];
-         g_SM_RadioStats.radio_interfaces[i].lastRecvDataRateData = g_pCurrentModel->radioLinksParams.link_datarate_data_bps[iLinkId];
-         g_SM_RadioStats.radio_interfaces[i].lastRecvDataRateVideo = g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iLinkId];
+         g_SM_RadioStats.radio_interfaces[i].lastRecvDataRateData = g_SM_RadioStats.radio_interfaces[i].lastRecvDataRateData;
+         g_SM_RadioStats.radio_interfaces[i].lastRecvDataRateVideo = g_SM_RadioStats.radio_interfaces[i].lastRecvDataRateVideo;
       }
    }
 
@@ -866,17 +867,6 @@ int _update_debug_stats()
       g_TimeLastDebugFPSComputeTime = g_TimeNow;
       s_debugFramesCount = 0;
 
-
-      if (( g_TimeNow > g_TimeStart+50000 ) || g_bReceivedPairingRequest )
-      {
-          if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->audio_params.has_audio_device) && (g_pCurrentModel->audio_params.enabled) )
-          if ( ! g_pProcessorTxAudio->isAudioStreamOpened() )
-          {
-             vehicle_launch_audio_capture(g_pCurrentModel);
-             g_pProcessorTxAudio->openAudioStream();
-          }
-      }
-
       s_MinVideoBlocksGapMilisec = 500/(1+s_debugVideoBlocksInCount);
       if ( s_debugVideoBlocksInCount >= 500 )
          s_MinVideoBlocksGapMilisec = 0;
@@ -945,7 +935,7 @@ int periodicLoop()
    if ( g_bNegociatingRadioLinks )
    if ( (g_TimeNow > g_uTimeStartNegociatingRadioLinks + 60*2*1000) || (g_TimeNow > g_uTimeLastNegociateRadioLinksCommand + 8000) )
    {
-      adaptive_video_set_temporary_bitrate(s_uTemporaryVideoBitrateBeforeNegociateRadio);
+      adaptive_video_set_bitrate(s_uTemporaryVideoBitrateBeforeNegociateRadio);
       g_uTimeStartNegociatingRadioLinks = 0;
       g_bNegociatingRadioLinks = false;
    }
@@ -1005,5 +995,12 @@ int periodicLoop()
       hardware_reboot();
    }
 
+
+   static u32 s_uTimeLastRadioTxStats = 0;
+   if ( g_TimeNow > s_uTimeLastRadioTxStats + 5000 )
+   {
+      s_uTimeLastRadioTxStats = g_TimeNow;
+      radio_stats_log_tx_info(&g_SM_RadioStats, g_TimeNow);
+   }
    return 0;
 }

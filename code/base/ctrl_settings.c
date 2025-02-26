@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -112,10 +113,7 @@ void reset_ControllerSettings()
    s_CtrlSettings.iRadioTxUsesPPCAP = DEFAULT_USE_PPCAP_FOR_TX;
    s_CtrlSettings.iRadioBypassSocketBuffers = DEFAULT_BYPASS_SOCKET_BUFFERS;
    s_CtrlSettings.iStreamerOutputMode = 0;
-   #if defined (HW_PLATFORM_RASPBERRY)
-   s_CtrlSettings.iStreamerOutputMode = 1;
-   #endif
-
+   s_CtrlSettings.iVideoMPPBuffersSize = DEFAULT_MPP_BUFFERS_SIZE;
    if ( s_CtrlSettingsLoaded )
       log_line("Reseted controller settings.");
 }
@@ -169,7 +167,7 @@ int save_ControllerSettings()
    fprintf(fd, "%d %d\n", s_CtrlSettings.iRadioRxThreadPriority, s_CtrlSettings.iRadioTxThreadPriority);
    fprintf(fd, "%d %d %d\n", s_CtrlSettings.iRadioTxUsesPPCAP, s_CtrlSettings.iRadioBypassSocketBuffers, s_CtrlSettings.iFixedTxPower);
    fprintf(fd, "%d %d\n", s_CtrlSettings.iCoresAdjustment, s_CtrlSettings.iPrioritiesAdjustment);
-   fprintf(fd, "%d\n", s_CtrlSettings.iStreamerOutputMode);
+   fprintf(fd, "%d %d\n", s_CtrlSettings.iStreamerOutputMode, s_CtrlSettings.iVideoMPPBuffersSize);
    fclose(fd);
 
    log_line("Saved controller settings to file: %s", szFile);
@@ -195,6 +193,7 @@ int load_ControllerSettings()
 
    int iDummy = 0;
    int failed = 0;
+   int iWriteOptionalValues = 0;
    char szBuff[256];
    szBuff[0] = 0;
    if ( 1 != fscanf(fd, "%s", szBuff) )
@@ -292,22 +291,23 @@ int load_ControllerSettings()
    if ( 1 != fscanf(fd, "%d ", &s_CtrlSettings.iStreamerOutputMode) )
       { log_softerror_and_alarm("Load ctrl settings, failed on line 26");
         s_CtrlSettings.iStreamerOutputMode = 0;
-        #if defined (HW_PLATFORM_RASPBERRY)
-        s_CtrlSettings.iStreamerOutputMode = 1;
-        #endif
       }
+   if ( 1 != fscanf(fd, "%d ", &s_CtrlSettings.iVideoMPPBuffersSize) )
+      { log_softerror_and_alarm("Load ctrl settings, failed on line 27");
+         s_CtrlSettings.iVideoMPPBuffersSize = DEFAULT_MPP_BUFFERS_SIZE;
+         iWriteOptionalValues = 1; }
+
    fclose(fd);
 
    //--------------------------------------------------------
    // Validate settings
 
    if ( (s_CtrlSettings.iStreamerOutputMode < 0) || (s_CtrlSettings.iStreamerOutputMode > 2) )
-   {
       s_CtrlSettings.iStreamerOutputMode = 0;
-      #if defined (HW_PLATFORM_RASPBERRY)
-      s_CtrlSettings.iStreamerOutputMode = 1;
-      #endif
-   }
+
+   if ( (s_CtrlSettings.iVideoMPPBuffersSize < 5) || (s_CtrlSettings.iVideoMPPBuffersSize > 128) )
+      s_CtrlSettings.iVideoMPPBuffersSize = DEFAULT_MPP_BUFFERS_SIZE;
+     
    if ( s_CtrlSettings.iMAVLinkSysIdController <= 0 || s_CtrlSettings.iMAVLinkSysIdController > 255 )
       s_CtrlSettings.iMAVLinkSysIdController = DEFAULT_MAVLINK_SYS_ID_CONTROLLER;
    if ( s_CtrlSettings.iVideoForwardUSBType < 0 || s_CtrlSettings.iVideoForwardUSBType > 1 || s_CtrlSettings.iVideoForwardUSBPacketSize == 0 || s_CtrlSettings.iVideoForwardUSBPort == 0 )
@@ -339,9 +339,14 @@ int load_ControllerSettings()
 
    if ( failed )
    {
-      log_line("Incomplete/Invalid settings file %s, error code: %d. Reseted to default.", szFile, failed);
+      log_line("Invalid settings file %s, error code: %d. Reseted to default.", szFile, failed);
       reset_ControllerSettings();
       save_ControllerSettings();
+   }
+   else if ( 1 == iWriteOptionalValues )
+   {
+      log_line("Incomplete settings file %s, write settings again.", szFile);
+      save_ControllerSettings();    
    }
    else
       log_line("Loaded controller settings from file: %s", szFile);

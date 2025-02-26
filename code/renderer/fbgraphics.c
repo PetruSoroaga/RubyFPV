@@ -2,13 +2,14 @@
     Copyright (c) 2018, 2019, 2020 THE AUTHOR (PETRU SOROAGA)
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
@@ -761,26 +762,26 @@ void fbg_pixela(struct _fbg *fbg, int x, int y, unsigned char r, unsigned char g
 
 void fbg_pixela_fast(struct _fbg *fbg, unsigned char* pixel, unsigned char r, unsigned char g, unsigned char b, unsigned char a)
 {
-    if ( *(pixel+3) == 255 )
-    {
-       *pixel = ((a * r + (255 - a) * (*pixel)) >> 8);
-       pixel++;
-       *pixel = ((a * g + (255 - a) * (*pixel)) >> 8);
-       pixel++;
-       *pixel = ((a * b + (255 - a) * (*pixel)) >> 8);
-       pixel++;
-       pixel++;
-    }
+   if ( *(pixel+3) == 255 )
+   {
+      *pixel = ((a * r + (255 - a) * (*pixel)) >> 8);
+      pixel++;
+      *pixel = ((a * g + (255 - a) * (*pixel)) >> 8);
+      pixel++;
+      *pixel = ((a * b + (255 - a) * (*pixel)) >> 8);
+      //pixel++;
+      //pixel++;
+   }
    else
    {
-       *pixel = ((a * r + (255 - a) * (*pixel)) >> 8);
-       pixel++;
-       *pixel = ((a * g + (255 - a) * (*pixel)) >> 8);
-       pixel++;
-       *pixel = ((a * b + (255 - a) * (*pixel)) >> 8);
-       pixel++;
-       *pixel = (*pixel) + (((255-(*pixel))*a) >> 8);
-       pixel++;
+      *pixel = ((a * r + (255 - a) * (*pixel)) >> 8);
+      pixel++;
+      *pixel = ((a * g + (255 - a) * (*pixel)) >> 8);
+      pixel++;
+      *pixel = ((a * b + (255 - a) * (*pixel)) >> 8);
+      pixel++;
+      *pixel = (*pixel) + (((255-(*pixel))*a) >> 8);
+      //pixel++;
    }
 }
 

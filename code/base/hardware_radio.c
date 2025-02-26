@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -368,6 +369,14 @@ int _hardware_detect_card_model(const char* szProductId)
       return CARD_MODEL_RTL8733BU;
    if ( NULL != strstr( szProductId, "0bda:f72b" ) )
       return CARD_MODEL_RTL8733BU;
+   if ( NULL != strstr( szProductId, "bda:b733" ) )
+      return CARD_MODEL_RTL8733BU;
+   if ( NULL != strstr( szProductId, "0bda:b733" ) )
+      return CARD_MODEL_RTL8733BU;
+   if ( NULL != strstr( szProductId, "bda:b731" ) )
+      return CARD_MODEL_RTL8733BU;
+   if ( NULL != strstr( szProductId, "0bda:b731" ) )
+      return CARD_MODEL_RTL8733BU;
    return 0;
 }
 
@@ -465,23 +474,23 @@ void _hardware_assign_usb_from_physical_ports()
          if ( 0 != szOutput[0] )
          {
             iLen = strlen(szOutput);
-            int iPos = 0;
-            while ( iPos < iLen )
+            int iPosOut = 0;
+            while ( iPosOut < iLen )
             {
-               if ( szOutput[iPos] == '=' )
+               if ( szOutput[iPosOut] == '=' )
                {
-                  iPos++;
+                  iPosOut++;
                   break;
                }
-               szOutput[iPos] = tolower(szOutput[iPos]);
-               iPos++;
+               szOutput[iPosOut] = tolower(szOutput[iPosOut]);
+               iPosOut++;
             }
-            if ( iPos < iLen )
+            if ( iPosOut < iLen )
             {
-               for( int kk=iPos; kk<iLen; kk++ )
+               for( int kk=iPosOut; kk<iLen; kk++ )
                   szOutput[kk] = tolower(szOutput[kk]);
 
-               strncpy( sRadioInfo[i].szProductId, &(szOutput[iPos]), sizeof(sRadioInfo[i].szProductId)/sizeof(sRadioInfo[i].szProductId[0]) );
+               strncpy( sRadioInfo[i].szProductId, &(szOutput[iPosOut]), sizeof(sRadioInfo[i].szProductId)/sizeof(sRadioInfo[i].szProductId[0]) );
                sRadioInfo[i].szProductId[(sizeof(sRadioInfo[i].szProductId)/sizeof(sRadioInfo[i].szProductId[0]))-1] = 0;
                for( int kk=0; kk<strlen(sRadioInfo[i].szProductId); kk++ )
                {
@@ -556,12 +565,12 @@ void _hardware_assign_usb_from_physical_ports()
             iPosMinus++;
          }
 
-         if ( iPosMinus >= iPosEnd || iPosMinus >= iLen || iPosMinus < 0 )
+         if ( (iPosMinus >= iPosEnd) || (iPosMinus >= iLen) || (iPosMinus < 0) )
             continue;
 
          log_line("[HardwareRadio] Found USB port part2 for radio interface %d: [%s]", i+1, &(szPort[iPosMinus]));
 
-         if ( szPort[iPosMinus] < '0' || szPort[iPosMinus] > '9' )
+         if ( (szPort[iPosMinus] < '0') || (szPort[iPosMinus] > '9') )
          {
             log_line("[HardwareRadio] Invalid port string [%s]. Skipping.", &(szPort[iPosMinus]));
             continue;
@@ -612,13 +621,8 @@ void _hardware_assign_usb_from_physical_ports()
       log_line("[HardwareRadio] Radio interface %d USB port: [%s]", i+1, sRadioInfo[i].szUSBPort);
 }
 
-int hardware_radio_get_driver_id_for_product_id(const char* szProdId)
+int hardware_radio_get_driver_id_card_model(int iCardModel)
 {
-   if ( (NULL == szProdId) || (0 == szProdId[0]) )
-      return 0;
-
-   int iCardModel = _hardware_detect_card_model(szProdId);
-
    if ( (iCardModel == CARD_MODEL_TPLINK722N) || (iCardModel == CARD_MODEL_ATHEROS_GENERIC) )
       return RADIO_HW_DRIVER_ATHEROS;
    else if ( iCardModel == CARD_MODEL_BLUE_8812EU )
@@ -629,6 +633,15 @@ int hardware_radio_get_driver_id_for_product_id(const char* szProdId)
       return RADIO_HW_DRIVER_REALTEK_RTL88XXAU;
 
    return 0;
+}
+
+int hardware_radio_get_driver_id_for_product_id(const char* szProdId)
+{
+   if ( (NULL == szProdId) || (0 == szProdId[0]) )
+      return 0;
+
+   int iCardModel = _hardware_detect_card_model(szProdId);
+   return hardware_radio_get_driver_id_card_model(iCardModel);
 }
 
 int _hardware_find_usb_radio_interfaces_info()
@@ -644,6 +657,7 @@ int _hardware_find_usb_radio_interfaces_info()
 
    char szBuff[4096];
    szBuff[0] = 0;
+   memset(szBuff, 0, sizeof(szBuff)/sizeof(szBuff[0]));
    hw_execute_bash_command_raw_timeout("lsusb", szBuff, 4000);
 
    log_line("[HardwareRadio] Output of lsusb: <<<%s>>>", szBuff);
@@ -654,132 +668,97 @@ int _hardware_find_usb_radio_interfaces_info()
       iLen = (int)(sizeof(szBuff)/sizeof(szBuff[0])) - 1;
       szBuff[iLen] = 0;
    }
-   int iPos = 0;
-   while (iPos <= iLen)
+   int iStLinePos = 0;
+   while (iStLinePos < iLen)
    {
       // Get one line
-      int iEndLine = iPos;
-      while ( (szBuff[iEndLine] != 10) && (szBuff[iEndLine] != 13) && (szBuff[iEndLine] != 0) && (iEndLine < iLen) )
-         iEndLine++;
-      szBuff[iEndLine] = 0;
+      int iEndLinePos = iStLinePos;
+      while ( (szBuff[iEndLinePos] != 10) && (szBuff[iEndLinePos] != 13) && (szBuff[iEndLinePos] != 0) && (iEndLinePos < iLen) )
+         iEndLinePos++;
+      szBuff[iEndLinePos] = 0;
 
-      if ( (szBuff[iEndLine+1] == 10) || (szBuff[iEndLine+1] == 13) )
+      if ( strlen(&szBuff[iStLinePos]) < 4 )
       {
-         iEndLine++;
-         szBuff[iEndLine] = 0;
+         // Go to next line
+         iEndLinePos++;
+         iStLinePos = iEndLinePos;
+         continue;       
       }
 
       // Parse the line
-      log_line("[HardwareRadio] Parsing USB line: [%s]", &(szBuff[iPos]));
-      int bLookForBus = 1;
-      int bLookForDev = 1;
-      int bLookForId = 1;
-      for( int i=iPos; i<iEndLine; i++ )
+      log_line("[HardwareRadio] Parsing USB line: [%s]", &szBuff[iStLinePos]);
+      
+      char* pBus = strstr(&szBuff[iStLinePos], "Bus");
+      char* pDevice = strstr(&szBuff[iStLinePos], "Device");
+      char* pUSBId = strstr(&szBuff[iStLinePos], "ID");
+
+      s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iBusNb = 0;
+      if ( NULL != pBus )
+      if ( isdigit(*(pBus + 4)) )
+         s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iBusNb = atoi(pBus + 4);
+
+      s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iDeviceNb = 0;
+      if ( NULL != pDevice )
+      if ( isdigit(*(pDevice + 7)) )
+         s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iDeviceNb = atoi(pDevice+7);
+
+      s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId[0] = 0;
+      if ( NULL != pUSBId )
       {
-         if ( bLookForBus )
+         char szUSBId[128];
+         strncpy(szUSBId, pUSBId+3, sizeof(szUSBId)/sizeof(szUSBId[0])-1);
+         for( int i=0; i<strlen(szUSBId); i++ )
          {
-            if ( szBuff[i] < '0' || szBuff[i] > '9' )
-               continue;
-            int iStartNb = i;
-            while ( szBuff[i] >= '0' && szBuff[i] <= '9' )
-               i++;
-            szBuff[i] = 0;
-            s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iBusNb = atoi(szBuff+iStartNb);
-            bLookForBus = 0;
-            continue;
-         }
-         else if ( bLookForDev )
-         {
-            if ( szBuff[i] < '0' || szBuff[i] > '9' )
-               continue;
-            int iStartNb = i;
-            while ( szBuff[i] >= '0' && szBuff[i] <= '9' )
-               i++;
-            szBuff[i] = 0;
-            szBuff[i+1] = 0;
-            s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iDeviceNb = atoi(szBuff+iStartNb);
-            bLookForDev = 0;
-            continue;
-         }
-         else if ( bLookForId )
-         {
-            if ( (szBuff[i] < '0') || (szBuff[i] > '9') )
-               continue;
-            int iStartId = i;
-            while ( (szBuff[i] >= '0' && szBuff[i] <= '9') || szBuff[i] == ':' || (szBuff[i] >= 'a' && szBuff[i] <= 'f') )
-               i++;
-            szBuff[i] = 0;
-            // Skip leading 0s
-            if ( szBuff[iStartId] == '0' )
-               iStartId++;
-            if ( szBuff[iStartId] == '0' )
-               iStartId++;
-            strncpy(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId, szBuff+iStartId, sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId)-1 );
-            s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId[sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId)-1] = 0;
-            for( int kk=9; kk<strlen(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId); kk++ )
-                  s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId[kk] = tolower(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId[kk]);
-
-            bLookForId = 0;
-
-            #ifdef HW_PLATFORM_OPENIPC_CAMERA
-            s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iDriver = hardware_radio_get_driver_id_for_product_id(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId);
-            strncpy(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName, str_get_radio_card_model_string(_hardware_detect_card_model(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId)), sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)/sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[0]) );
-            s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)/sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[0]) - 1] = 0;
-            s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iPortNb = -1;
-            log_line("[HardwareRadio] Found USB device: bus %d, device %d: prod id: %s, name: %s",
-                s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iBusNb,
-                s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iDeviceNb,
-                s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId,
-                s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName);
-
-            int iCardModel = _hardware_detect_card_model(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId);
-            if ( iCardModel > 0 )
+            szUSBId[i] = tolower(szUSBId[i]);
+            if ( szUSBId[i] == ' ' )
             {
-               iCountKnownRadioCards++;
-               log_line("[HardwareRadio] USB device %s is a known radio interface, type: %s",
-                  s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId, str_get_radio_card_model_string(iCardModel));
+               szUSBId[i] = 0;
+               break;
             }
-            if ( s_iFoundUSBRadioInterfaces < MAX_USB_DEVICES_INFO-1 )
-               s_iFoundUSBRadioInterfaces++;
-            else
-               log_softerror_and_alarm("[HardwareRadio] Not enough space in USB devices interfaces info to store one more entry. It has %d entries already.", s_iFoundUSBRadioInterfaces);
-            break;
-            #endif
          }
-         else
-         {
-            //strncpy(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName, szBuff+i, sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)-1 );
-            //s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iDriver = 0;
-            //s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)-1] = 0;
-            s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iDriver = hardware_radio_get_driver_id_for_product_id(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId);
-            strncpy(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName, str_get_radio_card_model_string(_hardware_detect_card_model(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId)), sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)/sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[0]) );
-            s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)/sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[0]) - 1] = 0;
+         strncpy(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId, szUSBId, sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId)-1 );
+         s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId[sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId)-1] = 0;
+      }
 
-            s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iPortNb = -1;
-            log_line("[HardwareRadio] Found USB device: bus %d, device %d: prod id: %s, name: %s",
-                s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iBusNb,
-                s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iDeviceNb,
-                s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId,
-                s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName);
+      int iCardModel = _hardware_detect_card_model(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId);
+      if ( iCardModel <= 0 )
+      {
+         log_line("[HardwareRadio] Could not find a known USB product id in the product id string (%s)", s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId);
+         log_line("[HardwareRadio] Search it on entire line");
+         iCardModel = _hardware_detect_card_model(&szBuff[iStLinePos]);
+      }
+      int iCardDriver = hardware_radio_get_driver_id_card_model(iCardModel);
 
-            int iCardModel = _hardware_detect_card_model(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId);
-            if ( iCardModel > 0 )
-            {
-               iCountKnownRadioCards++;
-               log_line("[HardwareRadio] USB device %s is a known radio interface, type: %s",
-                  s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId, str_get_radio_card_model_string(iCardModel));
-            }
-            if ( s_iFoundUSBRadioInterfaces < MAX_USB_DEVICES_INFO-1 )
-               s_iFoundUSBRadioInterfaces++;
-            else
-               log_softerror_and_alarm("[HardwareRadio] Not enough space in USB devices interfaces info to store one more entry. It has %d entries already.", s_iFoundUSBRadioInterfaces);
-            break;
-         }
+      s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iPortNb = -1;
+      s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iDriver = iCardDriver;
+      strncpy(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName, str_get_radio_card_model_string(iCardModel), sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)/sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[0]) );
+      s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName)/sizeof(s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName[0]) - 1] = 0;
+
+      log_line("[HardwareRadio] Parsing USB device: bus %d, device %d: prod id: %s, name: %s",
+          s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iBusNb,
+          s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].iDeviceNb,
+          s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId,
+          s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szName);
+
+      if ( s_iFoundUSBRadioInterfaces < MAX_USB_DEVICES_INFO-1 )
+         s_iFoundUSBRadioInterfaces++;
+      else
+      {
+         log_softerror_and_alarm("[HardwareRadio] Not enough space in USB devices interfaces info to store one more entry. It has %d entries already.", s_iFoundUSBRadioInterfaces);
+         iStLinePos = iLen;
+         break;
+      }
+
+      if ( iCardModel > 0 )
+      {
+         iCountKnownRadioCards++;
+         log_line("[HardwareRadio] USB device %s is a known radio interface, type: %s",
+            s_USB_RadioInterfacesInfo[s_iFoundUSBRadioInterfaces].szProductId, str_get_radio_card_model_string(iCardModel));
       }
 
       // Go to next line
-      iEndLine++;
-      iPos = iEndLine;
+      iEndLinePos++;
+      iStLinePos = iEndLinePos;
    }
 
    log_line("[HardwareRadio] Done finding USB devices. Found %d USB devices of which %d are known radio cards.", s_iFoundUSBRadioInterfaces, iCountKnownRadioCards);
@@ -901,12 +880,14 @@ int _hardware_enumerate_wifi_radios()
       log_line("[HardwareRadio] Driver for %s (last part): (%s)", sRadioInfo[i].szName, &szDriver[strlen(szDriver)/2]);
       char* pszDriver = szDriver;
       if ( strlen(szDriver) > 0 )
-      for( int i=strlen(szDriver)-1; i>0; i-- )
       {
-         if ( szDriver[i] == '/' )
+         for( int k=strlen(szDriver)-1; k>0; k-- )
          {
-            pszDriver = &szDriver[i];
-            break;
+            if ( szDriver[k] == '/' )
+            {
+               pszDriver = &szDriver[k];
+               break;
+            }
          }
       }
       if ( *pszDriver == '/' )
@@ -1119,7 +1100,7 @@ int hardware_enumerate_radio_interfaces_step(int iStep)
    log_line("=================================================================");
    log_line("[HardwareRadio] Enumerating radios (step %d)...", iStep);
 
-   if( iStep == -1 || iStep == 0 )
+   if( (iStep == -1) || (iStep == 0) )
    {
       char szFile[MAX_FILE_PATH_SIZE];
       strcpy(szFile, FOLDER_CONFIG);
@@ -1138,10 +1119,7 @@ int hardware_enumerate_radio_interfaces_step(int iStep)
          log_line("[HardwareRadio] HW Enumerate: no existing radio HW info file. Enumerating HW radios from scratch.");
 
       s_iHwRadiosCount = 0;
-   }
-
-   if( iStep == -1 || iStep == 0 )
-   {
+   
       _hardware_enumerate_wifi_radios();
       
       if ( 0 == s_iHwRadiosCount )
@@ -1202,13 +1180,13 @@ int hardware_load_driver_rtl8812au()
    snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "/lib/modules/%s/extra/88XXau.ko", szPlatform);
    if ( access(szFile, R_OK) != -1 )
    {
-      hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/88XXau.ko rtw_tx_pwr_idx_override=1", NULL);
-      hw_execute_bash_command_raw("modprobe 88XXau rtw_tx_pwr_idx_override=1", NULL);
+      hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/88XXau.ko rtw_tx_pwr_idx_override=1 2>&1", NULL);
+      hw_execute_bash_command_raw("modprobe 88XXau rtw_tx_pwr_idx_override=1 2>&1", NULL);
    }
    else
    {
-      hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/8812au.ko rtw_tx_pwr_idx_override=1", NULL);
-      hw_execute_bash_command_raw("modprobe 8812au rtw_tx_pwr_idx_override=1", NULL);
+      hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/8812au.ko rtw_tx_pwr_idx_override=1 2>&1", NULL);
+      hw_execute_bash_command_raw("modprobe 8812au rtw_tx_pwr_idx_override=1 2>&1", NULL);
    }
    return 1;
    #endif
@@ -1229,19 +1207,19 @@ int hardware_load_driver_rtl8812au()
 
 int hardware_load_driver_rtl8812eu()
 {
+   char szPlatform[128];
+   hw_execute_bash_command("uname -r", szPlatform);
+   removeTrailingNewLines(szPlatform);
+   log_line("[Hardware] Loading driver RTL8812EU for platform: %s ...", szPlatform);
+
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
    hw_execute_bash_command("modprobe cfg80211", NULL);
-   hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
-   hw_execute_bash_command_raw("modprobe 8812eu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
+   hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", NULL);
+   hw_execute_bash_command_raw("modprobe 8812eu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", NULL);
    return 1;
    #endif
 
-   char szPlatform[128];
    char szOutput[256];
-   hw_execute_bash_command("uname -r", szPlatform);
-   removeTrailingNewLines(szPlatform);
-   
-   log_line("[Hardware] Loading driver RTL8812EU for platform: %s ...", szPlatform);
 
    hw_execute_bash_command("sudo modprobe cfg80211", NULL);
    hw_execute_bash_command("sudo modprobe 8812eu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", szOutput);
@@ -1257,18 +1235,17 @@ int hardware_load_driver_rtl8812eu()
 
 int hardware_load_driver_rtl8733bu()
 {
-   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
-   hw_execute_bash_command("modprobe cfg80211", NULL);
-   hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/8733bu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
-   hw_execute_bash_command_raw("modprobe 8733bu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0", NULL);
-   return 1;
-   #endif
-
    char szPlatform[128];
    hw_execute_bash_command("uname -r", szPlatform);
    removeTrailingNewLines(szPlatform);
-   
    log_line("[Hardware] Loading driver RTL8733BU for platform: %s ...", szPlatform);
+
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   hw_execute_bash_command("modprobe cfg80211", NULL);
+   hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/8733bu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", NULL);
+   hw_execute_bash_command_raw("modprobe 8733bu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", NULL);
+   return 1;
+   #endif
 
    hw_execute_bash_command("sudo modprobe cfg80211", NULL);
    return 1;
@@ -1460,7 +1437,6 @@ int _hardware_try_install_rtl8812au(char* szSrcDriver)
       log_softerror_and_alarm("[HardwareRadio] Failed to insert driver (%s) on platform (%s), error: (%s)", szDriverFullPath, szPlatform, szOutput);
       return 0;
    }
-   hw_execute_bash_command("depmod -a", NULL);
    hw_execute_bash_command_raw("modprobe 88XXau rtw_tx_pwr_idx_override=1 2>&1", szOutput);
    log_line("[HardwareRadio] Modprobe result: [%s]", szOutput);
    if ( strlen(szOutput) > 10 )
@@ -1469,6 +1445,7 @@ int _hardware_try_install_rtl8812au(char* szSrcDriver)
       return 0;
    }
    log_line("[HardwareRadio] Installed driver (%s) on platform (%s)", szDriverFullPath, szPlatform);
+   hw_execute_bash_command("depmod -a", NULL);
    return 1;
 }
 
@@ -1489,10 +1466,9 @@ int hardware_install_driver_rtl8812au(int iEchoToConsole)
    }
 
    hw_execute_bash_command("sudo modprobe cfg80211", NULL);
-   char szDriverFile[128];
-   szDriverFile[0] = 0;
 
    #if defined HW_PLATFORM_RASPBERRY
+   char szDriverFile[128];
    if ( NULL != strstr(szPlatform, "v7l+") )
       strcpy(szDriverFile, "88XXau-pi+.ko");
    else
@@ -1511,6 +1487,7 @@ int hardware_install_driver_rtl8812au(int iEchoToConsole)
    #endif
 
    #if defined HW_PLATFORM_RADXA_ZERO3
+   char szDriverFile[128];
    strcpy(szDriverFile, "88XXau-radxa.ko");
    return _hardware_try_install_rtl8812au(szDriverFile);
    #endif
@@ -1554,7 +1531,6 @@ int _hardware_try_install_rtl8812eu(char* szSrcDriver)
       log_softerror_and_alarm("[HardwareRadio] Failed to insert driver (%s) on platform (%s), error: (%s)", szDriverFullPath, szPlatform, szOutput);
       return 0;
    }
-   hw_execute_bash_command("depmod -a", NULL);
    hw_execute_bash_command_raw("modprobe 8812eu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", szOutput);
    log_line("[HardwareRadio] Modprobe result: [%s]", szOutput);
    if ( strlen(szOutput) > 10 )
@@ -1563,6 +1539,7 @@ int _hardware_try_install_rtl8812eu(char* szSrcDriver)
       return 0;
    }
    log_line("[HardwareRadio] Installed driver (%s) on platform (%s)", szDriverFullPath, szPlatform);
+   hw_execute_bash_command("depmod -a", NULL);
    return 1;
 }
 
@@ -1583,10 +1560,9 @@ int hardware_install_driver_rtl8812eu(int iEchoToConsole)
    }
 
    hw_execute_bash_command("sudo modprobe cfg80211", NULL);
-   char szDriverFile[128];
-   szDriverFile[0] = 0;
 
    #if defined HW_PLATFORM_RASPBERRY
+   char szDriverFile[128];
    if ( NULL != strstr(szPlatform, "v7l+") )
       strcpy(szDriverFile, "8812eu-pi+.ko");
    else
@@ -1603,6 +1579,7 @@ int hardware_install_driver_rtl8812eu(int iEchoToConsole)
    #endif
 
    #if defined HW_PLATFORM_RADXA_ZERO3
+   char szDriverFile[128];
    strcpy(szDriverFile, "8812eu-radxa.ko");
    return _hardware_try_install_rtl8812eu(szDriverFile);
    #endif
@@ -2004,8 +1981,10 @@ int hardware_radio_has_rtl8812au_cards()
          if ( hardware_radio_driver_is_rtl8812au_card(sRadioInfo[i].iRadioDriver) )
             iCount++;
       }
-      return iCount;
    }
+
+   if ( iCount > 0 )
+      return iCount;
 
    for( int i=0; i<s_iFoundUSBRadioInterfaces; i++ )
    {
@@ -2031,8 +2010,10 @@ int hardware_radio_has_rtl8812eu_cards()
          if ( sRadioInfo[i].iRadioDriver == RADIO_HW_DRIVER_REALTEK_8812EU )
             iCount++;
       }
-      return iCount;
    }
+
+   if ( iCount > 0 )
+      return iCount;
 
    for( int i=0; i<s_iFoundUSBRadioInterfaces; i++ )
    {
@@ -2058,9 +2039,10 @@ int hardware_radio_has_rtl8733bu_cards()
          if ( sRadioInfo[i].iRadioDriver == RADIO_HW_DRIVER_REALTEK_8733BU )
             iCount++;
       }
-      return iCount;
    }
 
+   if ( iCount > 0 )
+      return iCount;
    for( int i=0; i<s_iFoundUSBRadioInterfaces; i++ )
    {
        if ( s_USB_RadioInterfacesInfo[i].iDriver == RADIO_HW_DRIVER_REALTEK_8733BU )

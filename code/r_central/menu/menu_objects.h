@@ -200,6 +200,7 @@ class Menu
      virtual void RenderPrepare();
      virtual void Render();
      virtual void RenderEnd(float yTop);
+     virtual void onAddToStack();
      virtual void onShow();
      virtual int  onBack();
      virtual void onSelectItem();

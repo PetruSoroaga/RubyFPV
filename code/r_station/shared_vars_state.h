@@ -25,6 +25,7 @@ typedef struct
 
    bool bIsVehicleLinkToControllerLostAlarm;
    u32 uLastTimeReceivedAckFromVehicle;
+   u32 uLastTimeRecvDataFromVehicle;
    int iVehicleClockDeltaMilisec;
 
    // Commands roundtrip info

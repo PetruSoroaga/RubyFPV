@@ -6,11 +6,11 @@
 #include "../base/parser_h264.h"
 #include "../radio/radiopackets2.h"
 
-//  [packet header][video segment header][video seg header important][video debug][video data][000]
-//  | pPH          | pPHVS               | pPHVSImp                  |pHVSDebug   |pActualVideoData
+//  [packet header][video segment header][video seg header important][video data][000]
+//  | pPH          | pPHVS               | pPHVSImp                  |pActualVideoData
 //  | pRawData ptr                       | pVideoData ptr
-//                                       [             <- video block packet size ->              ]
-//                                                                                [-vid size-]
+//                                       [  <- video block packet size ->            ]
+//                                                                   [-vid size-]
 
 typedef struct
 {
@@ -43,7 +43,9 @@ class VideoTxPacketsBuffer
       u32 getCurrentOutputFrameIndex();
       u32 getCurrentOutputNALIndex();
       int getCurrentUsableRawVideoDataSize();
-      
+      bool getResetOverflowFlag();
+      int getCurrentMaxUsableRawVideoDataSize();
+
    protected:
 
       void _checkAllocatePacket(int iBufferIndex, int iPacketIndex);
@@ -52,6 +54,7 @@ class VideoTxPacketsBuffer
       void _sendPacket(int iBufferIndex, int iPacketIndex, u32 uRetransmissionId);
       static int m_siVideoBuffersInstancesCount;
       bool m_bInitialized;
+      bool m_bOverflowFlag;
       int m_iInstanceIndex;
       int m_iVideoStreamIndex;
       int m_iCameraIndex;

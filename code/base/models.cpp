@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -37,6 +38,7 @@
 #include "config.h"
 #include "ctrl_preferences.h"
 #include "hardware.h"
+#include "hardware_audio.h"
 #include "hardware_camera.h"
 #include "hw_procs.h"
 #include "hardware_i2c.h"
@@ -171,7 +173,18 @@ Model::Model(void)
 
    memset((u8*)&video_params, 0, sizeof(video_parameters_t));
    memset((u8*)&camera_params, 0, sizeof(type_camera_parameters));
+   for(int i=0; i<MODEL_MAX_CAMERAS; i++ )
+   for(int k=0; k<MODEL_CAMERA_PROFILES; k++)
+   {
+      camera_params[i].profiles[k].analogGain = 0;
+      camera_params[i].profiles[k].awbGainB = 0;
+      camera_params[i].profiles[k].awbGainR = 0;
+      camera_params[i].profiles[k].fovV = 0;
+      camera_params[i].profiles[k].fovH = 0;
+   }
+
    memset((u8*)&osd_params, 0, sizeof(osd_parameters_t));
+   osd_params.voltage_alarm = 0;
    memset((u8*)&rc_params, 0, sizeof(rc_parameters_t));
    memset((u8*)&telemetry_params, 0, sizeof(telemetry_parameters_t));
    memset((u8*)&audio_params, 0, sizeof(audio_parameters_t));
@@ -192,6 +205,11 @@ Model::Model(void)
    iLoadedFileVersion = 0;
    radioInterfacesParams.interfaces_count = 0;
    m_iRadioInterfacesGraphRefreshInterval = 3;
+   is_spectator = false;
+   uVehicleId = 0;
+   uControllerId = 0;
+   uModelFlags = 0;
+   iGPSCount = 0;
    constructLongName();
 
    m_Stats.uCurrentOnTime = 0; // seconds
@@ -700,7 +718,7 @@ bool Model::loadVersion8(FILE* fd)
       audio_params.has_audio_device = (bool)tmp1;
    else
       { bOk = false; log_softerror_and_alarm("Load model8: Error on audio line 1"); }
-   if ( 4 == fscanf(fd, "%d %d %d %u", &tmp2, &audio_params.volume, &audio_params.quality, &audio_params.flags) )
+   if ( 4 == fscanf(fd, "%d %d %d %u", &tmp2, &audio_params.volume, &audio_params.quality, &audio_params.uFlags) )
    {
       audio_params.has_audio_device = tmp1;
       audio_params.enabled = tmp2;
@@ -1300,7 +1318,7 @@ bool Model::loadVersion9(FILE* fd)
       audio_params.has_audio_device = (bool)tmp1;
    else
       { bOk = false; log_softerror_and_alarm("Load model8: Error on audio line 1"); }
-   if ( 4 == fscanf(fd, "%d %d %d %u", &tmp2, &audio_params.volume, &audio_params.quality, &audio_params.flags) )
+   if ( 4 == fscanf(fd, "%d %d %d %u", &tmp2, &audio_params.volume, &audio_params.quality, &audio_params.uFlags) )
    {
       audio_params.has_audio_device = tmp1;
       audio_params.enabled = tmp2;
@@ -1888,7 +1906,7 @@ bool Model::loadVersion10(FILE* fd)
       audio_params.has_audio_device = (bool)tmp1;
    else
       { bOk = false; log_softerror_and_alarm("Load model8: Error on audio line 1"); }
-   if ( 4 == fscanf(fd, "%d %d %d %u", &tmp2, &audio_params.volume, &audio_params.quality, &audio_params.flags) )
+   if ( 4 == fscanf(fd, "%d %d %d %u", &tmp2, &audio_params.volume, &audio_params.quality, &audio_params.uFlags) )
    {
       audio_params.has_audio_device = tmp1;
       audio_params.enabled = tmp2;
@@ -2159,6 +2177,15 @@ bool Model::loadVersion10(FILE* fd)
       bOk = false;
    }
 
+   if ( bOk && (3 != fscanf(fd, "%d %d %u", &tmp1, &tmp2, &audio_params.uDummyA1)) )
+   {
+      log_softerror_and_alarm("Failed to read audio extra params.");
+      audio_params.uECScheme = (((u32)DEFAULT_AUDIO_P_DATA) << 4) | ((u32)DEFAULT_AUDIO_P_EC);
+      audio_params.uDummyA1 = 0;
+      audio_params.uPacketLength = DEFAULT_AUDIO_PACKET_LENGTH;
+   }
+   audio_params.uECScheme = (u8)tmp1;
+   audio_params.uPacketLength = (u16)tmp2;
    //--------------------------------------------------
    // End reading file;
    //----------------------------------------
@@ -2230,11 +2257,9 @@ bool Model::saveToFile(const char* filename, bool isOnController)
       return false;
    }
    saveVersion10(fd, isOnController);
-   if ( NULL != fd )
-   {
-      fflush(fd);
-      fclose(fd);
-   }
+   fflush(fd);
+   fclose(fd);
+
    log_line("Saved vehicle successfully to file: %s; name: [%s], VID: %u, software: %d.%d (b%d), is on controller: %s, %s, on time: %02d:%02d",
          filename, vehicle_name, uVehicleId, (sw_version >> 8) & 0xFF, sw_version & 0xFF, sw_version>>16,
          isOnController?"yes":"no",
@@ -2253,11 +2278,8 @@ bool Model::saveToFile(const char* filename, bool isOnController)
       return false;
    }
    saveVersion10(fd, isOnController);
-   if ( NULL != fd )
-   {
-      fflush(fd);
-      fclose(fd);
-   }
+   fflush(fd);
+   fclose(fd);
 
    /*
    timeStart = get_current_timestamp_ms() - timeStart;
@@ -2275,6 +2297,7 @@ bool Model::saveToFile(const char* filename, bool isOnController)
       radioLinksParams.links_count, szFreq1, szFreq2, szFreq3 );
    log_line(szLog);
    */
+
    return true;
 }
 
@@ -2496,7 +2519,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
 
    sprintf(szSetting, "audio: %d\n", (int)audio_params.has_audio_device);
    strcat(szModel, szSetting);
-   sprintf(szSetting, "%d %d %d %u\n", (int)audio_params.enabled, audio_params.volume, audio_params.quality, audio_params.flags);
+   sprintf(szSetting, "%d %d %d %u\n", (int)audio_params.enabled, audio_params.volume, audio_params.quality, audio_params.uFlags);
    strcat(szModel, szSetting);
 
    sprintf(szSetting, "alarms: %u\n", alarms);
@@ -2657,6 +2680,9 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
    sprintf(szSetting, "%d %d %d\n", video_params.iRemovePPSVideoFrames, video_params.iInsertPPSVideoFrames, video_params.iInsertSPTVideoFramesTimings);
    strcat(szModel, szSetting);
 
+   sprintf(szSetting, "%d %d %u", (int)audio_params.uECScheme, (int)audio_params.uPacketLength, audio_params.uDummyA1);
+   strcat(szModel, szSetting);
+
    // End writing values to file
    // ---------------------------------------------------
 
@@ -2689,12 +2715,12 @@ void Model::resetVideoLinkProfiles(int iProfile)
    {
       if ( (iProfile != -1) && (iProfile != i) )
          continue;
-      video_link_profiles[i].uProfileFlags = 2; // 3d noise: auto (2)
+      video_link_profiles[i].uProfileFlags = VIDEO_PROFILE_FLAGS_NOISE_AUTO; // 3d noise: auto (2)
       video_link_profiles[i].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-      video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
       video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
-      video_link_profiles[i].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
+      video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
       video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+      video_link_profiles[i].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
       video_link_profiles[i].radio_datarate_video_bps = 0; // Auto
       video_link_profiles[i].radio_datarate_data_bps = 0; // Auto
       video_link_profiles[i].radio_flags = 0;
@@ -2744,12 +2770,9 @@ void Model::resetVideoLinkProfiles(int iProfile)
    // Best Perf
    if ( (iProfile == -1) || (iProfile == VIDEO_PROFILE_BEST_PERF) )
    {
-      video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileFlags = 0; // lowest
-      video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileFlags = 0; // lowest noise
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK;
       video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
-      video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-      video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
-      video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
       video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
       if ( (hardware_getOnlyBoardType() == BOARD_TYPE_PIZERO) ||
            (hardware_getOnlyBoardType() == BOARD_TYPE_PIZEROW) ||
@@ -2764,11 +2787,8 @@ void Model::resetVideoLinkProfiles(int iProfile)
    // High Quality 
    if ( (iProfile == -1) || (iProfile == VIDEO_PROFILE_HIGH_QUALITY) )
    {
-      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileFlags = 2; // auto
-      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK;
+      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK;
       video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
-      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
       video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
       video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
       video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].iIPQuantizationDelta = DEFAULT_VIDEO_H264_IPQUANTIZATION_DELTA_HQ;
@@ -2777,11 +2797,8 @@ void Model::resetVideoLinkProfiles(int iProfile)
    // User
    if ( (iProfile == -1) || (iProfile == VIDEO_PROFILE_USER) )
    {
-      video_link_profiles[VIDEO_PROFILE_USER].uProfileFlags = 2; // auto
-      video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK;
+      video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK;
       video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
-      video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
-      video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
       video_link_profiles[VIDEO_PROFILE_USER].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
       video_link_profiles[VIDEO_PROFILE_USER].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
       video_link_profiles[VIDEO_PROFILE_USER].iIPQuantizationDelta = DEFAULT_VIDEO_H264_IPQUANTIZATION_DELTA_HQ;
@@ -2790,11 +2807,8 @@ void Model::resetVideoLinkProfiles(int iProfile)
    // MQ
    if ( (iProfile == -1) || (iProfile == VIDEO_PROFILE_MQ) )
    {
-      video_link_profiles[VIDEO_PROFILE_MQ].uProfileFlags = 2; // auto
-      video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK;
       video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_MQ<<8);
-      video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME;
-      video_link_profiles[VIDEO_PROFILE_MQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
       video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_video_bps = 0;
       video_link_profiles[VIDEO_PROFILE_MQ].radio_datarate_data_bps = 0;
       video_link_profiles[VIDEO_PROFILE_MQ].h264profile = 2; // high
@@ -2809,11 +2823,8 @@ void Model::resetVideoLinkProfiles(int iProfile)
    // LQ
    if ( (iProfile == -1) || (iProfile == VIDEO_PROFILE_LQ) )
    {
-      video_link_profiles[VIDEO_PROFILE_LQ].uProfileFlags = 2; // auto
-      video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags = VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS | VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK | VIDEO_PROFILE_ENCODING_FLAG_RETRANSMISSIONS_DUPLICATION_PERCENT_AUTO;
+      video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK;
       video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
-      video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME;
-      video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
       video_link_profiles[VIDEO_PROFILE_LQ].radio_datarate_video_bps = 0;
       video_link_profiles[VIDEO_PROFILE_LQ].radio_datarate_data_bps = 0;
       video_link_profiles[VIDEO_PROFILE_LQ].radio_flags = 0;
@@ -2854,13 +2865,7 @@ void Model::resetVideoLinkProfiles(int iProfile)
          video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
       }
    }
-   else if ( -1 == iProfile )
-   {
-      for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-      {
-         video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
-      }
-   }
+   
    // Auto H264 quantization is not implemented in openIPC
    bool bDisableQuantization = false;
    if ( hardware_board_is_openipc(hwCapabilities.uBoardType) )
@@ -3085,13 +3090,13 @@ void Model::addNewRadioLinkForRadioInterface(int iRadioInterfaceIndex, bool* pbD
       }
       else
       {
-         if ( (NULL != pbDefault24Used) || (! (*pbDefault24Used)) )
+         if ( (NULL == pbDefault24Used) || (! (*pbDefault24Used)) )
          {
             radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY;
             if ( NULL != pbDefault24Used )
                *pbDefault24Used = true;
          }
-         else if ( (NULL != pbDefault24_2Used) || (! (*pbDefault24_2Used)) )
+         else if ( (NULL == pbDefault24_2Used) || (! (*pbDefault24_2Used)) )
          {
             radioLinksParams.link_frequency_khz[radioLinksParams.links_count] = DEFAULT_FREQUENCY_2;
             if ( NULL != pbDefault24_2Used )
@@ -3707,9 +3712,12 @@ bool Model::find_and_validate_camera_settings()
    if ( camera_params[iCurrentCamera].iCameraType != camera_now )
    {
       char szTmp[64];
-      str_get_hardware_camera_type_string(camera_now, szTmp);
-      log_line("Validating camera info: hardware camera has changed. New camera_%d type: %u, %s", iCurrentCamera, camera_now, szTmp);
-      resetCameraToDefaults(iCurrentCamera);
+      char szTmp2[64];
+      str_get_hardware_camera_type_string_to_string(camera_params[iCurrentCamera].iCameraType, szTmp);
+      str_get_hardware_camera_type_string_to_string(camera_now, szTmp2);
+      log_line("Validating camera info: hardware camera_%d has changed from %u, %u to new type: %u, %s", iCurrentCamera, camera_params[iCurrentCamera].iCameraType, szTmp, camera_now, szTmp2);
+      if ( (camera_now != CAMERA_TYPE_NONE) && (camera_params[iCurrentCamera].iCameraType < CAMERA_TYPE_IP) )
+         resetCameraToDefaults(iCurrentCamera);
       camera_params[iCurrentCamera].iCameraType = camera_now;
 
       if ( camera_now == CAMERA_TYPE_HDMI )
@@ -3736,7 +3744,7 @@ bool Model::find_and_validate_camera_settings()
    else
    {
       char szTmp[64];
-      str_get_hardware_camera_type_string(camera_now, szTmp);
+      str_get_hardware_camera_type_string_to_string(camera_now, szTmp);
       log_line("Validating camera info: camera has not changed. Camera type: %d, %s", camera_now, szTmp);
    }
    // Force valid resolution for:
@@ -3949,14 +3957,26 @@ bool Model::validate_settings()
       processesPriorities.iNiceTelemetry = DEFAULT_PRIORITY_PROCESS_TELEMETRY;
 
    if ( audio_params.volume < 0 || audio_params.volume > 100 )
-      audio_params.volume = 60;
+      audio_params.volume = 90;
    if ( audio_params.quality < 0 || audio_params.quality > 3 )
       audio_params.quality = 1;
-   if ( 0 == (audio_params.flags & 0xFF) || (audio_params.flags & 0xFF) > 16 )
-      audio_params.flags = 0x04 | (0x02<<8);
-   if ( ((audio_params.flags >> 8) & 0xFF) > (audio_params.flags & 0xFF) )
-      audio_params.flags = 0x04 | (0x02<<8);
+   if ( 0 == (audio_params.uECScheme & 0xF0) )
+   {
+      audio_params.uECScheme = (((u32)DEFAULT_AUDIO_P_DATA) << 4) | ((u32)DEFAULT_AUDIO_P_EC);
+   }
+   if ( ((audio_params.uECScheme >> 4) & 0x0F) < (audio_params.uECScheme & 0x0F) )
+   {
+      audio_params.uECScheme = (((u32)DEFAULT_AUDIO_P_DATA) << 4) | ((u32)DEFAULT_AUDIO_P_EC);
+   }
+   if ( ((audio_params.uFlags >> 8) & 0xFF) >= (MAX_BUFFERED_AUDIO_PACKETS*2)/3 )
+   {
+      audio_params.uFlags &= 0xFFFF00FF;
+      audio_params.uFlags |= ((u32)(MAX_BUFFERED_AUDIO_PACKETS*2)/3) << 8;
+   }
 
+   if ( (audio_params.uPacketLength < 50) || (audio_params.uPacketLength > 1200) )
+      audio_params.uPacketLength = DEFAULT_AUDIO_PACKET_LENGTH;
+     
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
       if ( video_link_profiles[i].video_data_length > MAX_VIDEO_PACKET_DATA_SIZE )
          video_link_profiles[i].video_data_length = MAX_VIDEO_PACKET_DATA_SIZE;
@@ -4221,11 +4241,7 @@ void Model::resetToDefaults(bool generateId)
 
    resetOSDFlags();
 
-   audio_params.has_audio_device = 0;
-   audio_params.enabled = false;
-   audio_params.volume = 60;
-   audio_params.quality = 1;
-   audio_params.flags = 0x04 | (0x02<<8);
+   resetAudioParams();
 
    alarms_params.uAlarmMotorCurrentThreshold = (1<<7) | 30; // Enable alarm, set current theshold to 3 Amps
    
@@ -4241,6 +4257,28 @@ void Model::resetToDefaults(bool generateId)
 
    resetFunctionsParamsToDefaults();
    log_line("Reseting vehicle settings to default: complete.");
+}
+
+void Model::resetAudioParams()
+{
+   log_line("Model: Did reset audio params.");
+   audio_params.has_audio_device = false;
+   audio_params.uECScheme = (((u32)DEFAULT_AUDIO_P_DATA) << 4) | ((u32)DEFAULT_AUDIO_P_EC);
+   audio_params.uPacketLength = DEFAULT_AUDIO_PACKET_LENGTH;
+   audio_params.uDummyA1 = 0;
+   audio_params.uFlags = ((u32)(DEFAULT_AUDIO_BUFFERING_SIZE)) << 8;
+   if ( isRunningOnOpenIPCHardware() )
+   {
+      audio_params.has_audio_device = true;
+      if ( hardware_board_has_audio_builtin(hwCapabilities.uBoardType) )
+      {
+         audio_params.uFlags &= ~((u32)0x03);
+         audio_params.uFlags |= (u32)0x01;
+      }
+   }
+   audio_params.enabled = false;
+   audio_params.volume = 90;
+   audio_params.quality = 1;
 }
 
 void Model::resetHWCapabilities()
@@ -4307,6 +4345,7 @@ void Model::resetRelayParamsToDefaults(type_relay_parameters* pRelayParams)
 void Model::resetOSDFlags()
 {
    memset(&osd_params, 0, sizeof(osd_params));
+
    osd_params.iCurrentOSDLayout = osdLayout1;
    osd_params.voltage_alarm_enabled = true;
    osd_params.voltage_alarm = 3.2;
@@ -4577,14 +4616,86 @@ void Model::resetFunctionsParamsToDefaults()
 }
 
 
-u32 Model::getLinkRealDataRate(int nLinkId)
+u32 Model::getRadioLinkVideoDataRateBSP(int iLinkId)
 {
-   int nRet = 0;
+   if ( (iLinkId < 0) || (iLinkId >= radioLinksParams.links_count) )
+      return 0;
+   bool bUsesHT40 = false;
+   if ( radioLinksParams.link_radio_flags[iLinkId] & RADIO_FLAG_HT40_VEHICLE )
+      bUsesHT40 = true;
 
-   if ( nLinkId >= 0 && nLinkId < radioLinksParams.links_count )
-      nRet = getRealDataRateFromRadioDataRate(radioLinksParams.link_datarate_video_bps[nLinkId], 0);
-   return nRet;
+   return getRealDataRateFromRadioDataRate(radioLinksParams.link_datarate_video_bps[iLinkId], bUsesHT40);
 }
+
+int Model::getRadioLinkDownlinkDataRate(int iLinkId)
+{
+   if ( (iLinkId < 0) || (iLinkId >= radioLinksParams.links_count) )
+      return 0;
+
+   bool bIsAtheros = false;
+   for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
+   {
+      if ( radioInterfacesParams.interface_link_id[i] != iLinkId )
+         continue;
+      if ( hardware_radio_driver_is_atheros_card((radioInterfacesParams.interface_radiotype_and_driver[i] >> 8) & 0xFF) )
+      {
+         bIsAtheros = true;
+         break;
+      }
+   }
+
+   if ( bIsAtheros )
+      return radioLinksParams.link_datarate_video_bps[iLinkId];
+
+   switch ( radioLinksParams.uDownlinkDataDataRateType[iLinkId] )
+   {
+      case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_FIXED:
+         return radioLinksParams.link_datarate_data_bps[iLinkId];
+         break;
+
+      case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO:
+         return radioLinksParams.link_datarate_video_bps[iLinkId];
+         break;
+
+      case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST:
+      case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_AUTO:
+      default:
+         if ( radioLinksParams.link_datarate_video_bps[iLinkId] > 0 )
+            return DEFAULT_RADIO_DATARATE_LOWEST;
+         else
+            return -1;
+         break;
+   }
+   return 0;
+}
+
+int Model::getRadioLinkUplinkDataRate(int iLinkId)
+{
+   if ( (iLinkId < 0) || (iLinkId >= radioLinksParams.links_count) )
+      return 0;
+
+   switch ( radioLinksParams.uUplinkDataDataRateType[iLinkId] )
+   {
+      case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_FIXED:
+         return radioLinksParams.uplink_datarate_data_bps[iLinkId];
+         break;
+
+      case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO:
+         return radioLinksParams.link_datarate_video_bps[iLinkId];
+         break;
+
+      case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST:
+      case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_AUTO:
+      default:
+         if ( radioLinksParams.link_datarate_video_bps[iLinkId] > 0 )
+            return DEFAULT_RADIO_DATARATE_LOWEST;
+         else
+            return -1;
+         break;
+   }
+   return 0;
+}
+
 
 int Model::getRadioInterfaceIndexForRadioLink(int iRadioLink)
 {
@@ -5945,6 +6056,19 @@ const char* Model::getShortName()
 const char* Model::getLongName()
 {
    return vehicle_long_name;
+}
+
+bool Model::isAudioCapableAndEnabled()
+{
+   if ( ! audio_params.has_audio_device )
+      return false;
+   if ( isRunningOnOpenIPCHardware() )
+   if ( (audio_params.uFlags & 0x03) == 0 )
+      return false;
+
+   if ( ! audio_params.enabled )
+      return false;
+   return true; 
 }
 
 void Model::constructLongName()

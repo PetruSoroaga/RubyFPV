@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -49,6 +50,7 @@ MenuConfirmation::MenuConfirmation(const char* szTitle, const char* szText, int 
    if ( NULL != szText )
       addTopLine(szText);
 
+   m_szButtonOk[0] = 0;
    m_iIndexMenuOk = -1;
    m_iIndexMenuCancel = -1;
    m_iIndexMenuDoNotShow = -1;
@@ -69,6 +71,7 @@ MenuConfirmation::MenuConfirmation(const char* szTitle, const char* szText, int 
    if ( NULL != szText )
       addTopLine(szText);
 
+   m_szButtonOk[0] = 0;
    m_iIndexMenuOk = -1;
    m_iIndexMenuCancel = -1;
    m_iIndexMenuDoNotShow = -1;
@@ -77,6 +80,13 @@ MenuConfirmation::MenuConfirmation(const char* szTitle, const char* szText, int 
 
 MenuConfirmation::~MenuConfirmation()
 {
+}
+
+void MenuConfirmation::setOkActionText(const char* szText)
+{
+   if ( (NULL == szText) || (0 == szText[0]) )
+      return;
+   strncpy(m_szButtonOk, szText, sizeof(m_szButtonOk)/sizeof(m_szButtonOk[0])-1);
 }
 
 void MenuConfirmation::setIconId(u32 uIconId)
@@ -105,19 +115,22 @@ void MenuConfirmation::onShow()
 
    if ( m_bSingleOption )
    {
-      m_iIndexMenuOk = addMenuItem(new MenuItem("Ok"));
+      if ( 0 != m_szButtonOk[0] )
+         m_iIndexMenuOk = addMenuItem(new MenuItem(m_szButtonOk));
+      else
+         m_iIndexMenuOk = addMenuItem(new MenuItem(L("Ok")));
       m_yPos = 0.45;
    }
    else
    {
-      m_iIndexMenuCancel = addMenuItem(new MenuItem("No"));
-      m_iIndexMenuOk = addMenuItem(new MenuItem("Yes"));
+      m_iIndexMenuCancel = addMenuItem(new MenuItem(L("No")));
+      m_iIndexMenuOk = addMenuItem(new MenuItem(L("Yes")));
    }
 
    if ( m_bShowDoNotShowAgain && (m_iUniqueId > 0) && (getPreferencesDoNotShowAgain(m_iUniqueId) != -1) )
    {
       m_pMenuItems[m_ItemsCount-1]->setExtraHeight(g_pRenderEngine->textHeight(g_idFontMenu));
-      m_pCheckBox = new MenuItemCheckbox("Do not show again");
+      m_pCheckBox = new MenuItemCheckbox(L("Do not show again"));
       m_iIndexMenuDoNotShow = addMenuItem(m_pCheckBox);
 
       m_bDoNotShowAgain = (bool)getPreferencesDoNotShowAgain(m_iUniqueId);

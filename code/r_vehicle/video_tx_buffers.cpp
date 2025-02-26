@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -34,6 +35,7 @@
 #include "timers.h"
 #include "packets_utils.h"
 #include "../common/string_utils.h"
+#include "../base/hardware_cam_maj.h"
 #include "../radio/fec.h"
 #include "adaptive_video.h"
 #include "processor_tx_video.h"
@@ -63,6 +65,7 @@ VideoTxPacketsBuffer::VideoTxPacketsBuffer(int iVideoStreamIndex, int iCameraInd
    m_iInstanceIndex = m_siVideoBuffersInstancesCount;
    m_siVideoBuffersInstancesCount++;
 
+   m_bOverflowFlag = false;
    m_iVideoStreamIndex = iVideoStreamIndex;
    m_iCameraIndex = iCameraIndex;
 
@@ -141,6 +144,7 @@ bool VideoTxPacketsBuffer::init(Model* pModel)
    m_iCurrentBufferPacketIndexToSend = 0;
    m_iCountReadyToSend = 0;
    m_bInitialized = true;
+   m_bOverflowFlag = false;
    log_line("[VideoTXBuffer] Initialized video Tx buffer instance number %d.", m_iInstanceIndex+1);
    return true;
 }
@@ -202,8 +206,6 @@ void VideoTxPacketsBuffer::_fillVideoPacketHeaders(int iBufferIndex, int iPacket
 
    pCurrentPacketHeader->total_length = sizeof(t_packet_header)+sizeof(t_packet_header_video_segment) + sizeof(t_packet_header_video_segment_important);
    pCurrentPacketHeader->total_length += iRawVideoDataSize;
-   if ( m_PacketHeaderVideo.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS )
-      pCurrentPacketHeader->total_length += sizeof(t_packet_header_video_segment_debug_info);
 
    //-------------------------------------
    // Update packet header video segment
@@ -290,9 +292,12 @@ void VideoTxPacketsBuffer::updateVideoHeader(Model* pModel)
    if ( NULL == pModel )
       return;
 
-   log_line("[VideoTXBuffer] On update video header: current EC scheme: %d/%d (%d bytes video packet size, %d usable raw video bytes, dev mode: %s)",
+   log_line("[VideoTXBuffer] On update video header: before: EC scheme: %d/%d, %d bytes model video packet size, dev mode: %s)",
        m_PacketHeaderVideo.uCurrentBlockDataPackets, m_PacketHeaderVideo.uCurrentBlockECPackets,
-       m_PacketHeaderVideo.uCurrentBlockPacketSize, m_iUsableRawVideoDataSize, g_bDeveloperMode?"yes":"no");
+       m_PacketHeaderVideo.uCurrentBlockPacketSize, g_bDeveloperMode?"yes":"no");
+
+   log_line("[VideoTXBuffer] On update video header: before: %d usable raw video bytes, maj NAL size: %d",
+       m_iUsableRawVideoDataSize, hardware_camera_maj_get_current_nal_size());
 
    // Update status flags
    m_PacketHeaderVideo.uVideoStatusFlags2 = 0;
@@ -318,10 +323,10 @@ void VideoTxPacketsBuffer::updateVideoHeader(Model* pModel)
          m_uNextBlockPacketSize = m_PacketHeaderVideo.uCurrentBlockPacketSize;
       
       m_iUsableRawVideoDataSize = m_PacketHeaderVideo.uCurrentBlockPacketSize - sizeof(t_packet_header_video_segment_important);
-      if ( m_PacketHeaderVideo.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS )
-         m_iUsableRawVideoDataSize -= sizeof(t_packet_header_video_segment_debug_info);
 
-      log_line("[VideoTXBuffer] Current EC scheme to use rightaway: %d/%d (%d bytes, %d usable bytes)", m_PacketHeaderVideo.uCurrentBlockDataPackets, m_PacketHeaderVideo.uCurrentBlockECPackets, m_PacketHeaderVideo.uCurrentBlockPacketSize, m_iUsableRawVideoDataSize);
+      hardware_camera_maj_update_nal_size(g_pCurrentModel, false);
+      log_line("[VideoTXBuffer] Current EC scheme to use rightaway: %d/%d, %d model video packet bytes", m_PacketHeaderVideo.uCurrentBlockDataPackets, m_PacketHeaderVideo.uCurrentBlockECPackets, m_PacketHeaderVideo.uCurrentBlockPacketSize);
+      log_line("[VideoTXBuffer] Current usable raw bytes: %d, majestic NAL size now: %d", m_iUsableRawVideoDataSize, hardware_camera_maj_get_current_nal_size());
    }
    else
    {
@@ -335,7 +340,7 @@ void VideoTxPacketsBuffer::updateVideoHeader(Model* pModel)
 
    if ( pModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
    {
-      m_PacketHeaderVideo.uVideoStreamIndexAndType = 0 | (VIDEO_TYPE_H265<<4);
+      m_PacketHeaderVideo.uVideoStreamIndexAndType = 0 | (VIDEO_TYPE_H265<<4); // video stream index is 0
       log_line("[VideoTxBuffer] Set video header as H265 stream");
    }
    else
@@ -368,8 +373,6 @@ void VideoTxPacketsBuffer::fillVideoPacketsFromCSI(u8* pVideoData, int iDataSize
    while ( iDataSizeLeft > 0 )
    {
       m_iUsableRawVideoDataSize = m_PacketHeaderVideo.uCurrentBlockPacketSize - sizeof(t_packet_header_video_segment_important);
-      if ( m_PacketHeaderVideo.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS )
-         m_iUsableRawVideoDataSize -= sizeof(t_packet_header_video_segment_debug_info);
 
       int iSizeLeftToFillInCurrentPacket = m_iUsableRawVideoDataSize - m_iTempVideoBufferFilledBytes;
       int iParsed = m_ParserInputH264.parseDataUntilStartOfNextNALOrLimit(pVideoDataLeft, iDataSizeLeft, iSizeLeftToFillInCurrentPacket, g_TimeNow);
@@ -431,13 +434,11 @@ bool VideoTxPacketsBuffer::fillVideoPacketsFromRTSPPacket(u8* pVideoRawData, int
       m_uTempBufferNALPresenceFlags |= VIDEO_PACKET_FLAGS_CONTAINS_I_NAL;
 
    m_iUsableRawVideoDataSize = m_PacketHeaderVideo.uCurrentBlockPacketSize - sizeof(t_packet_header_video_segment_important);
-   if ( m_PacketHeaderVideo.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS )
-      m_iUsableRawVideoDataSize -= sizeof(t_packet_header_video_segment_debug_info);
    
    if ( iRawDataSize > m_iUsableRawVideoDataSize - m_iTempVideoBufferFilledBytes )
    {
-      log_line("[VideoTXBuffer] Tried to add a video packet (%d bytes) larger than max usable video packet size: %d at pos %d",
-         iRawDataSize, m_iUsableRawVideoDataSize, m_iTempVideoBufferFilledBytes );
+      log_line("[VideoTXBuffer] Tried to add a video packet (%d bytes, NAL type: %u) larger than max usable video packet size: %d at pos %d",
+         iRawDataSize, uNALType, m_iUsableRawVideoDataSize, m_iTempVideoBufferFilledBytes );
    
       if ( m_iTempVideoBufferFilledBytes > 0 )
          _addNewVideoPacket(m_TempVideoBuffer, m_iTempVideoBufferFilledBytes, m_uTempBufferNALPresenceFlags, false);
@@ -447,6 +448,7 @@ bool VideoTxPacketsBuffer::fillVideoPacketsFromRTSPPacket(u8* pVideoRawData, int
       {
          log_error_and_alarm("[VideoTXBuffer] Tried to add a video packet (%d bytes) that's larger than max usable video packet size: %d",
             iRawDataSize, m_iUsableRawVideoDataSize );
+         m_bOverflowFlag = true;
          return false;
       }
    }
@@ -469,46 +471,6 @@ bool VideoTxPacketsBuffer::fillVideoPacketsFromRTSPPacket(u8* pVideoRawData, int
    _addNewVideoPacket(m_TempVideoBuffer, m_iTempVideoBufferFilledBytes, m_uTempBufferNALPresenceFlags, bEndOfFrameDetected);
    
    m_iTempVideoBufferFilledBytes = 0;
-
-
-   /*
-   int iDataSizeLeft = iRawDataSize;
-   u8* pVideoDataLeft = pVideoRawData;
-   while ( iDataSizeLeft > 0 )
-   {
-      m_iUsableRawVideoDataSize = m_PacketHeaderVideo.uCurrentBlockPacketSize - sizeof(t_packet_header_video_segment_important);
-      if ( m_PacketHeaderVideo.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS )
-         m_iUsableRawVideoDataSize -= sizeof(t_packet_header_video_segment_debug_info);
-
-      int iSizeLeftToFillInCurrentPacket = m_iUsableRawVideoDataSize - m_iTempVideoBufferFilledBytes;
-      int iParsed = m_ParserInputH264.parseDataUntilStartOfNextNALOrLimit(pVideoDataLeft, iDataSizeLeft, iSizeLeftToFillInCurrentPacket, g_TimeNow);
-      
-      memcpy(&m_TempVideoBuffer[m_iTempVideoBufferFilledBytes], pVideoDataLeft, iParsed);
-      m_iTempVideoBufferFilledBytes += iParsed;
-
-      iDataSizeLeft -= iParsed;
-      pVideoDataLeft += iParsed;
-
-      // No more room in temp packet buffer or an end of frame? Add it
-      if ( (m_iTempVideoBufferFilledBytes >= m_iUsableRawVideoDataSize) || (iDataSizeLeft == 0) )
-      {
-         if ( bEnd || bSingle )
-         if ( (uNALType != 7) && (uNALType != 8) )
-         if ( (m_ParserInputH264.getCurrentFrameSlices() % m_ParserInputH264.getDetectedSlices()) == 0 )
-         {
-            bEndOfFrameDetected = true;
-            m_uTempBufferNALPresenceFlags |= VIDEO_PACKET_FLAGS_IS_END_OF_TRANSMISSION_FRAME;
-         }
-         if ( iDataSizeLeft > 0 )
-            _addNewVideoPacket(m_TempVideoBuffer, m_iTempVideoBufferFilledBytes, m_uTempBufferNALPresenceFlags, false);
-         else
-            _addNewVideoPacket(m_TempVideoBuffer, m_iTempVideoBufferFilledBytes, m_uTempBufferNALPresenceFlags, bEndOfFrameDetected);
-         
-         m_iTempVideoBufferFilledBytes = 0;
-      }
-   }
-   */
-
    m_uTempBufferNALPresenceFlags = 0;
    if ( bEnd || bSingle || bEndOfFrameDetected )
       m_uCurrentH264NALIndex++;
@@ -530,12 +492,22 @@ void VideoTxPacketsBuffer::_addNewVideoPacket(u8* pRawVideoData, int iRawVideoDa
         (m_PacketHeaderVideo.uCurrentBlockDataPackets != m_uNextBlockDataPackets) ||
         (m_PacketHeaderVideo.uCurrentBlockECPackets != m_uNextBlockECPackets) )
    {
+
+      log_line("[VideoTXBuffer] On pending update video header: before: EC scheme: %d/%d, %d bytes model video packet size, dev mode: %s)",
+          m_PacketHeaderVideo.uCurrentBlockDataPackets, m_PacketHeaderVideo.uCurrentBlockECPackets,
+          m_PacketHeaderVideo.uCurrentBlockPacketSize, g_bDeveloperMode?"yes":"no");
+
+      log_line("[VideoTXBuffer] On pending update video header: before: %d usable raw video bytes, maj NAL size: %d",
+          m_iUsableRawVideoDataSize, hardware_camera_maj_get_current_nal_size());
+
       m_PacketHeaderVideo.uCurrentBlockPacketSize = m_uNextBlockPacketSize;
       m_PacketHeaderVideo.uCurrentBlockDataPackets = m_uNextBlockDataPackets;
       m_PacketHeaderVideo.uCurrentBlockECPackets = m_uNextBlockECPackets;
       m_iUsableRawVideoDataSize = m_PacketHeaderVideo.uCurrentBlockPacketSize - sizeof(t_packet_header_video_segment_important);
-      if ( m_PacketHeaderVideo.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS )
-         m_iUsableRawVideoDataSize -= sizeof(t_packet_header_video_segment_debug_info);
+      
+      hardware_camera_maj_update_nal_size(g_pCurrentModel, false);
+      log_line("[VideoTXBuffer] Current EC scheme to use rightaway: %d/%d, %d model video packet bytes", m_PacketHeaderVideo.uCurrentBlockDataPackets, m_PacketHeaderVideo.uCurrentBlockECPackets, m_PacketHeaderVideo.uCurrentBlockPacketSize);
+      log_line("[VideoTXBuffer] Current usable raw bytes: %d, majestic NAL size now: %d", m_PacketHeaderVideo.uCurrentBlockPacketSize, m_iUsableRawVideoDataSize, hardware_camera_maj_get_current_nal_size());
    }
 
    _fillVideoPacketHeaders(m_iNextBufferIndexToFill, m_iNextBufferPacketIndexToFill, false, iRawVideoDataSize, uNALPresenceFlags, bEndOfTransmissionFrame);
@@ -544,8 +516,6 @@ void VideoTxPacketsBuffer::_addNewVideoPacket(u8* pRawVideoData, int iRawVideoDa
    t_packet_header_video_segment* pCurrentVideoPacketHeader = m_VideoPackets[m_iNextBufferIndexToFill][m_iNextBufferPacketIndexToFill].pPHVS;
    u8* pVideoDestination = m_VideoPackets[m_iNextBufferIndexToFill][m_iNextBufferPacketIndexToFill].pVideoData;
    pVideoDestination += sizeof(t_packet_header_video_segment_important);
-   if ( m_PacketHeaderVideo.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS )
-      pVideoDestination += sizeof(t_packet_header_video_segment_debug_info);
 
    memcpy(pVideoDestination, pRawVideoData, iRawVideoDataSize);
    
@@ -553,8 +523,6 @@ void VideoTxPacketsBuffer::_addNewVideoPacket(u8* pRawVideoData, int iRawVideoDa
    pVideoDestination += iRawVideoDataSize;
    int iSizeToZero = MAX_PACKET_TOTAL_SIZE - sizeof(t_packet_header) - sizeof(t_packet_header_video_segment) - sizeof(t_packet_header_video_segment_important);
    iSizeToZero -= iRawVideoDataSize;
-   if ( m_PacketHeaderVideo.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS )
-      iSizeToZero -= sizeof(t_packet_header_video_segment_debug_info);   
    if ( iSizeToZero > 0 )
       memset(pVideoDestination, 0, iSizeToZero);
 
@@ -600,8 +568,6 @@ void VideoTxPacketsBuffer::_addNewVideoPacket(u8* pRawVideoData, int iRawVideoDa
       }
 
       int iECDataSize = m_PacketHeaderVideo.uCurrentBlockPacketSize - sizeof(t_packet_header_video_segment_important);
-      if ( m_PacketHeaderVideo.uVideoStatusFlags2 & VIDEO_STATUS_FLAGS2_HAS_DEBUG_TIMESTAMPS )
-         iECDataSize -= sizeof(t_packet_header_video_segment_debug_info);
 
       for( int i=0; i<m_PacketHeaderVideo.uCurrentBlockECPackets; i++ )
       {
@@ -792,6 +758,18 @@ u32 VideoTxPacketsBuffer::getCurrentOutputNALIndex()
 }
 
 int VideoTxPacketsBuffer::getCurrentUsableRawVideoDataSize()
+{
+   return m_iUsableRawVideoDataSize;
+}
+
+bool VideoTxPacketsBuffer::getResetOverflowFlag()
+{
+   bool bRet = m_bOverflowFlag;
+   m_bOverflowFlag = false;
+   return bRet;
+}
+
+int VideoTxPacketsBuffer::getCurrentMaxUsableRawVideoDataSize()
 {
    return m_iUsableRawVideoDataSize;
 }

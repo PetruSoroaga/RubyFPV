@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
          * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -409,8 +410,6 @@ int hardware_radio_sik_enter_command_mode(int iSerialPortFile, int iBaudRate, sh
       for( int i=iBufferPos-3; i>=0; i-- )
       {
          iCount++;
-         if ( i < 0)
-            break;
 
          if ( bufferResponse[i] == 'O' )
          if ( bufferResponse[i+1] == 'K' )
@@ -847,13 +846,13 @@ radio_hw_info_t* hardware_radio_sik_try_detect_on_port(const char* szSerialPort)
 
       char szTmp[256];
       szTmp[0] = 0;
-      for( int i=0; i<16; i++ )
+      for( int k=0; k<MAX_RADIO_HW_PARAMS; k++ )
       {
          if ( 0 != szTmp[0] )
             strcat(szTmp, ", ");
 
          char szB[32];
-         sprintf(szB, "[%d]=%u", i, s_radioHWInfoSikTemp.uHardwareParamsList[i]);
+         sprintf(szB, "[%d]=%u", k, s_radioHWInfoSikTemp.uHardwareParamsList[k]);
          strcat(szTmp, szB);
       }
       log_line("[HardwareRadio]: SiK current parameters: %s", szTmp);
@@ -961,8 +960,6 @@ int hardware_radio_sik_send_command(int iSerialPortFile, const char* szCommand, 
    int iBufferSize = 255;
    int iLines = 2;
    if ( 0 == strcmp(szCommand, "ATO") )
-      iLines = 1;
-   if ( 0 == strcmp(szCommand, "ATZ") )
       iLines = 1;
 
    int iLen = hardware_serial_wait_sik_response(iSerialPortFile, 2000, iLines, buff, &iBufferSize);

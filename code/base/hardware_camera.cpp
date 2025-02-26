@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -135,7 +136,7 @@ u32 _hardware_detect_camera_type()
       if ( 5 == fscanf(fd, "%d %u %d %d %d", &s_bHardwareHasCamera, &s_uHardwareCameraType, &s_iHardwareCameraI2CBus, &s_iHardwareCameraDevId, &s_iHardwareCameraHWVer) )
       {
          s_bDetectedCameraType = true;
-         str_get_hardware_camera_type_string(s_uHardwareCameraType, szBuff);
+         str_get_hardware_camera_type_string_to_string(s_uHardwareCameraType, szBuff);
          log_line("[Hardware] Loaded camera type: %u (%s), has camera: %s, camera i2c bus: %d", 
             s_uHardwareCameraType, szBuff, s_bHardwareHasCamera?"yes":"no", s_iHardwareCameraI2CBus);
          fclose(fd);
@@ -279,27 +280,36 @@ u32 _hardware_detect_camera_type()
 
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
 
-   char szOutput[512];
+   char szOutput[4096];
+   memset(szOutput, 0, sizeof(szOutput)/sizeof(szOutput[0]));
    s_bHardwareHasCamera = 1;
    s_iHardwareCameraI2CBus = -1;
 
-   s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_IMX307;
+   s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_IMX415;
 
-   hw_execute_bash_command("ipcinfo -s 2>/dev/null", szOutput);
-   log_line("Detected camera sensor type: %s", szOutput);
-   if ( NULL != strstr(szOutput, "imx307") )
-      s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_IMX307;
-   if ( NULL != strstr(szOutput, "imx335") )
-      s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_IMX335;
-   if ( NULL != strstr(szOutput, "imx415") )
-      s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_IMX415;
+   char* pSensorModel = hardware_camera_get_oipc_sensor_raw_name(szOutput);
+
+   if ( NULL == pSensorModel )
+   {
+      log_softerror_and_alarm("[Hardware] Failed to get OpenIPC camera sensor type.");
+   }
+   else
+   {
+      log_line("Detected raw camera sensor type: [%s]", pSensorModel);
+      if ( NULL != strstr(pSensorModel, "imx307") )
+         s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_IMX307;
+      if ( NULL != strstr(pSensorModel, "imx335") )
+         s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_IMX335;
+      if ( NULL != strstr(pSensorModel, "imx415") )
+         s_uHardwareCameraType = CAMERA_TYPE_OPENIPC_IMX415;
+   }
    #endif
 
    if ( s_bHardwareHasCamera == 0 )
       log_line("[Hardware] No camera detected.");
    else
    {
-      str_get_hardware_camera_type_string(s_uHardwareCameraType, szBuff);
+      str_get_hardware_camera_type_string_to_string(s_uHardwareCameraType, szBuff);
       log_line("[Hardware] Detected camera type %d: %s", (int)s_uHardwareCameraType, szBuff);
    }
    s_bDetectedCameraType = true;
@@ -380,4 +390,91 @@ int hardware_isCameraHDMI()
    if ( s_uHardwareCameraType == CAMERA_TYPE_HDMI )
       return 1;
    return 0;
+}
+
+char* hardware_camera_get_oipc_sensor_raw_name(char* pszOutput)
+{
+   if ( NULL == pszOutput )
+      return NULL;
+   pszOutput[0] = 0;
+   hw_execute_bash_command("ipcinfo -s 2>/dev/null", pszOutput);
+   removeTrailingNewLines(pszOutput);
+   removeLeadingWhiteSpace(pszOutput);
+   if ( strlen(pszOutput) > 2 )
+   {
+      for( int i=0; i<(int)strlen(pszOutput); i++ )
+         pszOutput[i] = tolower(pszOutput[i]);
+      log_line("[Hardware] Get raw camera sensor type from ipcinfo: [%s]", pszOutput);
+      return pszOutput;
+   }
+
+   pszOutput[0] = 0;
+   hw_execute_bash_command("fw_printenv sensor 2>/dev/null", pszOutput);
+   removeTrailingNewLines(pszOutput);
+   char* pSensor = NULL;
+   if ( NULL != strstr(pszOutput, "=") )
+      pSensor = strstr(pszOutput, "=") + 1;
+   if ( (NULL != pSensor) && (strlen(pSensor) > 2) )
+   {
+      for( int i=0; i<(int)strlen(pSensor); i++ )
+         pSensor[i] = tolower(pSensor[i]);
+      log_line("[Hardware] Get raw camera sensor type from fw_env: [%s]", pszOutput);
+      return pSensor;
+   }
+
+   log_softerror_and_alarm("[Hardware] Could not find camera sensor type from icpinfo or fw_env.");
+   return NULL;
+
+   /*
+   pszOutput[0] = 0;
+   hw_execute_bash_command("ipctool", pszOutput);
+   for( int i=0; i<strlen(pszOutput); i++ )
+       pszOutput[i] = tolower(pszOutput[i]);
+
+   char* pSensors = strstr(pszOutput, "sensors:");
+   if ( NULL == pSensors )
+      pSensors = strstr(pszOutput, "sensor:");
+   char* pModel = NULL;
+   if ( NULL != pSensors )
+      pModel = strstr(pSensors, "model:");
+   if ( NULL != pModel )
+   {
+      char* pszTemp = pModel;
+      while ( 0 != (*pszTemp) )
+      {
+         if ( (*pszTemp) < 24 )
+         {
+            *pszTemp = 0;
+            break;
+         }
+         pszTemp++;
+      }
+      return pModel+7;
+   }
+   return NULL;
+   */
+}
+
+void hardware_camera_check_set_oipc_sensor()
+{
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   char szSensor[128];
+   char szComm[128];
+
+   hw_execute_bash_command("fw_printenv sensor 2>/dev/null", szSensor);
+   char* pSensor = szSensor;
+   if ( NULL != strstr(szSensor, "=") )
+      pSensor = strstr(szSensor, "=") + 1;
+   if ( strlen(pSensor) > 2 )
+      return;
+
+   char szOutput[4096];
+   memset(szOutput, 0, sizeof(szOutput)/sizeof(szOutput[0]));
+   pSensor = hardware_camera_get_oipc_sensor_raw_name(szOutput);
+   if ( NULL != pSensor )
+   {
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "fw_setenv sensor %s", pSensor);
+      hw_execute_bash_command(szComm, NULL);
+   }
+   #endif
 }

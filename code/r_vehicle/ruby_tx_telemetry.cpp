@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -404,7 +405,7 @@ void _process_cached_reboot_info()
    fscanf(fd, "%u", &pFCTelem->distance);
    fscanf(fd, "%u", &pFCTelem->total_distance);
    fscanf(fd, "%d", &tmp1); pFCTelem->gps_fix_type = (u8)tmp1;
-   fscanf(fd, "%u", &tmp1); pFCTelem->hdop = (u8)tmp1;
+   fscanf(fd, "%d", &tmp1); pFCTelem->hdop = (u8)tmp1;
    fscanf(fd, "%d", &pFCTelem->latitude);
    fscanf(fd, "%d", &pFCTelem->longitude);
    fscanf(fd, "%d", &tmp1); home_set = (bool)tmp1;
@@ -1083,12 +1084,10 @@ void check_send_telemetry_to_controller()
       
          type_u32_couters dummyCounters; // gets populated by router
          reset_counters(&dummyCounters);
-         int dx = 0;
          memcpy(buffer, &sPH, sizeof(t_packet_header));
-         dx += sizeof(t_packet_header);
-         memcpy(buffer+dx, &dummyCounters, sizeof(type_u32_couters));
-         dx += sizeof(type_u32_couters);
-       
+         memcpy(buffer+sizeof(t_packet_header), &dummyCounters, sizeof(type_u32_couters));
+         //type_radio_tx_timers will be populated by router on sending out
+         
          if ( g_bRouterReady && (! s_bRadioInterfacesReinitIsInProgress) )
          {
             int result = ruby_ipc_channel_send_message(s_fIPCToRouter, buffer, sPH.total_length);
@@ -1657,7 +1656,7 @@ void _main_loop()
             iSleepTime = 5;
          telemetry_periodic_loop();
 
-         if ( g_TimeNow > s_uTimeToAdjustBalanceInterupts )
+         if ( (0 != s_uTimeToAdjustBalanceInterupts) && (g_TimeNow > s_uTimeToAdjustBalanceInterupts) )
          if ( telemetry_time_last_telemetry_received() != 0 )
          {
             s_uTimeToAdjustBalanceInterupts = 0;

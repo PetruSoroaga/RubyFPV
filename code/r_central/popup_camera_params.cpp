@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -51,7 +52,8 @@ PopupCameraParams::PopupCameraParams()
    m_bInvalidated = true;
    m_bCanAdjust = false;
    m_bCanSendQuick = true;
-   m_bHasPendingChanges = false;
+   m_bHasPendingCameraChanges = false;
+   m_bHasPendingAudioChanges = false;
    m_uTimeLastChange = get_current_timestamp_ms();
    m_bHasSharpness = false;
    m_bHasHue = false;
@@ -62,9 +64,16 @@ PopupCameraParams::PopupCameraParams()
    m_iIndexParamSharpness = -1;
    m_iIndexParamHue = -1;
    m_iIndexParamAGC = -1;
+   m_iIndexVolume = -1;
    m_iTotalParams = 3;
    m_iParamToAdjust = 0;
    setIconId(g_idIconCamera, get_Color_PopupText());
+
+   if ( NULL != g_pCurrentModel )
+   {
+      memcpy(&m_PendingCameraChanges, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera]), sizeof(type_camera_parameters));
+      memcpy(&m_PendingAudioChanges, &(g_pCurrentModel->audio_params), sizeof(audio_parameters_t));
+   }
 }
 
 PopupCameraParams::~PopupCameraParams()
@@ -78,13 +87,11 @@ void PopupCameraParams::onShow()
    setTimeout(5);
    removeAllLines();
 
-   m_bCanSendQuick = true;
-   if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.uBoardType) )
-      m_bCanSendQuick = false;
-
+   m_bCanSendQuick = false;
    m_bHasSharpness = false;
    m_bHasHue = false;
    m_bHasAGC = false;
+   m_bHasVolume = false;
 
    m_iIndexParamBrightness = 0;
    m_iIndexParamContrast = 1;
@@ -95,6 +102,7 @@ void PopupCameraParams::onShow()
    m_iIndexParamSharpness = -1;
    m_iIndexParamHue = -1;
    m_iIndexParamAGC = -1;
+   m_iIndexVolume = -1;
 
    if ( (NULL == g_pCurrentModel) || (!pairing_isStarted()) ||
         ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uTimeLastRecvAnyRubyTelemetry+2000 < g_TimeNow) ) )
@@ -107,6 +115,10 @@ void PopupCameraParams::onShow()
       m_bCanAdjust = false;
       return;
    }
+
+   m_bCanSendQuick = true;
+   if ( hardware_board_is_goke(g_pCurrentModel->hwCapabilities.uBoardType) )
+      m_bCanSendQuick = false;
 
    if ( !g_pCurrentModel->hasCamera() )
    {
@@ -154,6 +166,15 @@ void PopupCameraParams::onShow()
       m_iTotalParams++;
    }
 
+   /*
+   if ( g_pCurrentModel->isAudioCapableAndEnabled() )
+   {
+      m_bHasVolume = true;
+      m_iIndexVolume = m_iTotalParams;
+      m_iTotalParams++;    
+   }
+   */
+
    m_fFixedWidth = 0.2;
    m_bCanAdjust = true;
    Popup::onShow();
@@ -167,15 +188,17 @@ void PopupCameraParams::Render()
    float y = m_RenderYPos+0.8*POPUP_MARGINS*g_pRenderEngine->textHeight(g_idFontMenuSmall);
    float dx = m_fIconWidth + 0.8*g_pRenderEngine->textHeight(g_idFontMenuSmall) / g_pRenderEngine->getAspectRatio();
 
-   if ( ! m_bHasPendingChanges )
+   if ( ! m_bHasPendingCameraChanges )
       memcpy(&m_PendingCameraChanges, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera]), sizeof(type_camera_parameters));
+   if ( ! m_bHasPendingAudioChanges )
+      memcpy(&m_PendingAudioChanges, &(g_pCurrentModel->audio_params), sizeof(audio_parameters_t));
 
-   if ( m_bHasPendingChanges && (! m_bCanSendQuick) )
+   if ( m_bHasPendingCameraChanges && (! m_bCanSendQuick) )
    if ( get_current_timestamp_ms() > m_uTimeLastChange + 700 )
    {
       memcpy( &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera]), &m_PendingCameraChanges, sizeof(type_camera_parameters));
-      handle_commands_send_single_oneway_command(4, COMMAND_ID_SET_CAMERA_PARAMETERS, g_pCurrentModel->iCurrentCamera, (u8*)(&m_PendingCameraChanges), sizeof(type_camera_parameters));
-      m_bHasPendingChanges = false;
+      handle_commands_send_single_oneway_command(2, COMMAND_ID_SET_CAMERA_PARAMETERS, g_pCurrentModel->iCurrentCamera, (u8*)(&m_PendingCameraChanges), sizeof(type_camera_parameters));
+      m_bHasPendingCameraChanges = false;
    }
 
    if ( m_bCanAdjust )
@@ -244,6 +267,14 @@ void PopupCameraParams::Render()
       value_min = 0;
       value_max = 15;
       strcpy(szText, "Automatic Gain Control");
+   }
+
+   if ( m_iParamToAdjust == m_iIndexVolume )
+   {
+      value = g_pCurrentModel->audio_params.volume;
+      value_min = 0;
+      value_max = 100;
+      strcpy(szText, "Volume");
    }
 
    sprintf(szBuff, "%d", value);
@@ -331,8 +362,11 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
    if ( ! bHasMoved )
       return;
      
-   if ( ! m_bHasPendingChanges )
+   if ( ! m_bHasPendingCameraChanges )
       memcpy(&m_PendingCameraChanges, &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera]), sizeof(type_camera_parameters));
+   if ( ! m_bHasPendingAudioChanges )
+      memcpy(&m_PendingAudioChanges, &(g_pCurrentModel->audio_params), sizeof(audio_parameters_t));
+   
    int iProfile = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile;
 
    if ( m_iParamToAdjust == m_iIndexParamBrightness )
@@ -348,7 +382,7 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
          m_PendingCameraChanges.profiles[iProfile].brightness++;
 
       if ( m_PendingCameraChanges.profiles[iProfile].brightness != g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile].brightness )
-         m_bHasPendingChanges = true;
+         m_bHasPendingCameraChanges = true;
    }
 
    if ( m_iParamToAdjust == m_iIndexParamContrast )
@@ -364,7 +398,7 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
          m_PendingCameraChanges.profiles[iProfile].contrast++;
 
       if ( m_PendingCameraChanges.profiles[iProfile].contrast != g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile].contrast )
-         m_bHasPendingChanges = true;
+         m_bHasPendingCameraChanges = true;
    }
 
    if ( m_iParamToAdjust == m_iIndexParamSaturation )
@@ -380,7 +414,7 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
          m_PendingCameraChanges.profiles[iProfile].saturation++;
 
       if ( m_PendingCameraChanges.profiles[iProfile].saturation != g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile].saturation )
-         m_bHasPendingChanges = true;
+         m_bHasPendingCameraChanges = true;
    }
 
    if ( m_iParamToAdjust == m_iIndexParamSharpness )
@@ -406,7 +440,7 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
       log_line("PopupCamera: sharpness changed to: %d", m_PendingCameraChanges.profiles[iProfile].sharpness);
 
       if ( m_PendingCameraChanges.profiles[iProfile].sharpness != g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile].sharpness )
-         m_bHasPendingChanges = true;
+         m_bHasPendingCameraChanges = true;
    }
 
    if ( m_iParamToAdjust == m_iIndexParamHue )
@@ -424,7 +458,7 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
       log_line("PopupCamera: hue (R) changed to: %f", m_PendingCameraChanges.profiles[iProfile].hue);
 
       if ( fabs(m_PendingCameraChanges.profiles[iProfile].hue - g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile].hue) >= 1.0 )
-         m_bHasPendingChanges = true;
+         m_bHasPendingCameraChanges = true;
    }
 
    if ( m_iParamToAdjust == m_iIndexParamAGC )
@@ -440,14 +474,36 @@ void PopupCameraParams::handleRotaryEvents(bool bCW, bool bCCW, bool bFastCW, bo
          m_PendingCameraChanges.profiles[iProfile].drc += 1;
 
       if ( m_PendingCameraChanges.profiles[iProfile].drc != g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].profiles[iProfile].drc )
-         m_bHasPendingChanges = true;
+         m_bHasPendingCameraChanges = true;
+   }
+   if ( (-1 != m_iIndexVolume) && (m_iParamToAdjust == m_iIndexVolume) )
+   {
+      if ( (bCCW || bFastCCW) && m_PendingAudioChanges.volume > 0 )
+         m_PendingAudioChanges.volume--;
+      if ( bFastCCW && m_PendingAudioChanges.volume > 0 )
+         m_PendingAudioChanges.volume--;
+
+      if ( (bCW || bFastCW) && m_PendingAudioChanges.volume < 100 )
+         m_PendingAudioChanges.volume++;
+      if ( bFastCW && m_PendingAudioChanges.volume < 100 )
+         m_PendingAudioChanges.volume++;
+
+      if ( m_PendingAudioChanges.volume != g_pCurrentModel->audio_params.volume )
+         m_bHasPendingAudioChanges = true;
    }
 
-   if ( m_bHasPendingChanges && m_bCanSendQuick )
+   if ( m_bHasPendingCameraChanges && m_bCanSendQuick )
    {
       memcpy( &(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera]), &m_PendingCameraChanges, sizeof(type_camera_parameters));
       handle_commands_send_single_oneway_command(2, COMMAND_ID_SET_CAMERA_PARAMETERS, g_pCurrentModel->iCurrentCamera, (u8*)(&m_PendingCameraChanges), sizeof(type_camera_parameters));
-      m_bHasPendingChanges = false;
+      m_bHasPendingCameraChanges = false;
+   }
+
+   if ( m_bHasPendingAudioChanges && m_bCanSendQuick )
+   {
+      memcpy( &(g_pCurrentModel->audio_params), &m_PendingAudioChanges, sizeof(audio_parameters_t));
+      handle_commands_send_single_oneway_command(2, COMMAND_ID_SET_AUDIO_PARAMS, 0, (u8*)&m_PendingAudioChanges, sizeof(audio_parameters_t));
+      m_bHasPendingAudioChanges = false;
    }
 }
 

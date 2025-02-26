@@ -3,19 +3,20 @@
     Copyright (c) 2025 Petru Soroaga petrusoroaga@yahoo.com
     All rights reserved.
 
-    Redistribution and use in source and/or binary forms, with or without
+    Redistribution and/or use in source and/or binary forms, with or without
     modification, are permitted provided that the following conditions are met:
-        * Redistributions of source code must retain the above copyright
-        notice, this list of conditions and the following disclaimer.
-        * Redistributions in binary form must reproduce the above copyright
-        notice, this list of conditions and the following disclaimer in the
-        documentation and/or other materials provided with the distribution.
+        * Redistributions and/or use of the source code (partially or complete) must retain
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
+        * Redistributions in binary form (partially or complete) must reproduce
+        the above copyright notice, this list of conditions and the following disclaimer
+        in the documentation and/or other materials provided with the distribution.
         * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
         * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
-        * Military use is not permited.
+        * Military use is not permitted.
 
     THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
     ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -81,6 +82,8 @@ bool s_bRxVideoOutputUseSM = false;
 
 int s_iPIDVideoStreamer = -1;
 int s_fPipeVideoOutToStreamer = -1;
+shared_mem_process_stats* s_pSMProcessStatsMPPPlayer = NULL;
+sem_t* s_pSemaphoreSMData = NULL;
 u8* s_pSMVideoStreamerWrite = NULL;
 u32 s_uSMVideoStreamWritePosition = 0;
 bool s_bEnableVideoStreamerOutput = false;
@@ -92,7 +95,7 @@ bool s_bEnableVideoOutputStreamParsing = false;
 
 u32 s_uLastIOErrorAlarmFlagsVideoStreamer = 0;
 u32 s_uLastIOErrorAlarmFlagsUSBPlayer = 0;
-u32 s_uTimeLastOkVideoStreamerOutput = 0;
+u32 s_uTimeLastOkVideoStreamerOutputToPipe = 0;
 u32 s_uTimeStartGettingVideoIOErrors = 0;
          
 typedef struct
@@ -135,6 +138,8 @@ u32 s_uLastVideoFrameTime = MAX_U32;
 int s_iLocalVideoPlayerUDPSocket = -1;
 struct sockaddr_in s_LocalVideoPlayuerUDPSocketAddr;
 
+u32 s_uTimeStartLocalVideoPlayer = 0;
+u32 s_uTimeLastOutputDataToLocalVideoPlayer = 0;
 u32 s_uLastTimeComputedOutputBitrate = 0;
 u32 s_uOutputBitrateToLocalVideoStreamerPipe = 0;
 u32 s_uOutputBitrateToLocalVideoPlayerUDP = 0;
@@ -147,14 +152,14 @@ void rx_video_output_start_video_streamer()
    log_line("[VideoOutput] Starting video streamer [%s]", s_szOutputVideoStreamerFilename);
 
    char szComm[256];
-   char szFile[MAX_FILE_PATH_SIZE];
-   strcpy(szFile, FOLDER_RUBY_TEMP);
-   strcat(szFile, FILE_TEMP_INTRO_PLAYING);
 
    static bool s_bCheckForIntroVideo = true;
    if ( s_bCheckForIntroVideo )
    {
       s_bCheckForIntroVideo = false;
+      char szFile[MAX_FILE_PATH_SIZE];
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, FILE_TEMP_INTRO_PLAYING);
       if ( access(szFile, R_OK) != -1 )
       {
          log_line("[VideoOutput] Intro video is playing. Stopping it...");
@@ -169,6 +174,23 @@ void rx_video_output_start_video_streamer()
       log_line("[VideoOutput] Video streamer process already running (PID %d). Do nothing.", iPID);
       return;
    }
+
+   if ( NULL != s_pSemaphoreSMData )
+      sem_close(s_pSemaphoreSMData);
+   s_pSemaphoreSMData = NULL;
+
+   //s_pSemaphoreSMData = sem_open(SEMAPHORE_SM_VIDEO_DATA_AVAILABLE, O_RDWR);
+   s_pSemaphoreSMData = sem_open(SEMAPHORE_SM_VIDEO_DATA_AVAILABLE, O_CREAT, S_IWUSR | S_IRUSR, 0); 
+   if ( (NULL == s_pSemaphoreSMData) || (SEM_FAILED == s_pSemaphoreSMData) )
+   {
+      log_error_and_alarm("[VideoOutput] Failed to create semaphore: %s", SEMAPHORE_SM_VIDEO_DATA_AVAILABLE);
+      return;
+   }
+   int iSemVal = 0;
+   if ( 0 == sem_getvalue(s_pSemaphoreSMData, &iSemVal) )
+      log_line("[VideoOutput] SM data semaphore initial value: %d", iSemVal);
+   else
+      log_softerror_and_alarm("[VideoOutput] Failed to get SM data semaphore value.");
 
    ControllerSettings* pcs = get_ControllerSettings();
    char szStreamerPrefixes[256];
@@ -252,14 +274,45 @@ void rx_video_output_start_video_streamer()
       log_line("[VideoOutput] Started video streamer [%s], PID: %s (%d)", s_szOutputVideoStreamerFilename, szPids, s_iPIDVideoStreamer);
    }
    else
+   {
       log_softerror_and_alarm("[VideoOutput] Failed to launch video streamer");
+      return;
+   }
+
+   if ( NULL != s_pSMProcessStatsMPPPlayer )
+      shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_MPP_PLAYER, s_pSMProcessStatsMPPPlayer);
+   s_pSMProcessStatsMPPPlayer = NULL;
+
+   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   uTimeStart = g_TimeNow;
+   while ( g_TimeNow < uTimeStart + 2000 )
+   {
+      hardware_sleep_ms(20);
+      s_pSMProcessStatsMPPPlayer = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_MPP_PLAYER);
+      if ( NULL == s_pSMProcessStatsMPPPlayer )
+         log_softerror_and_alarm("[VideoOutput] Failed to open shared mem for process watchdog for reading: %s", SHARED_MEM_WATCHDOG_MPP_PLAYER);
+      else
+      {
+         log_line("[VideoOutput] Opened shared mem for process watchdog for reading (%s).", SHARED_MEM_WATCHDOG_MPP_PLAYER);
+         break;
+      }
+      hardware_sleep_ms(50);
+      g_TimeNow = get_current_timestamp_ms();
+   }
+   #endif
+
+   s_uTimeStartLocalVideoPlayer = g_TimeNow;
 }
 
 void rx_video_output_stop_video_streamer()
 {
    log_line("[VideoOutput] Stopping video streamer...");
    rx_video_output_disable_streamer_output();
-      
+   s_uTimeStartLocalVideoPlayer = 0;
+   if ( NULL != s_pSMProcessStatsMPPPlayer )
+      shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_MPP_PLAYER, s_pSMProcessStatsMPPPlayer);
+   s_pSMProcessStatsMPPPlayer = NULL;
+
    if ( s_iPIDVideoStreamer > 0 )
    {
       log_line("[VideoOutput] Stopping video streamer by signaling existing streamer (PID %d)...", s_iPIDVideoStreamer);
@@ -279,6 +332,12 @@ void rx_video_output_stop_video_streamer()
       hardware_sleep_ms(100);
    }
    s_iPIDVideoStreamer = -1;
+
+   if ( NULL != s_pSemaphoreSMData )
+      sem_close(s_pSemaphoreSMData);
+   s_pSemaphoreSMData = NULL;
+   sem_unlink(SEMAPHORE_SM_VIDEO_DATA_AVAILABLE);
+
    log_line("[VideoOutput] Executed command to stop video streamer");
 }
 
@@ -294,7 +353,6 @@ void _rx_video_output_check_start_streamer()
    }
 }
 
-
 static void * _thread_rx_video_output_streamer_watchdog(void *argument)
 {
    log_line("[VideoOutputThread] Starting worker thread for video streamer output watchdog");
@@ -308,57 +366,42 @@ static void * _thread_rx_video_output_streamer_watchdog(void *argument)
    else
       log_line("[VideoOutputThread] Opened semaphore for signaling video streamer restart");
 
-   struct timespec tWait = {0, 100*1000*1000}; // 100 ms
+   struct timespec tWait;
    
    log_line("[VideoOutputThread] Started worker thread for video streamer output. Working state now.");
    
    while ( ! s_bRxVideoOutputStreamerThreadMustStop )
    {
-      hardware_sleep_ms(50);
+      hardware_sleep_ms(10);
       if ( s_bRxVideoOutputStreamerThreadMustStop )
          break;
 
-      tWait.tv_nsec = 100*1000*1000;
+      clock_gettime(CLOCK_REALTIME, &tWait);
+      tWait.tv_nsec += 1000LL*(long long)50;
+
       int iRet = sem_timedwait(pSemaphore, &tWait);
-      if ( ETIMEDOUT == iRet )
+      if ( (ETIMEDOUT == iRet) || (0 != iRet) )
          continue;
 
       if ( s_bRxVideoOutputStreamerThreadMustStop )
          break;
 
-      // If neither the semaphore is signaled, neither the reinitialize flag is set, then just skip reinitialization
-      if ( (0 != iRet) && (!s_bRxVideoOutputStreamerMustReinitialize) )
+      // If the reinitialize flag is not set, then just skip reinitialization
+      if ( !s_bRxVideoOutputStreamerMustReinitialize )
          continue;
 
-      if ( 0 == iRet )
-         log_line("[VideoOutputThread] Semaphore to restart video streamer is set.");
-      if ( s_bRxVideoOutputStreamerMustReinitialize )
-         log_line("[VideoOutputThread] Flag to restart video streamer is set.");
+      log_line("[VideoOutputThread] Semaphore and flag to restart video streamer is set.");
 
-      bMustRestartStreamer = false;
-
-      if ( s_bRxVideoOutputStreamerMustReinitialize )
-         bMustRestartStreamer = true;
-
-      int iVal = 0;
-      if ( 0 == sem_getvalue(pSemaphore, &iVal) )
-      if ( iVal > 0 )
-         bMustRestartStreamer = true;
-
-      if ( bMustRestartStreamer )
+      rx_video_output_stop_video_streamer();
+      if ( ! s_bRxVideoOutputStreamerThreadMustStop )
       {
-         log_line("[VideoOutputThread] Thread: Semaphore and/or flag to restart video streamer is signaled.");
-         rx_video_output_stop_video_streamer();
-         if ( ! s_bRxVideoOutputStreamerThreadMustStop )
-         {
-            rx_video_output_start_video_streamer();
-            rx_video_output_enable_streamer_output();
-         }
-         else
-            log_line("[VideoOutputThread] Signal to quit thread is set. Do not restart the streamer.");
-         s_bRxVideoOutputStreamerMustReinitialize = false;
-         log_line("[VideoOutputThread] Finished restarting video streamer.");
+         rx_video_output_start_video_streamer();
+         rx_video_output_enable_streamer_output();
       }
+      else
+         log_line("[VideoOutputThread] Signal to quit thread is set. Do not restart the streamer.");
+      s_bRxVideoOutputStreamerMustReinitialize = false;
+      log_line("[VideoOutputThread] Finished restarting video streamer.");
 
       if ( s_bRxVideoOutputStreamerThreadMustStop )
          break;
@@ -572,9 +615,11 @@ void rx_video_output_init()
    s_VideoUSBOutputInfo.usbBlockSize = 1024;
    s_VideoUSBOutputInfo.usbBufferPos = 0;
    
-   s_iLastUSBVideoForwardPort = g_pControllerSettings->iVideoForwardUSBPort;
-   s_iLastUSBVideoForwardPacketSize = g_pControllerSettings->iVideoForwardUSBPacketSize;
-
+   if ( NULL != g_pControllerSettings )
+   {
+      s_iLastUSBVideoForwardPort = g_pControllerSettings->iVideoForwardUSBPort;
+      s_iLastUSBVideoForwardPacketSize = g_pControllerSettings->iVideoForwardUSBPacketSize;
+   }
    s_VideoETHOutputInfo.s_bForwardETHPipeEnabled = false;
    s_VideoETHOutputInfo.s_bForwardIsETHForwardEnabled = false;
    s_VideoETHOutputInfo.s_ForwardETHVideoPipeFile = -1;
@@ -582,9 +627,9 @@ void rx_video_output_init()
    s_VideoETHOutputInfo.s_nBufferETHPos = 0;
    s_VideoETHOutputInfo.s_BufferETHPacketSize = 1024;
 
-   if ( NULL != g_pControllerSettings && ( g_pControllerSettings->nVideoForwardETHType == 1 ) )
+   if ( (NULL != g_pControllerSettings) && ( g_pControllerSettings->nVideoForwardETHType == 1 ) )
       s_VideoETHOutputInfo.s_bForwardIsETHForwardEnabled = true;
-   if ( NULL != g_pControllerSettings && ( g_pControllerSettings->nVideoForwardETHType == 2 ) )
+   if ( (NULL != g_pControllerSettings) && ( g_pControllerSettings->nVideoForwardETHType == 2 ) )
       s_VideoETHOutputInfo.s_bForwardETHPipeEnabled = true;
 
    if ( s_VideoETHOutputInfo.s_bForwardETHPipeEnabled )
@@ -612,7 +657,7 @@ void rx_video_output_init()
 
    s_uLastIOErrorAlarmFlagsVideoStreamer = 0;
    s_uLastIOErrorAlarmFlagsUSBPlayer = 0;
-   s_uTimeLastOkVideoStreamerOutput = 0;
+   s_uTimeLastOkVideoStreamerOutputToPipe = 0;
    s_uTimeStartGettingVideoIOErrors = 0;
 
    log_line("[VideoOutput] Init start complete.");
@@ -819,9 +864,11 @@ void _rx_video_output_parse_h264_stream(u32 uVehicleId, u8* pBuffer, int iLength
 
 void _rx_video_output_to_sharedmem(u8* pBuffer, u32 uLength)
 {
-   if ( (NULL == pBuffer) || (uLength <= 0 ) || (NULL == s_pSMVideoStreamerWrite) || (!s_bEnableVideoStreamerOutput) )
+   if ( (NULL == pBuffer) || (uLength == 0 ) || (NULL == s_pSMVideoStreamerWrite) || (!s_bEnableVideoStreamerOutput) )
       return;
 
+   s_uTimeLastOutputDataToLocalVideoPlayer = g_TimeNow;
+   
    if ( uLength <= (SM_STREAMER_SIZE-s_uSMVideoStreamWritePosition) )
    {
       memcpy(&(s_pSMVideoStreamerWrite[s_uSMVideoStreamWritePosition]), pBuffer, uLength);
@@ -845,6 +892,12 @@ void _rx_video_output_to_sharedmem(u8* pBuffer, u32 uLength)
    u32* pTmp2 = (u32*)(&(s_pSMVideoStreamerWrite[sizeof(u32)]));
    *pTmp1 = s_uSMVideoStreamWritePosition;
    *pTmp2 = s_uSMVideoStreamWritePosition;
+
+   if ( NULL != s_pSemaphoreSMData )
+   {
+      if ( 0 != sem_post(s_pSemaphoreSMData) )
+         log_softerror_and_alarm("[VideoOutput] Failed to set semaphore for SM data.");
+   }
 }
 
 void _rx_video_output_to_video_streamer_pipe(u8* pBuffer, int length)
@@ -854,6 +907,7 @@ void _rx_video_output_to_video_streamer_pipe(u8* pBuffer, int length)
    if ( (-1 == s_fPipeVideoOutToStreamer) || s_bRxVideoOutputStreamerMustReinitialize )
       return;
 
+   s_uTimeLastOutputDataToLocalVideoPlayer = g_TimeNow;
    if ( ! s_bDidSentAnyDataToVideoStreamerPipe )
    {
       log_line("[VideoOutput] Send first data to video output pipe for local video streamer");
@@ -870,7 +924,7 @@ void _rx_video_output_to_video_streamer_pipe(u8* pBuffer, int length)
       s_uTimeStartGettingVideoIOErrors = 0;
       if ( 0 != s_uLastIOErrorAlarmFlagsVideoStreamer )
       {
-         s_uTimeLastOkVideoStreamerOutput = g_TimeNow;
+         s_uTimeLastOkVideoStreamerOutputToPipe = g_TimeNow;
          s_uLastIOErrorAlarmFlagsVideoStreamer = 0;
          send_alarm_to_central(ALARM_ID_CONTROLLER_IO_ERROR, 0,0);
       }
@@ -910,13 +964,13 @@ void _rx_video_output_to_video_streamer_pipe(u8* pBuffer, int length)
       if ( g_TimeNow > uTimeLastVideoChanged + 3000 )
          send_alarm_to_central(ALARM_ID_CONTROLLER_IO_ERROR, uFlags, 0);
 
-      if ( (0 != s_uTimeLastOkVideoStreamerOutput) && (g_TimeNow > s_uTimeLastOkVideoStreamerOutput + 3000) )
+      if ( (0 != s_uTimeLastOkVideoStreamerOutputToPipe) && (g_TimeNow > s_uTimeLastOkVideoStreamerOutputToPipe + 3000) )
       {
          log_line("[VideoOutput] Error outputing video data to video streamer. Reinitialize video streamer...");
          rx_video_output_signal_restart_streamer();
          log_line("[VideoOutput] Signaled restart of streamer");
       }
-      if ( 0 == s_uTimeLastOkVideoStreamerOutput && g_TimeNow > g_TimeStart + 5000 )
+      if ( 0 == s_uTimeLastOkVideoStreamerOutputToPipe && g_TimeNow > g_TimeStart + 5000 )
       {
          log_line("[VideoOutput] Error outputing any video data to video streamer. Reinitialize video streamer...");
          rx_video_output_signal_restart_streamer();
@@ -1191,9 +1245,41 @@ void rx_video_output_signal_restart_streamer()
    log_line("[VideoOutput] Signaled semaphore to restart the streamer on request.");
 }
 
+void _rx_video_output_watchdog_mpp_player()
+{
+   if ( NULL == s_pSMProcessStatsMPPPlayer )
+      return;
+
+   if ( g_bSearching || (!s_bEnableVideoStreamerOutput) || (!s_bRxVideoOutputUseSM) )
+      return;
+
+   static u32 s_uTimeLastCheckMPPPlayer = 0;
+   if ( g_TimeNow < s_uTimeLastCheckMPPPlayer + 500 )
+      return;
+
+   s_uTimeLastCheckMPPPlayer = g_TimeNow;
+
+   if ( (s_uTimeLastOutputDataToLocalVideoPlayer < g_TimeNow-200) || (g_TimeNow < s_uTimeStartLocalVideoPlayer + 2000) )
+      return;
+/*
+   log_line("DBG last SM output: %u ms ago, last player input parse: %u ms ago, last player output: %u ms ago, cnt: %u, %u, %u",
+      g_TimeNow - s_uTimeLastOutputDataToLocalVideoPlayer, 
+      g_TimeNow - s_pSMProcessStatsMPPPlayer->lastIPCIncomingTime,
+      g_TimeNow - s_pSMProcessStatsMPPPlayer->lastIPCOutgoingTime,
+      s_pSMProcessStatsMPPPlayer->uLoopCounter2, s_pSMProcessStatsMPPPlayer->uLoopCounter3, s_pSMProcessStatsMPPPlayer->uLoopCounter4);
+*/
+   //log_line("DBG last active time: %u, last ipc in time: %u, counters: %u, %u, %u",
+   //   s_pSMProcessStatsMPPPlayer->lastActiveTime, s_pSMProcessStatsMPPPlayer->lastIPCIncomingTime,
+   //   s_pSMProcessStatsMPPPlayer->uLoopCounter2, s_pSMProcessStatsMPPPlayer->uLoopCounter3, s_pSMProcessStatsMPPPlayer->uLoopCounter4);
+}
+
 void rx_video_output_periodic_loop()
 {
    rx_video_recording_periodic_loop();
+
+   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   _rx_video_output_watchdog_mpp_player();
+   #endif
 
    if ( g_bDebugState )
    if ( g_TimeNow >= s_uLastTimeComputedOutputBitrate + 1000 )

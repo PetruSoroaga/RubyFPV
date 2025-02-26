@@ -25,6 +25,8 @@ class MenuVehicleOSDWidget: public Menu
             
    private:
       void stopAction();
+      void onPlusAction();
+      void onMinusAction();
 
       MenuItemSlider* m_pItemsSlider[5];
       MenuItemSelect* m_pItemsSelect[MAX_OSD_WIDGET_PARAMS+10];
