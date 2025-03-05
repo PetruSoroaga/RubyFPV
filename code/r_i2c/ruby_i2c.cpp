@@ -42,9 +42,14 @@
 
 #include <time.h>
 #include <sys/resource.h>
-#ifdef HW_CAPABILITY_I2C
+
+#if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RASPBERRY)
 #include <wiringPiI2C.h>
 #endif
+#if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RADXA_ZERO3)
+#include "../base/wiringPiI2C_radxa.h"
+#endif
+
 #include <math.h>
 
 

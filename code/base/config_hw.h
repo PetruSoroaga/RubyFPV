@@ -42,4 +42,5 @@
 
 #ifdef HW_PLATFORM_RADXA_ZERO3
 #define HW_CAPABILITY_GPIO
+#define HW_CAPABILITY_I2C
 #endif

@@ -20,7 +20,7 @@ LDFLAGS_CENTRAL2 := -lpthread -lrt -lm
 LDFLAGS_RENDERER := -ldrm -lcairo
 CFLAGS_RENDERER := -I/usr/include/drm -I/usr/include/libdrm
 CFLAGS_RENDERER += `pkg-config cairo --cflags`
-_LDFLAGS := $(LDFLAGS) -lrt -lpcap -lpthread -Wl,--gc-sections 
+_LDFLAGS := $(LDFLAGS) -lrt -lpcap -lpthread -li2c -lgpiod -Wl,--gc-sections
 _CFLAGS := $(_CFLAGS) -DRUBY_BUILD_HW_PLATFORM_RADXA_ZERO3
 _CPPFLAGS := $(_CPPFLAGS) -DRUBY_BUILD_HW_PLATFORM_RADXA_ZERO3
 CENTRAL_RENDER_CODE := $(FOLDER_CENTRAL_RENDERER)/render_engine.o $(FOLDER_CENTRAL_RENDERER)/render_engine_cairo.o $(FOLDER_CENTRAL_RENDERER)/render_engine_ui.o $(FOLDER_CENTRAL_RENDERER)/drm_core.o
@@ -56,6 +56,7 @@ FOLDER_STATION=code/r_station
 FOLDER_CENTRAL=code/r_central
 FOLDER_CENTRAL_MENU=code/r_central/menu
 FOLDER_CENTRAL_OSD=code/r_central/osd
+FOLDER_CENTRAL_OLED=code/r_central/oled
 FOLDER_PLUGINS_OSD=code/r_plugins_osd
 FOLDER_TESTS=code/r_tests
 
@@ -131,6 +132,12 @@ $(FOLDER_CENTRAL_OSD)/%.o: $(FOLDER_CENTRAL_OSD)/%.c
 $(FOLDER_CENTRAL_OSD)/%.o: $(FOLDER_CENTRAL_OSD)/%.cpp
 	$(CXX) $(_CFLAGS) $(INCLUDE_CENTRAL) -export-dynamic -c -o $@ $<
 
+$(FOLDER_CENTRAL_OLED)/%.o: $(FOLDER_CENTRAL_OLED)/%.c
+	$(CC) $(_CFLAGS) -c -o $@ $<
+
+$(FOLDER_CENTRAL_OLED)/%.o: $(FOLDER_CENTRAL_OLED)/%.cpp
+	$(CXX) $(_CFLAGS) $(INCLUDE_CENTRAL) -export-dynamic -c -o $@ $<
+
 $(FOLDER_CENTRAL_RENDERER)/%.o: $(FOLDER_CENTRAL_RENDERER)/%.c
 	$(CC) $(_CFLAGS) $(CFLAGS_RENDERER) $(INCLUDE_CENTRAL) -c -o $@ $<
 
@@ -164,10 +171,10 @@ osd_plugins_utils.o: code/public/utils/osd_plugins_utils.c
 drmutil.o: code/r_tests/drmutil.c
 	$(CC) $(_CFLAGS) $(CFLAGS_RENDERER) -c -o $@ $<
 
-MODULE_MINIMUM_BASE := $(FOLDER_BASE)/base.o $(FOLDER_BASE)/config.o $(FOLDER_BASE)/gpio.o $(FOLDER_BASE)/hardware_i2c.o $(FOLDER_BASE)/hardware_radio_sik.o $(FOLDER_BASE)/hardware_radio_serial.o $(FOLDER_BASE)/hardware_serial.o $(FOLDER_BASE)/hardware.o $(FOLDER_BASE)/hardware_radio.o $(FOLDER_BASE)/hardware_radio_txpower.o $(FOLDER_BASE)/hw_procs.o
+MODULE_MINIMUM_BASE := $(FOLDER_BASE)/base.o $(FOLDER_BASE)/config.o $(FOLDER_BASE)/gpio.o $(FOLDER_BASE)/hardware_i2c.o $(FOLDER_BASE)/hardware_radio_sik.o $(FOLDER_BASE)/hardware_radio_serial.o $(FOLDER_BASE)/hardware_serial.o $(FOLDER_BASE)/hardware.o $(FOLDER_BASE)/hardware_radio.o $(FOLDER_BASE)/hardware_radio_txpower.o $(FOLDER_BASE)/hw_procs.o $(FOLDER_BASE)/wiringPiI2C_radxa.o
 MODULE_MINIMUM_RADIO := $(FOLDER_COMMON)/radio_stats.o $(FOLDER_RADIO)/radio_duplicate_det.o $(FOLDER_RADIO)/radio_rx.o $(FOLDER_RADIO)/radio_tx.o $(FOLDER_RADIO)/radiolink.o $(FOLDER_RADIO)/radiopackets_rc.o $(FOLDER_RADIO)/radiopackets_short.o $(FOLDER_RADIO)/radiopackets_wfbohd.o $(FOLDER_RADIO)/radiopackets2.o $(FOLDER_RADIO)/radiopacketsqueue.o $(FOLDER_RADIO)/radiotap.o $(FOLDER_BASE)/tx_powers.o
 MODULE_MINIMUM_COMMON := $(FOLDER_COMMON)/string_utils.o
-MODULE_BASE := $(FOLDER_BASE)/base.o $(FOLDER_BASE)/shared_mem.o $(FOLDER_BASE)/config.o $(FOLDER_BASE)/hardware.o $(FOLDER_BASE)/hardware_camera.o $(FOLDER_BASE)/hardware_cam_maj.o $(FOLDER_BASE)/hardware_files.o $(FOLDER_BASE)/hardware_audio.o $(FOLDER_BASE)/hw_procs.o $(FOLDER_BASE)/utils.o $(FOLDER_BASE)/encr.o $(FOLDER_BASE)/hardware_i2c.o $(FOLDER_BASE)/alarms.o $(FOLDER_BASE)/hardware_radio.o $(FOLDER_BASE)/hardware_radio_serial.o $(FOLDER_BASE)/hardware_serial.o $(FOLDER_BASE)/hardware_radio_sik.o $(FOLDER_BASE)/hardware_radio_txpower.o $(FOLDER_BASE)/ruby_ipc.o $(FOLDER_BASE)/commands.o $(FOLDER_BASE)/hardware_files.o
+MODULE_BASE := $(FOLDER_BASE)/base.o $(FOLDER_BASE)/shared_mem.o $(FOLDER_BASE)/config.o $(FOLDER_BASE)/hardware.o $(FOLDER_BASE)/hardware_camera.o $(FOLDER_BASE)/hardware_cam_maj.o $(FOLDER_BASE)/hardware_files.o $(FOLDER_BASE)/hardware_audio.o $(FOLDER_BASE)/hw_procs.o $(FOLDER_BASE)/utils.o $(FOLDER_BASE)/encr.o $(FOLDER_BASE)/hardware_i2c.o $(FOLDER_BASE)/alarms.o $(FOLDER_BASE)/hardware_radio.o $(FOLDER_BASE)/hardware_radio_serial.o $(FOLDER_BASE)/hardware_serial.o $(FOLDER_BASE)/hardware_radio_sik.o $(FOLDER_BASE)/hardware_radio_txpower.o $(FOLDER_BASE)/ruby_ipc.o $(FOLDER_BASE)/commands.o $(FOLDER_BASE)/hardware_files.o $(FOLDER_BASE)/wiringPiI2C_radxa.o
 MODULE_BASE2 := $(FOLDER_BASE)/gpio.o $(FOLDER_BASE)/ctrl_settings.o $(FOLDER_UTILS)/utils_controller.o $(FOLDER_UTILS)/utils_vehicle.o $(FOLDER_BASE)/controller_rt_info.o $(FOLDER_BASE)/vehicle_rt_info.o $(FOLDER_BASE)/ctrl_preferences.o $(FOLDER_BASE)/ctrl_interfaces.o
 MODULE_COMMON := $(FOLDER_COMMON)/string_utils.o $(FOLDER_COMMON)/relay_utils.o
 MODULE_MODELS := $(FOLDER_BASE)/models.o $(FOLDER_BASE)/models_list.o
@@ -188,7 +195,8 @@ CENTRAL_MENU_RADIO := $(FOLDER_CENTRAL_MENU)/menu_controller_radio_interface_sik
 CENTRAL_POPUP_ALL := $(FOLDER_CENTRAL)/popup.o $(FOLDER_CENTRAL)/popup_log.o $(FOLDER_CENTRAL)/popup_commands.o $(FOLDER_CENTRAL)/popup_camera_params.o
 CENTRAL_RENDER_ALL := $(FOLDER_CENTRAL)/colors.o $(FOLDER_CENTRAL)/render_commands.o $(FOLDER_CENTRAL)/render_joysticks.o $(FOLDER_CENTRAL)/process_router_messages.o
 CENTRAL_OSD_ALL := $(FOLDER_CENTRAL_OSD)/osd_common.o $(FOLDER_CENTRAL_OSD)/osd.o $(FOLDER_CENTRAL_OSD)/osd_stats.o $(FOLDER_CENTRAL_OSD)/osd_debug_stats.o $(FOLDER_CENTRAL_OSD)/osd_ahi.o $(FOLDER_CENTRAL_OSD)/osd_lean.o $(FOLDER_CENTRAL_OSD)/osd_warnings.o $(FOLDER_CENTRAL_OSD)/osd_gauges.o $(FOLDER_CENTRAL_OSD)/osd_plugins.o $(FOLDER_CENTRAL_OSD)/osd_stats_dev.o $(FOLDER_CENTRAL_OSD)/osd_stats_video_bitrate.o $(FOLDER_CENTRAL_OSD)/osd_links.o $(FOLDER_CENTRAL_OSD)/osd_stats_radio.o $(FOLDER_CENTRAL_OSD)/osd_widgets.o $(FOLDER_CENTRAL_OSD)/osd_widgets_builtin.o $(FOLDER_BASE)/vehicle_rt_info.o
-CENTRAL_ALL := $(FOLDER_CENTRAL)/notifications.o $(FOLDER_CENTRAL)/launchers_controller.o $(FOLDER_CENTRAL)/local_stats.o $(FOLDER_CENTRAL)/rx_scope.o $(FOLDER_CENTRAL)/forward_watch.o $(FOLDER_CENTRAL)/timers.o $(FOLDER_CENTRAL)/ui_alarms.o $(FOLDER_CENTRAL)/media.o $(FOLDER_CENTRAL)/pairing.o $(FOLDER_CENTRAL)/link_watch.o $(FOLDER_CENTRAL)/warnings.o $(FOLDER_CENTRAL)/handle_commands.o $(FOLDER_CENTRAL)/events.o $(FOLDER_CENTRAL)/shared_vars_ipc.o $(FOLDER_CENTRAL)/shared_vars_state.o $(FOLDER_CENTRAL)/shared_vars_osd.o $(FOLDER_CENTRAL)/fonts.o $(FOLDER_CENTRAL)/keyboard.o $(FOLDER_CENTRAL)/quickactions.o $(FOLDER_CENTRAL)/shared_vars.o $(FOLDER_BASE)/camera_utils.o $(FOLDER_CENTRAL)/parse_msp.o $(FOLDER_BASE)/hardware_files.o $(FOLDER_COMMON)/strings_table.o
+CENTRAL_OLED_ALL := $(FOLDER_CENTRAL_OLED)/driver_ssd1306.o $(FOLDER_CENTRAL_OLED)/oled_icon_loader.o $(FOLDER_CENTRAL_OLED)/oled_ssd1306.o $(FOLDER_CENTRAL_OLED)/oled_render.o
+CENTRAL_ALL := $(FOLDER_CENTRAL)/notifications.o $(FOLDER_CENTRAL)/launchers_controller.o $(FOLDER_CENTRAL)/local_stats.o $(FOLDER_CENTRAL)/rx_scope.o $(FOLDER_CENTRAL)/forward_watch.o $(FOLDER_CENTRAL)/timers.o $(FOLDER_CENTRAL)/ui_alarms.o $(FOLDER_CENTRAL)/media.o $(FOLDER_CENTRAL)/pairing.o $(FOLDER_CENTRAL)/link_watch.o $(FOLDER_CENTRAL)/warnings.o $(FOLDER_CENTRAL)/handle_commands.o $(FOLDER_CENTRAL)/events.o $(FOLDER_CENTRAL)/shared_vars_ipc.o $(FOLDER_CENTRAL)/shared_vars_state.o $(FOLDER_CENTRAL)/shared_vars_osd.o $(FOLDER_CENTRAL)/fonts.o $(FOLDER_CENTRAL)/keyboard.o $(FOLDER_CENTRAL)/quickactions.o $(FOLDER_CENTRAL)/shared_vars.o $(FOLDER_BASE)/camera_utils.o $(FOLDER_CENTRAL)/parse_msp.o $(FOLDER_BASE)/hardware_files.o $(FOLDER_COMMON)/strings_table.o $(CENTRAL_OLED_ALL)
 CENTRAL_RADIO := $(FOLDER_RADIO)/radiopackets2.o $(FOLDER_RADIO)/radiopackets_short.o $(FOLDER_RADIO)/radiotap.o $(FOLDER_BASE)/tx_powers.o
 
 all: vehicle station ruby_i2c ruby_plugins ruby_central tests
