@@ -36,8 +36,11 @@
 #include <stdlib.h>
 #include "config_hw.h"
 
-#ifdef HW_CAPABILITY_I2C
+#if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RASPBERRY)
 #include <wiringPiI2C.h>
+#endif
+#if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RADXA_ZERO3)
+#include "wiringPiI2C_radxa.h"
 #endif
 
 #include "base.h"
@@ -118,7 +121,7 @@ void hardware_enumerate_i2c_busses()
 {
    if ( 0 != s_iHardwareI2CBussesEnumerated )
    {
-      log_line("[Hardware] IC2 devices already enumerated. %d busses, %d known devices found.", s_iHardwareI2CBusCount, s_iKnownDevicesFound);
+      log_line("[Hardware] I2C devices already enumerated. %d busses, %d known devices found.", s_iHardwareI2CBusCount, s_iKnownDevicesFound);
       return;
    }
    s_iHardwareI2CBussesEnumerated = 1;
@@ -248,6 +251,8 @@ void hardware_enumerate_i2c_busses()
                if ( (l == I2C_DEVICE_ADDRESS_PICO_EXTENDER) ||
                     (l == I2C_DEVICE_ADDRESS_INA219_1) ||
                     (l == I2C_DEVICE_ADDRESS_INA219_2) ||
+                    (l == I2C_DEVICE_ADDRESS_SSD1306_1) ||
+                    (l == I2C_DEVICE_ADDRESS_SSD1306_2) ||
                     ((l >= I2C_DEVICE_MIN_ADDRESS_RANGE) && (l <= I2C_DEVICE_MAX_ADDRESS_RANGE)) )
                   s_iKnownConfigurableDevicesFound++;
 
@@ -402,6 +407,10 @@ int hardware_is_known_i2c_device(u8 deviceAddress)
         deviceAddress == I2C_DEVICE_ADDRESS_INA219_2 )
      return 1;
 
+   if ( deviceAddress == I2C_DEVICE_ADDRESS_SSD1306_1 ||
+      deviceAddress == I2C_DEVICE_ADDRESS_SSD1306_2 )
+     return 1;
+
    if ( deviceAddress == I2C_DEVICE_ADDRESS_PICO_RC_IN ||
         deviceAddress == I2C_DEVICE_ADDRESS_PICO_EXTENDER )
      return 1;
@@ -433,6 +442,11 @@ void hardware_get_i2c_device_name(u8 deviceAddress, char* szOutput)
       strcpy(szOutput, I2C_DEVICE_NAME_RC_IN);
    if ( deviceAddress == I2C_DEVICE_ADDRESS_PICO_EXTENDER )
       strcpy(szOutput, I2C_DEVICE_NAME_PICO_EXTENDER);
+
+      
+   if ( deviceAddress == I2C_DEVICE_ADDRESS_SSD1306_1 ||
+      deviceAddress == I2C_DEVICE_ADDRESS_SSD1306_2)
+      strcpy(szOutput, I2C_DEVICE_NAME_OLED_SCREEN);
 
    if ( deviceAddress >= I2C_DEVICE_MIN_ADDRESS_RANGE &&
         deviceAddress <= I2C_DEVICE_MAX_ADDRESS_RANGE )
@@ -707,6 +721,21 @@ t_i2c_device_settings* hardware_i2c_add_device_settings(u8 i2cAddress)
       s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].nDeviceType = I2C_DEVICE_TYPE_INA219;
       s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].uCapabilitiesFlags = 0;
       s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].bConfigurable = 1;
+      s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].bEnabled = 1;
+      for( int k=0; k<MAX_I2C_DEVICE_SETTINGS; k++ )
+         s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].uParams[k] = 0;
+
+      s_iCountI2CDevicesSettings++;
+      return &(s_listI2CDevicesSettings[s_iCountI2CDevicesSettings-1]);
+   }
+
+   if ( i2cAddress == I2C_DEVICE_ADDRESS_SSD1306_1 || i2cAddress == I2C_DEVICE_ADDRESS_SSD1306_2)
+   {
+      strcpy(s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].szDeviceName, I2C_DEVICE_NAME_OLED_SCREEN);
+      s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].nI2CAddress = i2cAddress;
+      s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].nDeviceType = I2C_DEVICE_TYPE_OLED_SCREEN;
+      s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].uCapabilitiesFlags = 0;
+      s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].bConfigurable = 0;
       s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].bEnabled = 1;
       for( int k=0; k<MAX_I2C_DEVICE_SETTINGS; k++ )
          s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].uParams[k] = 0;
@@ -1067,6 +1096,22 @@ int hardware_i2c_has_external_extenders_rcin()
          if ( s_listI2CDevicesSettings[i].uCapabilitiesFlags & I2C_CAPABILITY_FLAG_RC_INPUT )
             return s_listI2CDevicesSettings[i].nI2CAddress;
       }
+   }
+   return 0; 
+}
+
+int hardware_i2c_has_oled_screen()
+{
+   if ( 0 == s_iHardwareI2CBussesEnumerated )
+      hardware_enumerate_i2c_busses();
+
+   if ( ! s_iI2CDeviceSettingsLoaded )
+      hardware_i2c_load_device_settings();
+
+   for( int i=0; i<s_iCountI2CDevicesSettings; i++ )
+   {
+      if ( s_listI2CDevicesSettings[i].nDeviceType == I2C_DEVICE_TYPE_OLED_SCREEN )
+         return 1;
    }
    return 0; 
 }

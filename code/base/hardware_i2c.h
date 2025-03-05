@@ -16,6 +16,8 @@
 #define I2C_DEVICE_ADDRESS_INA219_2  0x41
 #define I2C_DEVICE_ADDRESS_PICO_RC_IN 0x18
 #define I2C_DEVICE_ADDRESS_PICO_EXTENDER 0x19
+#define I2C_DEVICE_ADDRESS_SSD1306_1 0x3C
+#define I2C_DEVICE_ADDRESS_SSD1306_2 0x3D
 
 #define I2C_DEVICE_TYPE_UNKNOWN 0
 #define I2C_DEVICE_TYPE_CAMERA_CSI  1
@@ -25,6 +27,7 @@
 #define I2C_DEVICE_TYPE_PICO_RC_IN 6
 #define I2C_DEVICE_TYPE_PICO_EXTENDER 7
 #define I2C_DEVICE_TYPE_RUBY_ADDON 10
+#define I2C_DEVICE_TYPE_OLED_SCREEN 11
 
 #define I2C_DEVICE_NAME_UNKNOWN "Unknown"
 #define I2C_DEVICE_NAME_CAMERA_CSI "Camera CSI"
@@ -34,6 +37,7 @@
 #define I2C_DEVICE_NAME_RC_IN "RC Input"
 #define I2C_DEVICE_NAME_PICO_EXTENDER "Pico Extender"
 #define I2C_DEVICE_NAME_RUBY_ADDON "AddOn"
+#define I2C_DEVICE_NAME_OLED_SCREEN "OLED Screen"
 
 // RC In device // To deprecate, use i2c_protocols definitions
 #define I2C_DEVICE_COMMAND_ID_RC_IN_SET_STREAM_TYPE_SBUS 1
@@ -108,6 +112,7 @@ int hardware_i2c_has_external_extenders_rotary_encoders();
 int hardware_i2c_has_external_extenders_buttons();
 // Returns i2c address of the device
 int hardware_i2c_has_external_extenders_rcin();
+int hardware_i2c_has_oled_screen();
 
 #ifdef __cplusplus
 }  
