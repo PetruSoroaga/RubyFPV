@@ -86,6 +86,7 @@ void MenuDeviceI2C::createItems()
    m_pItemsSelect[0]->addSelection(I2C_DEVICE_NAME_RC_IN);
    m_pItemsSelect[0]->addSelection(I2C_DEVICE_NAME_PICO_EXTENDER);
    m_pItemsSelect[0]->addSelection(I2C_DEVICE_NAME_RUBY_ADDON);
+   m_pItemsSelect[0]->addSelection(I2C_DEVICE_NAME_OLED_SCREEN);
    m_pItemsSelect[0]->setIsEditable();
    m_IndexDevType = addMenuItem(m_pItemsSelect[0]);
    m_pItemsSelect[0]->setEnabled(false);
@@ -239,13 +240,16 @@ void MenuDeviceI2C::valuesToUI()
       m_pItemsSelect[0]->setSelection(3);
    if ( pInfo->nDeviceType == I2C_DEVICE_TYPE_RUBY_ADDON )
       m_pItemsSelect[0]->setSelection(4);
+   if ( pInfo->nDeviceType == I2C_DEVICE_TYPE_OLED_SCREEN )
+      m_pItemsSelect[0]->setSelection(5);
+      
 
    m_pItemsSelect[1]->setSelectedIndex(pInfo->bEnabled?1:0);
 
    if ( ! m_bDeviceHasCustomSettings )
       return;
 
-   if ( pInfo->nDeviceType == I2C_DEVICE_TYPE_INA219 )
+   if ( pInfo->nDeviceType == I2C_DEVICE_TYPE_INA219 || pInfo->nDeviceType == I2C_DEVICE_TYPE_OLED_SCREEN )
    {
       m_pItemsSelect[2]->setEnabled(true);
       m_pItemsSelect[2]->setSelection( pInfo->uParams[0] );
@@ -330,6 +334,8 @@ void MenuDeviceI2C::onSelectItem()
          pInfo->nDeviceType = I2C_DEVICE_TYPE_PICO_EXTENDER;
       if ( 4 == index )
          pInfo->nDeviceType = I2C_DEVICE_TYPE_RUBY_ADDON;
+      if ( 5 == index )
+         pInfo->nDeviceType = I2C_DEVICE_TYPE_OLED_SCREEN;
       hardware_i2c_save_device_settings();
       createItems();
       bUpdated = true;

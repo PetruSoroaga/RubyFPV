@@ -117,6 +117,7 @@
 #include "menu_confirmation_import.h"
 #include "process_router_messages.h"
 #include "quickactions.h"
+#include "oled/oled_render.h"
 
 u32 s_idBgImage[3];
 u32 s_idBgImageMenu[3];
@@ -2179,6 +2180,12 @@ int main(int argc, char *argv[])
       g_bIsHDMIConfirmation = true;
 
    log_line("Ruby UI starting");
+
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   log_line("Ruby OLED Init...");
+   oled_render_init();
+   oled_render_thread_start();
+   #endif
 
    init_hardware();
 
