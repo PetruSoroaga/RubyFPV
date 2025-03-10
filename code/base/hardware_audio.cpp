@@ -158,6 +158,34 @@ int hardware_set_audio_output_volume(int iAudioVolume)
    return 1;
 }
 
+
+
+int hardware_audio_play_file(const char* szFile)
+{
+   if ( (NULL == szFile) || (0 == szFile[0]) )
+      return -1;
+
+   if ( ! s_bHardwareDetectedAudioDevices )
+      _hardware_audio_enumerate_capabilities();
+   if ( ! s_bHardwareAudioHasAudioPlayback )
+      return -1;
+
+   char szComm[256];
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "aplay -q %s 2>/dev/null 1>/dev/null", szFile);
+   
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   char szDevice[64];
+   szDevice[0] = 0;
+   if ( hardware_getOnlyBoardType() == BOARD_TYPE_RADXA_3C )
+      strcpy(szDevice, "-D hw:CARD=rockchiphdmi0 ");
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "aplay -q %s%s 2>/dev/null 1>/dev/null", szDevice, szFile);
+   #endif
+
+   hw_execute_bash_command_timeout(szComm, NULL, 30000);
+   return 0;
+}
+
+
 pthread_t s_pThreadAudioPlayAsync;
 char s_szAudioFilePlayAsync[MAX_FILE_PATH_SIZE];
 
@@ -166,8 +194,17 @@ void* _thread_audio_play_async(void *argument)
    log_line("[HardwareAudio] Started thread to play file async.");
    log_line("[HardwareAudio] Playing file: %s", s_szAudioFilePlayAsync);
    char szComm[256];
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "aplay -q %s 2>&1", s_szAudioFilePlayAsync);
-   hw_execute_bash_command(szComm, NULL);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "aplay -q %s 2>/dev/null 1>/dev/null &", s_szAudioFilePlayAsync);
+   
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   char szDevice[64];
+   szDevice[0] = 0;
+   if ( hardware_getOnlyBoardType() == BOARD_TYPE_RADXA_3C )
+      strcpy(szDevice, "-D hw:CARD=rockchiphdmi0 ");
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "aplay -q %s%s 2>/dev/null 1>/dev/null &", szDevice, s_szAudioFilePlayAsync);
+   #endif
+   
+   hw_execute_bash_command_nonblock(szComm, NULL);
    log_line("[HardwareAudio] Ended thread to play file async.");
    return NULL;
 }
@@ -201,4 +238,9 @@ int hardware_audio_play_file_async(const char* szFile)
    }
    pthread_attr_destroy(&attr);
    return 0;
+}
+
+void hardware_audio_stop_async_play()
+{
+   hw_stop_process("aplay");
 }

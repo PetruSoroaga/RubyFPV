@@ -59,7 +59,6 @@ u32 s_TimeLastLocalAlarm = 0;
 u16 s_uLastLocalAlarms = 0;
 
 u32 s_TimeLastCPUOverloadAlarmVehicle = 0;
-u32 s_TimeLastCPUOverloadAlarmController = 0;
 
 bool s_bAlarmVehicleLowSpaceMenuShown = false;
 bool s_bAlarmWrongOpenIPCKey = false;
@@ -818,6 +817,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
       if ( g_TimeNow < link_get_last_reconfiguration_end_time() + 2000 )
          bShow = false;
 
+      static u32 s_TimeLastCPUOverloadAlarmController = 0;
       if ( bShow && ( g_TimeNow > s_TimeLastCPUOverloadAlarmController + 10000 ) )
       {
          s_TimeLastCPUOverloadAlarmController = g_TimeNow;
@@ -825,14 +825,40 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
          u32 timeMax = uFlags1 >> 16;
          if ( timeMax > 0 )
          {
-            sprintf(szAlarmText, "Your controller CPU had a spike of %u miliseconds in it's loop processing.", timeMax );
+            sprintf(szAlarmText, "Your controller had a CPU spike of %u miliseconds in it's loop processing.", timeMax );
             sprintf(szAlarmText2, "If this is recurent, increase your CPU overclocking speed or reduce your data processing load (video bitrate).");
          }
          if ( timeAvg > 0 )
          {
-            sprintf(szAlarmText, "Your controller CPU had an overload of %u miliseconds in it's loop processing.", timeAvg );
+            sprintf(szAlarmText, "Your controller had an CPU overload of %u miliseconds in it's loop processing.", timeAvg );
             sprintf(szAlarmText2, "Increase your CPU overclocking speed or reduce your data processing load (video bitrate).");
          }
+      }
+      else
+         return;
+   }
+
+   if ( uAlarms & ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING )
+   {
+      if ( g_bUpdateInProgress )
+         return;
+
+      ControllerSettings* pCS = get_ControllerSettings();
+      bool bShow = true;
+
+      if ( link_is_reconfiguring_radiolink() )
+         bShow = false;
+      if ( link_get_last_reconfiguration_end_time() != 0 )
+      if ( g_TimeNow < link_get_last_reconfiguration_end_time() + 2000 )
+         bShow = false;
+      
+      static u32 s_TimeLastCPUOverloadAlarmRecording = 0;
+      if ( bShow && ( g_TimeNow > s_TimeLastCPUOverloadAlarmRecording + 20000 ) )
+      {
+         s_TimeLastCPUOverloadAlarmRecording = g_TimeNow;
+         uIconId = g_idIconSDCard;
+         sprintf(szAlarmText, "Your controllerhad a CPU spike recording video to the SD card." );
+         sprintf(szAlarmText2, "If this is recurent, switch to a faster SD card or disable this alarm from System->Alarms.");
       }
       else
          return;

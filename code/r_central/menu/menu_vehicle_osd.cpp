@@ -62,7 +62,7 @@ MenuVehicleOSD::MenuVehicleOSD(void)
    m_IndexAlarms = -1;
    m_IndexPlugins = -1;
    m_IndexOSDShowMSPOSD = -1;
-
+   m_IndexOSDReset = -1;
    addMenuItem(new MenuItemSection("OSD Layouts and Settings")); 
 
 
@@ -144,6 +144,8 @@ MenuVehicleOSD::MenuVehicleOSD(void)
 
    m_IndexOSDStats = addMenuItem(new MenuItem("Layout OSD Stats Windows", "Configure which statistics windows show up on current screen"));
    m_pMenuItems[m_IndexOSDStats]->showArrow();
+
+   m_IndexOSDReset = addMenuItem(new MenuItem("Reset OSD Screen", "Resets this OSD screen to default layout and style."));
 }
 
 MenuVehicleOSD::~MenuVehicleOSD()
@@ -161,7 +163,7 @@ void MenuVehicleOSD::valuesToUI()
    m_pItemsSelect[4]->setSelectedIndex(0);
    if ( g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY )
       m_pItemsSelect[4]->setSelectedIndex(1);
-   else if ( g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_BACKGROUND_BARS )
+   else if ( g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_BGBARS )
       m_pItemsSelect[4]->setSelectedIndex(2);
    
    m_pItemsSelect[5]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) ? 1:0);
@@ -228,6 +230,15 @@ void MenuVehicleOSD::valuesToUI()
       if ( -1 != m_IndexOSDShowMSPOSD )
          m_pItemsSelect[11]->setEnabled(false);
    }
+}
+
+void MenuVehicleOSD::onShow()
+{
+   int iTemp = m_SelectedIndex;
+   Menu::onShow();
+   valuesToUI();
+   if ( iTemp >= 0 )
+      m_SelectedIndex = iTemp;
 }
 
 void MenuVehicleOSD::Render()
@@ -359,11 +370,11 @@ void MenuVehicleOSD::onSelectItem()
    if ( m_IndexBgOnTexts == m_SelectedIndex )
    {
       params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
-      params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_BACKGROUND_BARS;
+      params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_BGBARS;
       if ( 1 == m_pItemsSelect[4]->getSelectedIndex() )
          params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
       if ( 2 == m_pItemsSelect[4]->getSelectedIndex() )
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_BACKGROUND_BARS;
+         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_BGBARS;
       sendToVehicle = true;
    }
 
@@ -393,6 +404,16 @@ void MenuVehicleOSD::onSelectItem()
       else
          params.osd_flags3[layoutIndex] |= OSD_FLAG3_RENDER_MSP_OSD;
       sendToVehicle = true;
+   }
+
+   if ( (-1 != m_IndexOSDReset) && (m_IndexOSDReset == m_SelectedIndex) )
+   {
+      osd_parameters_t paramsTemp;
+      memcpy(&paramsTemp, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
+      g_pCurrentModel->resetOSDFlags(layoutIndex);
+      memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
+      memcpy(&(g_pCurrentModel->osd_params), &paramsTemp, sizeof(osd_parameters_t));
+      sendToVehicle = true;    
    }
 
    if ( g_pCurrentModel->is_spectator )

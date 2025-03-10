@@ -516,6 +516,13 @@ void str_getDataRateDescriptionNoSufix(int dataRateBPS, char* szOutput)
    }
 }
 
+char* str_format_bitrate_inline(int iBitrateBPS)
+{
+   static char s_szStrFormatBitrate[64];
+   str_format_bitrate(iBitrateBPS, s_szStrFormatBitrate);
+   return s_szStrFormatBitrate;
+}
+
 void str_format_bitrate(int bitrate_bps, char* szBuffer)
 {
    if ( NULL == szBuffer )

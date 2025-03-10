@@ -4,6 +4,7 @@
 #include "../base/config.h"
 #include "../base/models.h"
 #include "../radio/radiopackets2.h"
+#include "generic_tx_ecbuffers.h"
 
 class ProcessorTxAudio
 {
@@ -17,18 +18,18 @@ class ProcessorTxAudio
 
       int openAudioStream();
       void closeAudioStream();
-      bool isAudioStreamOpened();
 
       int startLocalRecording();
       int stopLocalRecording();
       
       int tryReadAudioInputStream();
-      int sendAudioPackets();
+      void sendAudioPackets();
 
    protected:
       void _localRecordBuffer(u8* pBuffer, int iLength);
       void _sendAudioPacket(u8* pBuffer, int iLength, u32 uAudioPacketIndex);
 
+      GenericTxECBuffers* m_pBuffers;
       int m_iAudioStream;
       FILE* m_fAudioRecordingFile;
       bool m_bLocalRecording;
@@ -45,14 +46,5 @@ class ProcessorTxAudio
       u32 m_StatsAudioInputComputedBps;
       u32 m_StatsTmpAudioInputReadBytes;
       u32 m_StatsTimeLastComputeAudioInputBps;
-
-      u8 m_ListBufferedInputPackets[MAX_BUFFERED_AUDIO_PACKETS][MAX_PACKET_PAYLOAD];
-      u8 m_ListBufferedInputECPackets[10][MAX_PACKET_PAYLOAD];
-      int m_iCurrentInputReadPacketIndex;
-      int m_iCurrentInputReadPacketPosition;
-      
-      int m_iCurrentInputBufferPacketToSend;
-      u32 m_uCurrentTxAudioBlockIndex;
-      u32 m_uCurrentTxAudioSegmentIndex;
 };
 

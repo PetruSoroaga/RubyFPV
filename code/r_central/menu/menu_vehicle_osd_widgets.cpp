@@ -150,6 +150,14 @@ void MenuVehicleOSDWidgets::valuesToUI()
    }
 }
 
+void MenuVehicleOSDWidgets::onShow()
+{
+   int iTemp = m_SelectedIndex;
+   Menu::onShow();
+   valuesToUI();
+   if ( iTemp >= 0 )
+      m_SelectedIndex = iTemp;
+}
 
 bool MenuVehicleOSDWidgets::periodicLoop()
 {

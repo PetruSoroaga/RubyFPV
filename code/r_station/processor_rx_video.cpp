@@ -72,19 +72,6 @@
 #include "ruby_rt_station.h"
 #include "test_link_params.h"
 
-typedef struct
-{
-   unsigned int fec_decode_missing_packets_indexes[MAX_TOTAL_PACKETS_IN_BLOCK];
-   unsigned int fec_decode_fec_indexes[MAX_TOTAL_PACKETS_IN_BLOCK];
-   u8* fec_decode_data_packets_pointers[MAX_TOTAL_PACKETS_IN_BLOCK];
-   u8* fec_decode_fec_packets_pointers[MAX_TOTAL_PACKETS_IN_BLOCK];
-   unsigned int missing_packets_count;
-}
-type_fec_info;
-
-
-type_fec_info s_FECInfo;
-
 extern t_packet_queue s_QueueRadioPacketsHighPrio;
 
 int ProcessorRxVideo::m_siInstancesCount = 0;
@@ -146,7 +133,6 @@ ProcessorRxVideo::ProcessorRxVideo(u32 uVehicleId, u8 uVideoStreamIndex)
    m_uVideoStreamIndex = uVideoStreamIndex;
    m_uLastTimeRequestedRetransmission = 0;
    m_uRequestRetransmissionUniqueId = 0;
-   m_uTimeLastReceivedNewVideoPacket = 0;
    m_TimeLastHistoryStatsUpdate = 0;
    m_TimeLastRetransmissionsStatsUpdate = 0;
    m_uLatestVideoPacketReceiveTime = 0;
@@ -223,9 +209,6 @@ bool ProcessorRxVideo::init()
 
    log_line("[ProcessorRxVideo] Initialize video processor Rx instance number %d, for VID %u, video stream index %u", m_iInstanceIndex+1, m_uVehicleId, m_uVideoStreamIndex);
 
-   // To fix video_link_adaptive_init(m_uVehicleId);
-   // To fix video_link_keyframe_init(m_uVehicleId);
-
    m_uRetryRetransmissionAfterTimeoutMiliseconds = g_pControllerSettings->nRetryRetransmissionAfterTimeoutMS;
    log_line("[ProcessorRxVideo] Using timers: Retransmission retry after timeout of %d ms; Request retransmission after video silence (no video packets) timeout of %d ms", m_uRetryRetransmissionAfterTimeoutMiliseconds, g_pControllerSettings->nRequestRetransmissionsOnVideoSilenceMs);
       
@@ -256,8 +239,7 @@ void ProcessorRxVideo::resetReceiveState()
    m_InfoLastReceivedVideoPacket.video_block_index = MAX_U32;
    m_InfoLastReceivedVideoPacket.video_block_packet_index = MAX_U32;
    m_InfoLastReceivedVideoPacket.stream_packet_idx = MAX_U32;
-
-   m_uTimeLastReceivedNewVideoPacket = 0;
+   m_uLatestVideoPacketReceiveTime = 0;
    
    m_uLastBlockReceivedAckKeyframeInterval = MAX_U32;
    m_uLastBlockReceivedAdaptiveVideoInterval = MAX_U32;
@@ -288,37 +270,6 @@ void ProcessorRxVideo::resetOutputState()
    m_uLastOutputVideoBlockDataPackets = 5555;
 }
 
-void ProcessorRxVideo::resetReceiveBuffers(int iToMaxIndex)
-{
-}
-
-void ProcessorRxVideo::resetReceiveBuffersBlock(int rx_buffer_block_index)
-{
- /*
-   for( int k=0; k<m_pRXBlocksStack[rx_buffer_block_index]->data_packets + m_pRXBlocksStack[rx_buffer_block_index]->fec_packets; k++ )
-   {
-      m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[k].uState = RX_PACKET_STATE_EMPTY;
-      m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[k].uRetrySentCount = 0;
-      m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[k].uTimeFirstRetrySent = 0;
-      m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[k].uTimeLastRetrySent = 0;
-      m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[k].video_data_length = 0;
-      m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[k].packet_length = 0;
-   }
-
-   m_pRXBlocksStack[rx_buffer_block_index]->video_block_index = MAX_U32;
-   m_pRXBlocksStack[rx_buffer_block_index]->video_data_length = 0;
-   m_pRXBlocksStack[rx_buffer_block_index]->data_packets = 0;
-   m_pRXBlocksStack[rx_buffer_block_index]->fec_packets = 0;
-   m_pRXBlocksStack[rx_buffer_block_index]->received_data_packets = 0;
-   m_pRXBlocksStack[rx_buffer_block_index]->received_fec_packets = 0;
-   m_pRXBlocksStack[rx_buffer_block_index]->totalPacketsRequested = 0;
-   m_pRXBlocksStack[rx_buffer_block_index]->uTimeFirstPacketReceived = MAX_U32;
-   m_pRXBlocksStack[rx_buffer_block_index]->uTimeFirstRetrySent = 0;
-   m_pRXBlocksStack[rx_buffer_block_index]->uTimeLastRetrySent = 0;
-   m_pRXBlocksStack[rx_buffer_block_index]->uTimeLastUpdated = 0;
-   */
-}
-
 void ProcessorRxVideo::resetStateOnVehicleRestart()
 {
    log_line("[ProcessorRxVideo] VID %d, video stream %u: Reset state, full, due to vehicle restart.", m_uVehicleId, m_uVideoStreamIndex);
@@ -331,12 +282,13 @@ void ProcessorRxVideo::resetStateOnVehicleRestart()
 
 void ProcessorRxVideo::discardRetransmissionsInfo()
 {
-   //checkAndDiscardBlocksTooOld();
-
    m_pVideoRxBuffer->emptyBuffers("No new video past retransmission window");
    resetOutputState();
-   m_uTimeLastReceivedNewVideoPacket = 0;
    m_uLastTimeRequestedRetransmission = g_TimeNow;
+
+   //if ( g_TimeNow > g_TimeLastVideoParametersOrProfileChanged + 3000 )
+   //if ( g_TimeNow > g_TimeStart + 5000 )
+   //   g_SMControllerRTInfo.uTotalCountOutputSkippedBlocks++;
 }
 
 void ProcessorRxVideo::onControllerSettingsChanged()
@@ -360,80 +312,26 @@ void ProcessorRxVideo::resumeProcessing()
 {
    m_bPaused = false;
    log_line("[ProcessorRxVideo] VID %u, video stream %u: resumed processing.", m_uVehicleId, m_uVideoStreamIndex);
-}
+}      
 
-      
-
-bool ProcessorRxVideo::checkAndDiscardBlocksTooOld()
+void ProcessorRxVideo::checkAndDiscardBlocksTooOld()
 {
-   if ( !m_pVideoRxBuffer->hasIncompleteBlocks() )
-      return false;
+   if ( (NULL == m_pVideoRxBuffer) || (0 == m_pVideoRxBuffer->getBlocksCountInBuffer()) )
+      return;
 
    // Discard blocks that are too old, past retransmission window
-   bool bDiscarded = false;
    u32 uCutoffTime = g_TimeNow - m_iMilisecondsMaxRetransmissionWindow;
-   type_rx_video_block_info* pVideoBlockFirst = m_pVideoRxBuffer->getFirstVideoBlockInBuffer();
-   while ( NULL != pVideoBlockFirst )
+   int iCountSkipped = m_pVideoRxBuffer->discardOldBlocks(uCutoffTime);
+
+   if ( iCountSkipped > 0 )
    {
-      if ( pVideoBlockFirst->uReceivedTime != 0 )
-      if ( pVideoBlockFirst->uReceivedTime > uCutoffTime )
-         break;
-     
-      int iCountSkipped = m_pVideoRxBuffer->advanceStartPositionToVideoBlock(pVideoBlockFirst->uVideoBlockIndex+1);
-
-      if ( iCountSkipped == 0 )
-         break;
-
       g_SMControllerRTInfo.uOutputedVideoPacketsSkippedBlocks[g_SMControllerRTInfo.iCurrentIndex] += iCountSkipped;
-      
-      pVideoBlockFirst = m_pVideoRxBuffer->getFirstVideoBlockInBuffer();
-      bDiscarded = true;
+      if ( g_TimeNow > g_TimeLastVideoParametersOrProfileChanged + 3000 )
+      if ( g_TimeNow > g_TimeStart + 5000 )
+         g_SMControllerRTInfo.uTotalCountOutputSkippedBlocks++;
    }
-
-   if ( bDiscarded )
-   if ( g_TimeNow > g_TimeLastVideoParametersOrProfileChanged + 3000 )
-   if ( g_TimeNow > g_TimeStart + 5000 )
-      g_SMControllerRTInfo.uTotalCountOutputSkippedBlocks++;
-   return bDiscarded;
 }
 
-void ProcessorRxVideo::sendPacketToOutput(int rx_buffer_block_index, int block_packet_index)
-{
- /*
-   u32 video_block_index = m_pRXBlocksStack[rx_buffer_block_index]->video_block_index;
-
-   if ( MAX_U32 == video_block_index || 0 == m_pRXBlocksStack[rx_buffer_block_index]->data_packets )
-      return;
-
-   if ( m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[block_packet_index].uState & RX_PACKET_STATE_OUTPUTED )
-      return;
-
-   if ( ! (m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[block_packet_index].uState & RX_PACKET_STATE_RECEIVED) )
-   {
-      return;
-   }
-
-   m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[block_packet_index].uState |= RX_PACKET_STATE_OUTPUTED;
-
-   m_uLastOutputVideoBlockIndex = m_pRXBlocksStack[rx_buffer_block_index]->video_block_index;
-   m_uLastOutputVideoBlockPacketIndex = block_packet_index;
-   m_uLastOutputVideoBlockDataPackets = m_pRXBlocksStack[rx_buffer_block_index]->data_packets;
-*/
-   //u8* pBuffer = m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[block_packet_index].pData;
-   //int lengthVideo = m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[block_packet_index].video_data_length;
-   //int packet_length = m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[block_packet_index].packet_length;
-
-   // To fix?
-   //rx_video_output_video_data(m_uVehicleId, (m_SM_VideoDecodeStats.video_stream_and_type >> 4) & 0x0F , m_SM_VideoDecodeStats.width, m_SM_VideoDecodeStats.height, pBuffer, lengthVideo, packet_length);
-}
-
-void ProcessorRxVideo::pushIncompleteBlocksOut(int iStackIndexToDiscardTo, bool bTooOld)
-{
-}
-
-void ProcessorRxVideo::pushFirstBlockOut()
-{
-}
 
 u32 ProcessorRxVideo::getLastTimeVideoStreamChanged()
 {
@@ -443,35 +341,6 @@ u32 ProcessorRxVideo::getLastTimeVideoStreamChanged()
 u32 ProcessorRxVideo::getLastestVideoPacketReceiveTime()
 {
    return m_uLatestVideoPacketReceiveTime;
-}
-
-int ProcessorRxVideo::getCurrentlyReceivedVideoFPS()
-{
-   return -1;
-   // To fix?
-
-   //if ( 0 == m_SM_VideoDecodeStats.width )
-   //   return -1;
-   //return m_SM_VideoDecodeStats.fps;
-}
-
-int ProcessorRxVideo::getCurrentlyReceivedVideoKeyframe()
-{
-   return -1;
-   // To fix?
-   //if ( 0 == m_SM_VideoDecodeStats.width )
-   //   return -1;
-   //return m_SM_VideoDecodeStats.keyframe_ms;
-}
-
-int ProcessorRxVideo::getCurrentlyMissingVideoPackets()
-{
-   int iCount = 0;
-   //for( int i=0; i<m_iRXBlocksStackTopIndex; i++ )
-   //{
-   //   iCount += m_pRXBlocksStack[i]->data_packets + m_pRXBlocksStack[i]->fec_packets - (m_pRXBlocksStack[i]->received_data_packets + m_pRXBlocksStack[i]->received_fec_packets);
-   //}
-   return iCount;
 }
 
 int ProcessorRxVideo::getVideoWidth()
@@ -549,55 +418,6 @@ int ProcessorRxVideo::periodicLoop(u32 uTimeNow, bool bForceSyncNow)
       return -1;
      
    return checkAndRequestMissingPackets(bForceSyncNow);
-
-/*
-   if ( 0 != m_uTimeLastReceivedNewVideoPacket )
-   if ( m_iMilisecondsMaxRetransmissionWindow > 20 )
-   if ( g_TimeNow >= m_uTimeLastReceivedNewVideoPacket + m_iMilisecondsMaxRetransmissionWindow - 20 )
-   {
-      //if ( m_pRXBlocksStack[m_iRXBlocksStackTopIndex]->uTimeLastUpdated < g_TimeNow - m_iMilisecondsMaxRetransmissionWindow*1.5 )
-      log_line("[VideoRx] Discard old blocks due to no new video packet for %d ms (%d blocks in the stack).", m_iMilisecondsMaxRetransmissionWindow, m_iRXBlocksStackTopIndex);
-      resetReceiveBuffers(m_iRXBlocksStackTopIndex);
-      resetOutputState();
-      m_uTimeLastReceivedNewVideoPacket = 0;
-      return;
-   }
-*/
-   // TO fix?
-   //if ( (m_SM_VideoDecodeStats.uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS) )
-   //if ( relay_controller_must_display_video_from(g_pCurrentModel, m_uVehicleId) )
-   //   bRetr = true;
-
-   // To fix reenable?
-   //if ( bRetr )
-   //if ( m_InfoLastReceivedVideoPacket.video_block_index != MAX_U32 )
-   //   checkAndRequestMissingPackets();
-
-   // Can we output the first few blocks?
-   /*
-   int maxBlocksToOutputIfAvailable = MAX_BLOCKS_TO_OUTPUT_IF_AVAILABLE;
-   do
-   {
-      if ( m_iRXBlocksStackTopIndex < 0 )
-         break;
-      if ( m_pRXBlocksStack[0]->data_packets == 0 )
-         break;
-      if ( m_pRXBlocksStack[0]->received_data_packets + m_pRXBlocksStack[0]->received_fec_packets < m_pRXBlocksStack[0]->data_packets )
-         break;
-
-      pushFirstBlockOut();
-      maxBlocksToOutputIfAvailable--;
-   }
-   while ( maxBlocksToOutputIfAvailable > 0 );
-
-   checkAndDiscardBlocksTooOld();
-
-   
-   if ( uTimeNow > m_TimeLastRetransmissionsStatsUpdate + m_SM_RetransmissionsStats.uGraphRefreshIntervalMs )
-   {
-      m_TimeLastRetransmissionsStatsUpdate = uTimeNow;
-   }
-   */
 }
 
 // Returns 1 if a video block has just finished and the flag "Can TX" is set
@@ -634,7 +454,7 @@ int ProcessorRxVideo::handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, in
    // * Are from before a vehicle restart detected;
    // Retransmitted packets are sent on controller request or automatically (ie on a missing ACK)
    
-   if ( (NULL != pRuntimeInfo) && (! pRuntimeInfo->bIsPairingDone) )
+   if ( (NULL == m_pVideoRxBuffer) || (NULL == pRuntimeInfo) || (! pRuntimeInfo->bIsPairingDone) )
       return 0;
 
    if ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
@@ -648,188 +468,94 @@ int ProcessorRxVideo::handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, in
          bDiscard = true;
    
       if ( bDiscard )
-      {
          return 0;
-      }
    }
 
 
-   if ( NULL != m_pVideoRxBuffer )
+   bool bNewestOnStream = m_pVideoRxBuffer->checkAddVideoPacket(pBuffer, length);
+   if ( bNewestOnStream )
+   if ( ! (pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
    {
-      bool bNewestOnStream = m_pVideoRxBuffer->checkAddVideoPacket(pBuffer, length);
-      if ( bNewestOnStream && (m_iIndexVideoDecodeStats != -1) )
-      {
-         updateControllerRTInfoAndVideoDecodingStats(pBuffer, length);
-         m_uLatestVideoPacketReceiveTime = g_TimeNow;
-      }
-
-      if ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
-      {
-         if ( NULL != pRTInfo )
-         {
-            pRTInfo->uCountAckRetransmissions[g_SMControllerRTInfo.iCurrentIndex]++;
-            if ( pPHVS->uStreamInfoFlags == VIDEO_STREAM_INFO_FLAG_RETRANSMISSION_ID )
-            if ( pPHVS->uStreamInfo == m_uRequestRetransmissionUniqueId )
-            {
-               u32 uDeltaTime = g_TimeNow - m_uLastTimeRequestedRetransmission;
-               controller_rt_info_update_ack_rt_time(&g_SMControllerRTInfo, pPH->vehicle_id_src, g_SM_RadioStats.radio_interfaces[interfaceNb].assignedLocalRadioLinkId, uDeltaTime);
-            }
-         }
-      }
-
-      if ( bNewestOnStream && (!(pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED)) )
-         m_uTimeLastReceivedNewVideoPacket = g_TimeNow;
-  
-      // Output available video packets
-
-      while ( m_pVideoRxBuffer->hasFirstVideoPacketInBuffer() )
-      {
-         type_rx_video_packet_info* pVideoPacket = m_pVideoRxBuffer->getFirstVideoPacketInBuffer();
-         type_rx_video_block_info* pVideoBlock = m_pVideoRxBuffer->getFirstVideoBlockInBuffer();
-         if ( (NULL != pVideoBlock) && (NULL != pVideoPacket) && (NULL != pVideoPacket->pRawData) )
-         if ( ! pVideoPacket->bEmpty )
-         if ( pVideoPacket->pPHVS->uCurrentBlockPacketIndex < pVideoPacket->pPHVS->uCurrentBlockDataPackets )
-         if ( NULL != pVideoPacket->pVideoData )
-         {
-            t_packet_header_video_segment_important* pPHVSImp = pVideoPacket->pPHVSImp;
-            u8* pVideoRawStream = pVideoPacket->pVideoData;
-            pVideoRawStream += sizeof(t_packet_header_video_segment_important);
-
-            int iVideoWidth = getVideoWidth();
-            int iVideoHeight = getVideoHeight();
-
-            rx_video_output_video_data(m_uVehicleId, (pVideoPacket->pPHVS->uVideoStreamIndexAndType >> 4) & 0x0F , iVideoWidth, iVideoHeight, pVideoRawStream, pPHVSImp->uVideoDataLength, pVideoPacket->pPH->total_length);
-
-            g_SMControllerRTInfo.uOutputedVideoPackets[g_SMControllerRTInfo.iCurrentIndex]++;
-            if ( pVideoPacket->pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
-               g_SMControllerRTInfo.uOutputedVideoPacketsRetransmitted[g_SMControllerRTInfo.iCurrentIndex]++;
-            if ( pVideoBlock->iReconstructedECUsed > 0 )
-            {
-               if ( pVideoBlock->iReconstructedECUsed > g_SMControllerRTInfo.uOutputedVideoPacketsMaxECUsed[g_SMControllerRTInfo.iCurrentIndex] )
-                  g_SMControllerRTInfo.uOutputedVideoPacketsMaxECUsed[g_SMControllerRTInfo.iCurrentIndex] = pVideoBlock->iReconstructedECUsed;
-               
-               if ( pVideoBlock->iReconstructedECUsed == 1 )
-                  g_SMControllerRTInfo.uOutputedVideoPacketsSingleECUsed[g_SMControllerRTInfo.iCurrentIndex]++;
-               else if ( pVideoBlock->iReconstructedECUsed == 2 )
-                  g_SMControllerRTInfo.uOutputedVideoPacketsTwoECUsed[g_SMControllerRTInfo.iCurrentIndex]++;
-               else
-                  g_SMControllerRTInfo.uOutputedVideoPacketsMultipleECUsed[g_SMControllerRTInfo.iCurrentIndex]++;
-               pVideoBlock->iReconstructedECUsed = 0;
-            }
-         }
-         m_pVideoRxBuffer->advanceStartPosition();
-      }
-
-      // If one way link, or retransmissions are off, 
-      //    or spectator mode, or not paired yet, or test link is in progress
-      //    or negociate radio link is in progress,
-      //    or vehicle has lost link to controller,
-      // skip blocks, if there are more video blocks with gaps in buffer
-      type_rx_video_block_info* pVideoBlock = m_pVideoRxBuffer->getFirstVideoBlockInBuffer();
-      if ( NULL != pVideoBlock )
-      if ( m_pVideoRxBuffer->getMaxReceivedVideoBlockIndexPresentInBuffer() > pVideoBlock->uVideoBlockIndex )
-      {
-         Model* pModel = findModelWithId(m_uVehicleId, 170);
-
-         bool bSkipIncompleteBlocks = false;
-         if ( g_bSearching || g_bUpdateInProgress || pModel->is_spectator )
-            bSkipIncompleteBlocks = true;
-
-         if ( ! bSkipIncompleteBlocks )
-         if ( (NULL == pModel) || pModel->isVideoLinkFixedOneWay() || test_link_is_in_progress() || g_bNegociatingRadioLinks || (g_TimeNow < g_uTimeEndedNegiciateRadioLink + 3000) )
-            bSkipIncompleteBlocks = true;
-
-         if ( ! bSkipIncompleteBlocks )
-         if ( (NULL == pRuntimeInfo) || (!pRuntimeInfo->bIsPairingDone) || (g_TimeNow < pRuntimeInfo->uPairingRequestTime + 100) )
-            bSkipIncompleteBlocks = true;
-
-         if ( ! bSkipIncompleteBlocks )
-         if ( NULL != pModel )
-         if ( ! (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS) )
-            bSkipIncompleteBlocks = true;
-
-         if ( bSkipIncompleteBlocks )
-         {
-            int iCountSkipped = m_pVideoRxBuffer->advanceStartPositionToVideoBlock(m_pVideoRxBuffer->getMaxReceivedVideoBlockIndexPresentInBuffer());
-            g_SMControllerRTInfo.uOutputedVideoPacketsSkippedBlocks[g_SMControllerRTInfo.iCurrentIndex] += iCountSkipped;
-            if ( iCountSkipped > 0 )
-            if ( g_TimeNow > g_TimeLastVideoParametersOrProfileChanged + 3000 )
-            if ( g_TimeNow > g_TimeStart + 5000 )
-               g_SMControllerRTInfo.uTotalCountOutputSkippedBlocks++;
-         }
-         else
-         {
-            //checkAndRequestMissingPackets(false);
-            checkAndDiscardBlocksTooOld();
-         }
-      }
+      m_uLatestVideoPacketReceiveTime = g_TimeNow;
+      updateControllerRTInfoAndVideoDecodingStats(pBuffer, length);
    }
-
-// To fix
-   /*
-   t_packet_header* pPH = (t_packet_header*) pBuffer;
-   t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pBuffer+sizeof(t_packet_header));    
-   u32 video_block_index = pPHVF->video_block_index;
-   u8 video_block_packet_index = pPHVF->video_block_packet_index;
-
-   
-   checkAndDiscardBlocksTooOld();
-   
-   Model* pModel = findModelWithId(pPH->vehicle_id_src, 122);
-   if ( NULL == pModel )
-   {
-      static u32 s_uLastAlarmVideoUnkownTime = 0;
-      static u32 s_uTimeLastAlarmVideoUnkownVehicleId = 0;
-      if ( (s_uLastAlarmVideoUnkownTime == 0 ) || (pPH->vehicle_id_src != s_uTimeLastAlarmVideoUnkownVehicleId) )
-      if ( (s_uLastAlarmVideoUnkownTime == 0 ) || (g_TimeNow > s_uLastAlarmVideoUnkownTime+10000) )
-      {
-         s_uLastAlarmVideoUnkownTime = g_TimeNow;
-         s_uTimeLastAlarmVideoUnkownVehicleId = pPH->vehicle_id_src;
-         send_alarm_to_central(ALARM_ID_GENERIC, ALARM_ID_GENERIC_TYPE_UNKNOWN_VIDEO, pPH->vehicle_id_src);
-      }
-      return 0;
-   }   
-
-   #ifdef PROFILE_RX
-   u32 dTime1 = get_current_timestamp_ms() - uTimeStart;
-   if ( dTime1 >= PROFILE_RX_MAX_TIME )
-      log_softerror_and_alarm("[Profile-Rx] Video processing video packet [%u/%u], interface: %d, len: %d bytes: Discarding old blocks took too long: %u ms. Stack top before/after: %d/%d", video_block_index , video_block_packet_index, interfaceNb, length, dTime1, iStackIndexStart, m_iRXBlocksStackTopIndex);
-   #endif
-
-   int packetsGap = preProcessReceivedVideoPacket(interfaceNb, pBuffer, length);
-
-   #ifdef PROFILE_RX
-   u32 dTime2 = get_current_timestamp_ms() - uTimeStart;
-   if ( dTime2 >= PROFILE_RX_MAX_TIME )
-      log_softerror_and_alarm("[Profile-Rx] Video processing video packet [%u/%u], interface: %d, len: %d bytes: Preprocessing packet took too long: %u ms. Stack top before/after: %d/%d", video_block_index , video_block_packet_index, interfaceNb, length, dTime2, iStackIndexStart, m_iRXBlocksStackTopIndex);
-   #endif
-
-   if ( packetsGap < 0 )
-   {
-      return 0;
-   }
-
-   int added_to_rx_buffer_index = -1;
 
    if ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
-      added_to_rx_buffer_index = processRetransmittedVideoPacket(pBuffer, length);
-   else
-      added_to_rx_buffer_index = processReceivedVideoPacket(pBuffer, length);
-
-   #ifdef PROFILE_RX
-   u32 dTime3 = get_current_timestamp_ms() - uTimeStart;
-   if ( dTime3 >= PROFILE_RX_MAX_TIME )
-      log_softerror_and_alarm("[Profile-Rx] Video processing video packet [%u/%u], interface: %d, len: %d bytes: Adding packet to buffers took too long: %u ms. Stack top before/after: %d/%d", video_block_index , video_block_packet_index, interfaceNb, length, dTime3, iStackIndexStart, m_iRXBlocksStackTopIndex);
-   #endif
-
-   if ( added_to_rx_buffer_index < 0 )
    {
-      return 0;
+      if ( NULL != pRTInfo )
+      {
+         pRTInfo->uCountAckRetransmissions[g_SMControllerRTInfo.iCurrentIndex]++;
+         if ( pPHVS->uStreamInfoFlags == VIDEO_STREAM_INFO_FLAG_RETRANSMISSION_ID )
+         if ( pPHVS->uStreamInfo == m_uRequestRetransmissionUniqueId )
+         {
+            u32 uDeltaTime = g_TimeNow - m_uLastTimeRequestedRetransmission;
+            controller_rt_info_update_ack_rt_time(&g_SMControllerRTInfo, pPH->vehicle_id_src, g_SM_RadioStats.radio_interfaces[interfaceNb].assignedLocalRadioLinkId, uDeltaTime);
+         }
+      }
    }
-   int nReturnCanTx = onNewReceivedValidVideoPacket(pModel, pBuffer, length, added_to_rx_buffer_index);
 
-   return nReturnCanTx;
-   */
+   // If one way link, or retransmissions are off, 
+   //    or spectator mode, or not paired yet, or test link is in progress
+   //    or negociate radio link is in progress,
+   //    or vehicle has lost link to controller,
+   // skip blocks, if there are more video blocks with gaps in buffer
+   Model* pModel = findModelWithId(m_uVehicleId, 170);
+   bool bSkipIncompleteBlocks = false;
+
+   if ( g_bSearching || g_bUpdateInProgress || pModel->is_spectator )
+      bSkipIncompleteBlocks = true;
+
+   if ( ! bSkipIncompleteBlocks )
+   if ( (NULL == pModel) || pModel->isVideoLinkFixedOneWay() || test_link_is_in_progress() || g_bNegociatingRadioLinks || (g_TimeNow < g_uTimeEndedNegiciateRadioLink + 3000) )
+      bSkipIncompleteBlocks = true;
+
+   if ( ! bSkipIncompleteBlocks )
+   if ( (NULL == pRuntimeInfo) || (!pRuntimeInfo->bIsPairingDone) || (g_TimeNow < pRuntimeInfo->uPairingRequestTime + 100) )
+      bSkipIncompleteBlocks = true;
+
+   if ( ! bSkipIncompleteBlocks )
+   if ( NULL != pModel )
+   if ( ! (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS) )
+      bSkipIncompleteBlocks = true;
+
+   // Output available video packets
+   type_rx_video_block_info* pVideoBlock = NULL;
+   type_rx_video_packet_info* pVideoPacket = NULL;
+   u8* pVideoRawStreamData = NULL;
+
+   pVideoPacket = m_pVideoRxBuffer->getMarkFirstPacketToOutput(&pVideoBlock, bSkipIncompleteBlocks);
+
+   while ( (NULL != pVideoPacket) && (NULL != pVideoBlock) && (NULL != pVideoPacket->pRawData) )
+   {
+      t_packet_header_video_segment_important* pPHVSImp = pVideoPacket->pPHVSImp;
+      pVideoRawStreamData = pVideoPacket->pVideoData;
+      pVideoRawStreamData += sizeof(t_packet_header_video_segment_important);
+
+      int iVideoWidth = getVideoWidth();
+      int iVideoHeight = getVideoHeight();
+
+      rx_video_output_video_data(m_uVehicleId, (pVideoPacket->pPHVS->uVideoStreamIndexAndType >> 4) & 0x0F , iVideoWidth, iVideoHeight, pVideoRawStreamData, pPHVSImp->uVideoDataLength, pVideoPacket->pPH->total_length);
+
+      g_SMControllerRTInfo.uOutputedVideoPackets[g_SMControllerRTInfo.iCurrentIndex]++;
+      if ( pVideoPacket->pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
+         g_SMControllerRTInfo.uOutputedVideoPacketsRetransmitted[g_SMControllerRTInfo.iCurrentIndex]++;
+      if ( pVideoPacket->bReconstructed )
+      {
+         if ( pVideoBlock->iReconstructedECUsed > g_SMControllerRTInfo.uOutputedVideoPacketsMaxECUsed[g_SMControllerRTInfo.iCurrentIndex] )
+            g_SMControllerRTInfo.uOutputedVideoPacketsMaxECUsed[g_SMControllerRTInfo.iCurrentIndex] = pVideoBlock->iReconstructedECUsed;
+         
+         if ( pVideoBlock->iReconstructedECUsed == 1 )
+            g_SMControllerRTInfo.uOutputedVideoPacketsSingleECUsed[g_SMControllerRTInfo.iCurrentIndex]++;
+         else if ( pVideoBlock->iReconstructedECUsed == 2 )
+            g_SMControllerRTInfo.uOutputedVideoPacketsTwoECUsed[g_SMControllerRTInfo.iCurrentIndex]++;
+         else
+            g_SMControllerRTInfo.uOutputedVideoPacketsMultipleECUsed[g_SMControllerRTInfo.iCurrentIndex]++;
+         pVideoBlock->iReconstructedECUsed = 0;
+      }
+
+      pVideoPacket = m_pVideoRxBuffer->getMarkFirstPacketToOutput(&pVideoBlock, bSkipIncompleteBlocks);
+   }
+
    return 1;
 }
 
@@ -886,73 +612,18 @@ void ProcessorRxVideo::updateControllerRTInfoAndVideoDecodingStats(u8* pRadioPac
 }
 
 
-void ProcessorRxVideo::reconstructBlock(int rx_buffer_block_index)
-{
- /*
-
-   if ( g_PD_ControllerLinkStats.tmp_video_streams_blocks_reconstructed[0] < 254 )
-      g_PD_ControllerLinkStats.tmp_video_streams_blocks_reconstructed[0]++;
-   else
-      g_PD_ControllerLinkStats.tmp_video_streams_blocks_reconstructed[0] = 254;
-
-   // Add existing data packets, mark and count the ones that are missing
-
-   s_FECInfo.missing_packets_count = 0;
-   for( int i=0; i<m_pRXBlocksStack[rx_buffer_block_index]->data_packets; i++ )
-   {
-      s_FECInfo.fec_decode_data_packets_pointers[i] = m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[i].pData;
-      if ( ! (m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[i].uState & RX_PACKET_STATE_RECEIVED) )
-      {
-         s_FECInfo.fec_decode_missing_packets_indexes[s_FECInfo.missing_packets_count] = i;
-         s_FECInfo.missing_packets_count++;
-         //s_VDStatsCache.total_BadOrLostPackets++;
-      }
-   }
-
-   if ( s_FECInfo.missing_packets_count > g_PD_ControllerLinkStats.tmp_video_streams_blocks_max_ec_packets_used[0] )
-   {
-      // missing packets in a block can't be larger than 8 bits (config values for max EC/Data pachets)
-      g_PD_ControllerLinkStats.tmp_video_streams_blocks_max_ec_packets_used[0] = s_FECInfo.missing_packets_count;
-   }
-
-   // Add the needed FEC packets to the list
-   unsigned int pos = 0;
-   for( int i=0; i<m_pRXBlocksStack[rx_buffer_block_index]->fec_packets; i++ )
-   {
-      if ( m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[i+m_pRXBlocksStack[rx_buffer_block_index]->data_packets].uState & RX_PACKET_STATE_RECEIVED)
-      {
-         s_FECInfo.fec_decode_fec_packets_pointers[pos] = m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[i+m_pRXBlocksStack[rx_buffer_block_index]->data_packets].pData;
-         s_FECInfo.fec_decode_fec_indexes[pos] = i;
-         pos++;
-         if ( pos == s_FECInfo.missing_packets_count )
-            break;
-      }
-   }
-
-   fec_decode(m_pRXBlocksStack[rx_buffer_block_index]->video_data_length, s_FECInfo.fec_decode_data_packets_pointers, m_pRXBlocksStack[rx_buffer_block_index]->data_packets, s_FECInfo.fec_decode_fec_packets_pointers, s_FECInfo.fec_decode_fec_indexes, s_FECInfo.fec_decode_missing_packets_indexes, s_FECInfo.missing_packets_count );
-         
-   // Mark all data packets reconstructed as received, set the right data in them
-   for( u32 i=0; i<s_FECInfo.missing_packets_count; i++ )
-   {
-      m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[s_FECInfo.fec_decode_missing_packets_indexes[i]].uState |= RX_PACKET_STATE_RECEIVED;
-      m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[s_FECInfo.fec_decode_missing_packets_indexes[i]].video_data_length = m_pRXBlocksStack[rx_buffer_block_index]->video_data_length;
-      m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[s_FECInfo.fec_decode_missing_packets_indexes[i]].packet_length = m_pRXBlocksStack[rx_buffer_block_index]->packetsInfo[s_FECInfo.fec_decode_missing_packets_indexes[i]].video_data_length;
-      m_pRXBlocksStack[rx_buffer_block_index]->received_data_packets++;
-   }
-  //_rx_video_log_line("Reconstructed block %u, had %d missing packets", s_pRXBlocksStack[rx_buffer_block_index]->video_block_index, s_FECInfo.missing_packets_count);
-*/
-}
-
-
 int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
 {
    type_global_state_vehicle_runtime_info* pRuntimeInfo = getVehicleRuntimeInfo(m_uVehicleId);
    Model* pModel = findModelWithId(m_uVehicleId, 179);
    if ( (NULL == pModel) || (NULL == pRuntimeInfo) )
       return -1;
+   if ( (NULL == m_pVideoRxBuffer) || (0 == m_pVideoRxBuffer->getBlocksCountInBuffer()) )
+      return -1;
 
    if ( rx_video_out_is_stream_output_disabled() )
       return -1;
+
    int iVideoProfileNow = g_SM_VideoDecodeStats.video_streams[m_iIndexVideoDecodeStats].PHVS.uCurrentVideoLinkProfile;
    m_iMilisecondsMaxRetransmissionWindow = ((pModel->video_link_profiles[iVideoProfileNow].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK) >> 8) * 5;
 
@@ -962,9 +633,6 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
       return -1;
    if ( (! pRuntimeInfo->bIsPairingDone) || (g_TimeNow < pRuntimeInfo->uPairingRequestTime + 100) )
       return -1;
-   if ( ! m_pVideoRxBuffer->hasIncompleteBlocks() )
-      return -1;
-   
    if ( pModel->isVideoLinkFixedOneWay() || (!(pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS)) )
       return -1;
 
@@ -973,7 +641,7 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
       return -1;
 
    // If we haven't received any video yet, don't try retransmissions
-   if ( (0 == m_uTimeLastReceivedNewVideoPacket) || (-1 == m_iIndexVideoDecodeStats) )
+   if ( (0 == m_uLatestVideoPacketReceiveTime) || (-1 == m_iIndexVideoDecodeStats) )
       return -1;
 
    if ( g_TimeNow < g_TimeLastVideoParametersOrProfileChanged + 200 )
@@ -981,13 +649,11 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
 
    // If too much time since we last received a new video packet, then discard the entire rx buffer
    if ( m_iMilisecondsMaxRetransmissionWindow > 10 )
-   if ( g_TimeNow >= m_uTimeLastReceivedNewVideoPacket + m_iMilisecondsMaxRetransmissionWindow - 10 )
+   if ( g_TimeNow >= m_uLatestVideoPacketReceiveTime + m_iMilisecondsMaxRetransmissionWindow - 10 )
    {
       log_line("[ProcessorRxVideo] Discard old blocks due to no new video packet for %d ms", m_iMilisecondsMaxRetransmissionWindow);
       m_pVideoRxBuffer->emptyBuffers("No new video received since start of retransmission window");
-      //resetReceiveBuffers(m_iRXBlocksStackTopIndex);
       resetOutputState();
-      m_uTimeLastReceivedNewVideoPacket = 0;
       return -1;
    }
 
@@ -1033,13 +699,6 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
       log_softerror_and_alarm("[ProcessorRxVideo] Tried to request retransmissions before having received a video packet.");
    }
 
-   #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO  
-   //if ( pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK )
-   //if ( pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
-   //if ( g_TimeNow > g_TimeLastControllerLinkStatsSent + CONTROLLER_LINK_STATS_HISTORY_SLICE_INTERVAL_MS/2 )
-   //   PH.total_length += get_controller_radio_link_stats_size();
-   #endif
-
    u8 packet[MAX_PACKET_TOTAL_SIZE];
    m_uRequestRetransmissionUniqueId++;
    memcpy(packet + sizeof(t_packet_header), (u8*)&m_uRequestRetransmissionUniqueId, sizeof(u32));
@@ -1051,52 +710,69 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
    u32 uLastRequestedVideoBlockIndex = 0;
    int iLastRequestedVideoBlockPacketIndex = 0;
 
+   char szBufferBlocks[128];
+   szBufferBlocks[0] = 0;
+
    int iCountPacketsRequested = 0;
    int iCountBlocks = m_pVideoRxBuffer->getBlocksCountInBuffer();
-   // On the last block (the current one), request retransmissions from it only if we received at least a packet from it and last receive time is not right now
    for( int i=0; i<iCountBlocks; i++ )
    {
       type_rx_video_block_info* pVideoBlock = m_pVideoRxBuffer->getVideoBlockInBuffer(i);
       if ( NULL == pVideoBlock )
          continue;
       
-      int iCountToRequestFromBlock = pVideoBlock->iBlockDataPackets - pVideoBlock->iRecvDataPackets - pVideoBlock->iRecvECPackets;
+      if ( i < 3 )
+      {
+         // To remove to revert
+         if ( 0 != szBufferBlocks[0] )
+            strcat(szBufferBlocks, ", ");
+         char szTmp[128];
+         sprintf(szTmp, "[%u: %d/%d pckts]", pVideoBlock->uVideoBlockIndex, pVideoBlock->iRecvDataPackets, pVideoBlock->iRecvECPackets);
+         strcat(szBufferBlocks, szTmp);
+      }
+      int iExpectedDataPackets = pVideoBlock->iBlockDataPackets;
+      if ( pVideoBlock->iEndOfFramePacketIndex >= 0 )
+         iExpectedDataPackets = pVideoBlock->iEndOfFramePacketIndex+1;
+      int iCountToRequestFromBlock = iExpectedDataPackets - pVideoBlock->iRecvDataPackets - pVideoBlock->iRecvECPackets;
 
       // Ignore current last video block if it's still receiving packets now or has not received any packet at all
       if ( i == iCountBlocks-1 )
+      if ( iCountToRequestFromBlock > 0 )
       {
          uTopVideoBlockIndexInBuffer = pVideoBlock->uVideoBlockIndex;
          uTopVideoBlockLastRecvTime = pVideoBlock->uReceivedTime;
          bool bRequestData = false;
+
+         // Reached EC stage but not enough EC packets to reconstruct
          if ( pVideoBlock->iRecvECPackets > 0 )
-         if ( (pVideoBlock->iRecvDataPackets + pVideoBlock->iRecvECPackets) < pVideoBlock->iBlockDataPackets )
+         if ( (pVideoBlock->iRecvDataPackets + pVideoBlock->iBlockECPackets) < iExpectedDataPackets )
+         {
+             log_line("[AdaptiveVideo] Req top block as it has only %d/%d recv data/ec pckts (expected %d data p), now t: %u",
+                pVideoBlock->iRecvDataPackets, pVideoBlock->iRecvECPackets, iExpectedDataPackets, g_TimeNow);
              bRequestData = true;
+         }
+
+         if ( ! bRequestData )
+         if ( pVideoBlock->uReceivedTime < g_TimeNow - DEFAULT_VIDEO_END_FRAME_DETECTION_TIMEOUT )
          if ( pVideoBlock->iRecvDataPackets > 0 )
          {
-             for( int iPacket = pVideoBlock->iBlockDataPackets-1; iPacket >= 0; iPacket-- )
-             {
-                if ( ! pVideoBlock->packets[iPacket].bEmpty )
-                if ( pVideoBlock->packets[iPacket].pPHVSImp != NULL )
-                {
-                   uTopVideoBlockPacketIndexInBuffer = iPacket;
-                   if ( ! (pVideoBlock->packets[iPacket].pPHVSImp->uFrameAndNALFlags & VIDEO_PACKET_FLAGS_IS_END_OF_TRANSMISSION_FRAME) )
-                   if ( pVideoBlock->uReceivedTime < g_TimeNow-2 )
-                      bRequestData = true;
-                   if ( pVideoBlock->iRecvDataPackets < iPacket+1 )
-                   {
-                      bRequestData = true;
-                      iCountToRequestFromBlock = (iPacket+1) - pVideoBlock->iRecvDataPackets;
-                   }
-                   break;
-                }
-             }
+            log_line("[AdaptiveVideo] Req top block pckts as it has a rx time gap (last recv pckt was %u ms ago, time now: %u)",
+              g_TimeNow - pVideoBlock->uReceivedTime, g_TimeNow);
+            bRequestData = true;
          }
+         if ( get_sw_version_build(pModel) < 275 )
+         {
+            bRequestData = false;
+            iCountToRequestFromBlock = 0;
+         }
+
          if ( ! bRequestData )
             continue;
+         log_line("[AdaptiveVideo] Top block (%u) has %d/%d recv data/ec packets, eof: %d, will request %d packets.", pVideoBlock->uVideoBlockIndex, pVideoBlock->iRecvDataPackets, pVideoBlock->iRecvECPackets, pVideoBlock->iEndOfFramePacketIndex, iCountToRequestFromBlock);
       }
       if ( iCountToRequestFromBlock > 0 )
       {
-         for( int k=0; k<pVideoBlock->iBlockDataPackets; k++ )
+         for( int k=0; k<iExpectedDataPackets; k++ )
          {
             if ( NULL == pVideoBlock->packets[k].pRawData )
                continue;
@@ -1147,661 +823,25 @@ int ProcessorRxVideo::checkAndRequestMissingPackets(bool bForceSyncNow)
    pDataInfo = packet + sizeof(t_packet_header) + sizeof(u32) + 2*sizeof(u8);
    u32 uFirstReqBlockIndex =0;
    memcpy(&uFirstReqBlockIndex, pDataInfo, sizeof(u32));
-   log_line("[AdaptiveVideo] Requested retr id %u from vehicle for %d packets ([%u/%d]...[%u/%d])",
+   log_line("[AdaptiveVideo] * Requested retr id %u from vehicle for %d packets ([%u/%d]...[%u/%d])",
       m_uRequestRetransmissionUniqueId, iCountPacketsRequested,
       uFirstReqBlockIndex, (int)pDataInfo[sizeof(u32)], uLastRequestedVideoBlockIndex, iLastRequestedVideoBlockPacketIndex);
    
-   log_line("[AdaptiveVideo] Video blocks in buffer: %d, top/max video block index in buffer: [%u/%u] / [%u/%u]",
-      iCountBlocks, uTopVideoBlockIndexInBuffer, uTopVideoBlockPacketIndexInBuffer, m_pVideoRxBuffer->getMaxReceivedVideoBlockIndexPresentInBuffer(), m_pVideoRxBuffer->getMaxReceivedVideoBlockPacketIndexPresentInBuffer());
-   log_line("[AdaptiveVideo] Max Video block packet received: [%u/%u], top video block last recv time: %u ms ago",
+   log_line("[AdaptiveVideo] * Video blocks in buffer: %d (%s), top/max video block index in buffer: [%u/%u] / [%u/%d]",
+      iCountBlocks, szBufferBlocks, uTopVideoBlockIndexInBuffer, uTopVideoBlockPacketIndexInBuffer, m_pVideoRxBuffer->getMaxReceivedVideoBlockIndex(), m_pVideoRxBuffer->getMaxReceivedVideoBlockPacketIndex());
+   log_line("[AdaptiveVideo] Max Video block packet received: [%u/%d], top video block last recv time: %u ms ago",
       m_pVideoRxBuffer->getMaxReceivedVideoBlockIndex(), m_pVideoRxBuffer->getMaxReceivedVideoBlockPacketIndex(), g_TimeNow - uTopVideoBlockLastRecvTime);
    packets_queue_add_packet(&s_QueueRadioPacketsHighPrio, packet);
    return iCountPacketsRequested;
 }
 
-// Returns index in the receive stack for the block where we added the packet, or -1 if it was discarded
-
-int ProcessorRxVideo::processRetransmittedVideoPacket(u8* pBuffer, int length)
+void discardRetransmissionsInfoAndBuffersOnLengthyOp()
 {
-   t_packet_header* pPH = (t_packet_header*)pBuffer;
-   Model* pModel = findModelWithId(pPH->vehicle_id_src, 125);
-   if ( NULL == pModel )
-      return -1;
-
-   //if ( -1 == m_iRXBlocksStackTopIndex )
-   //   return -1;
-
-   //u32 video_block_index = 0;
-   //u8 video_block_packet_index = 0;
-   
-   // To fix
-   /*
-   t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pBuffer+sizeof(t_packet_header));    
-   video_block_index = pPHVF->video_block_index;
-   video_block_packet_index = pPHVF->video_block_packet_index;
-
-   if ( video_block_index < m_pRXBlocksStack[0]->video_block_index )
-      return -1;
-   
-   if ( video_block_index > m_pRXBlocksStack[m_iRXBlocksStackTopIndex]->video_block_index )
-      return -1;
-
-   int dest_stack_index = (video_block_index-m_pRXBlocksStack[0]->video_block_index);
-   if ( (dest_stack_index < 0) || (dest_stack_index >= m_iRXMaxBlocksToBuffer) )
-      return -1;
-
-   if ( m_pRXBlocksStack[dest_stack_index]->packetsInfo[video_block_packet_index].uState & RX_PACKET_STATE_RECEIVED )
-      return -1;
-
-   addPacketToReceivedBlocksBuffers(pBuffer, length, dest_stack_index, true);
-
-   return dest_stack_index;
-   */
-   return 0;
-}
-
-// Returns index in the receive stack for the block where we added the packet, or -1 if it was discarded
-
-int ProcessorRxVideo::processReceivedVideoPacket(u8* pBuffer, int length)
-{
-   t_packet_header* pPH = (t_packet_header*)pBuffer;
-   Model* pModel = findModelWithId(pPH->vehicle_id_src, 126);
-   if ( NULL == pModel )
-      return -1;
-   u32 video_block_index = 0;
-   u8 video_block_packet_index = 0;
-   
-   u8  block_packets = 0;
-   u8  block_fecs = 0;
-
-// To fix
-   /*
-   t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pBuffer+sizeof(t_packet_header));    
-   video_block_index = pPHVF->video_block_index;
-   video_block_packet_index = pPHVF->video_block_packet_index;
-   block_packets = pPHVF->block_packets;
-   block_fecs = pPHVF->block_fecs;
-
-   // Find a position in blocks buffer where to put it
-
-   // Empty buffers?
-
-   if ( m_iRXBlocksStackTopIndex == -1 )
+   log_line("[ProcessorRxVideo] Discard all retransmissions info after a lengthy router operation.");
+   for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
    {
-      // Never used?
-      if ( m_uLastOutputVideoBlockIndex == MAX_U32 )
-      {
-         // If we are past recoverable point in a block just discard it and wait for a new block
-         if ( video_block_packet_index > block_fecs )
-         {
-            return -1;
-         }
-         log("[VideoRx] Started new buffers at[%u/%d]", video_block_index, video_block_packet_index);
-         m_iRXBlocksStackTopIndex = 0;
-         addPacketToReceivedBlocksBuffers(pBuffer, length, 0, false);
-         return 0;
-      }
-   }
-
-   // Discard received packets from blocks prior to the first block in stack or prior to the last output block
-
-   if ( m_uLastOutputVideoBlockIndex != MAX_U32 )
-   {
-      if ( video_block_index < m_uLastOutputVideoBlockIndex )
-         return -1;
-      if ( video_block_index == m_uLastOutputVideoBlockIndex )
-      if ( video_block_packet_index <= m_uLastOutputVideoBlockPacketIndex )
-         return -1;
-   }
-
-   if ( m_iRXBlocksStackTopIndex >= 0 )
-   if ( video_block_index < m_pRXBlocksStack[0]->video_block_index )
-      return -1;
-
-
-   // Find position for this block in the receive stack
-
-   u32 stackIndex = 0;
-   if ( (m_iRXBlocksStackTopIndex >= 0) && (video_block_index >= m_pRXBlocksStack[0]->video_block_index) )
-      stackIndex = video_block_index - m_pRXBlocksStack[0]->video_block_index;
-   //else if ( m_uLastOutputVideoBlockIndex != MAX_U32 )
-   //   stackIndex = video_block_index - m_uLastOutputVideoBlockIndex-1;
-   
-   if ( stackIndex >= (u32)m_iRXMaxBlocksToBuffer )
-   {
-      int overflow = stackIndex - m_iRXMaxBlocksToBuffer+1;
-      if ( (overflow > m_iRXMaxBlocksToBuffer*2/3) || ((stackIndex - (u32)m_iRXBlocksStackTopIndex) > (u32)m_iRXMaxBlocksToBuffer*2/3) )
-      {
-         log_line("[VideoRx] Discard some rx video blocks as stack is full. %d blocks pending in the stack, oveflow by %d blocks.", m_iRXMaxBlocksToBuffer, overflow );
-         resetReceiveBuffers(m_iRXMaxBlocksToBuffer);
-         resetOutputState();
-      }
-      else
-      {
-         // Discard few more blocks if they also have missing packets and can't be reconstructed right now; to avoid multiple consecutive discards events
-         int iLookAhead = 2 + m_iRXMaxBlocksToBuffer/10;
-         while ( (overflow < m_iRXBlocksStackTopIndex) && (iLookAhead > 0) )
-         {
-            if ( m_pRXBlocksStack[overflow]->received_data_packets + m_pRXBlocksStack[overflow]->received_fec_packets >= m_pRXBlocksStack[overflow]->data_packets )
-               break;
-            overflow++;
-            iLookAhead--;
-         }
-        
-         pushIncompleteBlocksOut(overflow, false);
-      }
-
-      // Did we discarded everything?
-      if ( -1 == m_iRXBlocksStackTopIndex )
-      {
-         // If we are past recoverable point in a block just discard it and wait for a new block
-         if ( video_block_packet_index > block_fecs )
-            return -1;
-
-         m_iRXBlocksStackTopIndex = 0;
-         addPacketToReceivedBlocksBuffers(pBuffer, length, 0, false);
-         return 0;
-      }
-      stackIndex -= overflow;
-   }
-
-   // Add the packet to the buffer
-   addPacketToReceivedBlocksBuffers(pBuffer, length, stackIndex, false);
-   
-   // Add info about any missing blocks in the stack: video block indexes, data scheme, last update time for any skipped blocks
-   for( u32 i=0; i<stackIndex; i++ )
-      if ( 0 == m_pRXBlocksStack[i]->uTimeLastUpdated )
-      {
-         m_pRXBlocksStack[i]->uTimeLastUpdated = g_TimeNow;
-         m_pRXBlocksStack[i]->data_packets = block_packets;
-         m_pRXBlocksStack[i]->fec_packets = block_fecs;
-         m_pRXBlocksStack[i]->video_block_index = video_block_index - stackIndex + i;
-      }
-   return stackIndex;
-   */
-   return 0;
-}
-
-// Return -1 if discarded
-
-int ProcessorRxVideo::preProcessRetransmittedVideoPacket(int interfaceNb, u8* pBuffer, int length)
-{
-   t_packet_header* pPH = (t_packet_header*) pBuffer;
-   
-   Model* pModel = findModelWithId(pPH->vehicle_id_src, 127);
-   if ( NULL == pModel )
-      return -1;
-   
-   u32 video_block_index = 0;
-   u8 video_block_packet_index = 0;
-   u32 uIdRetransmissionRequest = 0;
-
-   // To fix
-   /*
-   t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pBuffer+sizeof(t_packet_header));    
-   video_block_index = pPHVF->video_block_index;
-   video_block_packet_index = pPHVF->video_block_packet_index;
-   uIdRetransmissionRequest = pPHVF->uLastRecvVideoRetransmissionId;
-
-   int iRetransmissionIndex = -1;
-
-   // Compute retransmission roundtrip for this packet
-
-   u32 uSinglePacketRetransmissionTime = 0;
-   if ( video_block_index >= m_pRXBlocksStack[0]->video_block_index )
-   if ( (m_iRXBlocksStackTopIndex >=0) && (video_block_index < m_pRXBlocksStack[m_iRXBlocksStackTopIndex]->video_block_index) )
-   {
-      int dest_stack_index = (video_block_index-m_pRXBlocksStack[0]->video_block_index);
-      if ( (dest_stack_index >= 0) && (dest_stack_index < m_iRXMaxBlocksToBuffer) )
-      if ( ! (m_pRXBlocksStack[dest_stack_index]->packetsInfo[video_block_packet_index].uState & RX_PACKET_STATE_RECEIVED) )
-      if ( m_pRXBlocksStack[dest_stack_index]->packetsInfo[video_block_packet_index].uTimeFirstRetrySent != 0 )
-      {
-         uSinglePacketRetransmissionTime = g_TimeNow - m_pRXBlocksStack[dest_stack_index]->packetsInfo[video_block_packet_index].uTimeFirstRetrySent;
-      
-         m_SM_RetransmissionsStats.history[0].uAvgRetransmissionRoundtripTimeSinglePacket += uSinglePacketRetransmissionTime;
-         m_SM_RetransmissionsStats.history[0].uCountReceivedSingleUniqueRetransmittedPackets++;
-
-         if ( 0 == m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTimeSinglePacket )
-            m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTimeSinglePacket = uSinglePacketRetransmissionTime;
-         if ( 0 == m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket )
-            m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket = uSinglePacketRetransmissionTime;
-         
-         if ( uSinglePacketRetransmissionTime < m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTimeSinglePacket )
-            m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTimeSinglePacket = uSinglePacketRetransmissionTime;
-         if ( (uSinglePacketRetransmissionTime < 255) && (uSinglePacketRetransmissionTime > m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket) )
-            m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket = uSinglePacketRetransmissionTime;
-         if ( uSinglePacketRetransmissionTime >= 255 )
-            m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTimeSinglePacket = 255;
-      }
-   }
-
-   // Found the retransmission info in the list
-   if ( iRetransmissionIndex != -1 )
-   {
-       u32 dTime = (g_TimeNow - pRetransmissionInfo->uRequestTime);
-       if ( (dTime < pRetransmissionInfo->uMinResponseTime) || pRetransmissionInfo->uMinResponseTime == 0 )
-          pRetransmissionInfo->uMinResponseTime = dTime;
-       if ( dTime > pRetransmissionInfo->uMaxResponseTime )
-          pRetransmissionInfo->uMaxResponseTime = dTime;
-
-       if ( dTime < m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTime ||
-            m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTime == 0 )
-          m_SM_RetransmissionsStats.history[0].uMinRetransmissionRoundtripTime = dTime;
-       if ( (dTime < 255) && dTime > m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTime )
-          m_SM_RetransmissionsStats.history[0].uMaxRetransmissionRoundtripTime = dTime;
-
-       // Find the video packet info in the list for this retransmission
-
-       for( int i=0; i<pRetransmissionInfo->uRequestedPackets; i++ )
-       {
-          if ( pRetransmissionInfo->uRequestedVideoBlockIndex[i] == video_block_index )
-          if ( pRetransmissionInfo->uRequestedVideoBlockPacketIndex[i] == video_block_packet_index )
-          {
-             // Received the first ever response for this retransmission 
-             if ( 0 == pRetransmissionInfo->uReceivedPackets )
-             {
-                m_SM_RetransmissionsStats.history[0].uCountAcknowledgedRetransmissions++;
-                m_SM_RetransmissionsStats.totalReceivedRetransmissions++;
-             }
-
-             // Received this segment for the first time
-             if ( 0 == pRetransmissionInfo->uReceivedPacketCount[i] )
-             {
-                m_SM_RetransmissionsStats.listActiveRetransmissions[iRetransmissionIndex].uReceivedPacketTime[i] = g_TimeNow;
-                m_SM_RetransmissionsStats.history[0].uAverageRetransmissionRoundtripTime += dTime;
-                m_SM_RetransmissionsStats.history[0].uCountReceivedRetransmissionPackets++;
-                m_SM_RetransmissionsStats.totalReceivedVideoPackets++;
-                pRetransmissionInfo->uReceivedPackets++;
-             }
-             else
-                m_SM_RetransmissionsStats.history[0].uCountReceivedRetransmissionPacketsDuplicate++;
-                
-             pRetransmissionInfo->uReceivedPacketCount[i]++;
-             break;
-          }
-       }
-
-       if ( pRetransmissionInfo->uRequestedPackets == pRetransmissionInfo->uReceivedPackets )
-       {
-          m_SM_RetransmissionsStats.history[0].uCountCompletedRetransmissions++;
-          // Remove it from the retransmissions list
-          m_SM_RetransmissionsStats.iCountActiveRetransmissions--;
-       }
-   }
-   
-   if ( -1 == m_iRXBlocksStackTopIndex )
-      return -1;
-
-   if ( m_uLastOutputVideoBlockIndex != MAX_U32 )
-   {
-      if ( video_block_index < m_uLastOutputVideoBlockIndex )
-         return -1;
-      if ( video_block_index == m_uLastOutputVideoBlockIndex )
-      if ( video_block_packet_index <= m_uLastOutputVideoBlockPacketIndex )
-         return -1;
-   }
-
-   int stackIndex = video_block_index - m_pRXBlocksStack[0]->video_block_index;
-   if ( (stackIndex < 0) || (stackIndex >= m_iRXMaxBlocksToBuffer) )
-      return -1;
-
-   if ( m_pRXBlocksStack[stackIndex]->packetsInfo[video_block_packet_index].uState & RX_PACKET_STATE_RECEIVED )
-      return -1;
-*/
-   return 0;
-}
-
-
-// Returns the gap from the last received packet, or -1 if discarded
-// The gap is 0 (return value) for retransmitted packets that are not ignored
-
-int ProcessorRxVideo::preProcessReceivedVideoPacket(int interfaceNb, u8* pBuffer, int length)
-{
-   t_packet_header* pPH = (t_packet_header*) pBuffer;
-   
-   Model* pModel = findModelWithId(pPH->vehicle_id_src, 128);
-   if ( NULL == pModel )
-      return -1;
-
-   if ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
-   {
-      return preProcessRetransmittedVideoPacket(interfaceNb, pBuffer, length );
-   }
-
-   u32 video_block_index = 0;
-   u8 video_block_packet_index = 0;
-   u8  block_packets = 0;
-   u8  block_fecs = 0;
-
-   // To fix
-   /*
-   t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pBuffer+sizeof(t_packet_header));    
-   video_block_index = pPHVF->video_block_index;
-   video_block_packet_index = pPHVF->video_block_packet_index;
-   u16 video_data_length = pPHVF->video_data_length;
-   block_packets = pPHVF->block_packets;
-   block_fecs = pPHVF->block_fecs;
-
-   u32 prevRecvVideoBlockIndex = m_InfoLastReceivedVideoPacket.video_block_index;
-   u32 prevRecvVideoBlockPacketIndex = m_InfoLastReceivedVideoPacket.video_block_packet_index;
-
-   m_InfoLastReceivedVideoPacket.receive_time = g_TimeNow;
-   m_InfoLastReceivedVideoPacket.stream_packet_idx = (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX);
-   m_InfoLastReceivedVideoPacket.video_block_index = video_block_index;
-   m_InfoLastReceivedVideoPacket.video_block_packet_index = video_block_packet_index;
-
-   if ( m_uLastOutputVideoBlockIndex != MAX_U32 )
-   {
-      if ( video_block_index < m_uLastOutputVideoBlockIndex )
-         return -1;
-
-      if ( video_block_index == m_uLastOutputVideoBlockIndex )
-      {
-         if ( video_block_packet_index <= m_uLastOutputVideoBlockPacketIndex )
-            return -1;
-         if ( video_block_packet_index >= block_packets )
-         if ( m_uLastOutputVideoBlockPacketIndex == (u32)(block_packets-1) )
-            return -1;
-      }
-   }
-
-   if ( -1 != m_iRXBlocksStackTopIndex )
-   {
-      if ( video_block_index < m_pRXBlocksStack[0]->video_block_index )
-         return -1;
-      
-      int stackIndex = video_block_index - m_pRXBlocksStack[0]->video_block_index;
-      
-      if ( (stackIndex >= 0) && (stackIndex < m_iRXMaxBlocksToBuffer) )
-      if ( m_pRXBlocksStack[stackIndex]->packetsInfo[video_block_packet_index].uState & RX_PACKET_STATE_RECEIVED )
-         return -1;
-   }
-   
-   // Regular video packets that will be processed further
-
-   // Compute gap (in packets) between this and last video packet received;
-   // Ignore EC packets as they can be out of order;
-   // Used only for history reporting purposes
-
-   int gap = 0;
-   if ( video_block_packet_index < block_packets )
-   if ( prevRecvVideoBlockPacketIndex < block_packets )
-   {
-      if ( video_block_index == prevRecvVideoBlockIndex )
-      if ( video_block_packet_index > prevRecvVideoBlockPacketIndex )
-         gap = video_block_packet_index - prevRecvVideoBlockPacketIndex-1;
-
-      if ( video_block_index > prevRecvVideoBlockIndex )
-      {
-          gap = block_packets - prevRecvVideoBlockPacketIndex - 1;
-          gap += video_block_packet_index;
-
-          gap += (block_packets) * (video_block_index - prevRecvVideoBlockIndex - 1);
-      }
-      if ( gap > m_SM_VideoDecodeStatsHistory.outputHistoryBlocksMaxPacketsGapPerPeriod[0] )
-         m_SM_VideoDecodeStatsHistory.outputHistoryBlocksMaxPacketsGapPerPeriod[0] = (gap>255) ? 255:gap;
-   }
-   // Check video resolution change
-
-   int width = 0;
-   int height = 0;
-   u8 video_link_profile = 0;
-   u32 uProfileEncodingFlags = 0;
-   int keyframe_ms = 0;
-   u8 video_stream_and_type = 0;
-   u8 video_fps = 0;
-   u32 fec_time = 0;
-
-   width = pPHVF->video_width;
-   height = pPHVF->video_height;
-   video_link_profile = pPHVF->video_link_profile;
-   uProfileEncodingFlags = pPHVF->uProfileEncodingFlags;
-   keyframe_ms = pPHVF->video_keyframe_interval_ms;
-   video_stream_and_type = pPHVF->video_stream_and_type;
-   video_fps = pPHVF->video_fps;
-   fec_time = pPHVF->fec_time;
-
-   if ( m_SM_VideoDecodeStats.width != 0 && (m_SM_VideoDecodeStats.width != width || m_SM_VideoDecodeStats.height != height) )
-   if ( (m_uLastVideoResolutionChangeVideoBlockIndex == MAX_U32) || (video_block_index > m_uLastVideoResolutionChangeVideoBlockIndex) )
-   {
-      m_uTimeLastVideoStreamChanged = g_TimeNow;
-      m_uLastVideoResolutionChangeVideoBlockIndex = video_block_index;
-      log("[VideoRx] Video resolution changed at video block index %u (From %d x %d to %d x %d). Signal reload of the video player.",
-         video_block_index, m_SM_VideoDecodeStats.width, m_SM_VideoDecodeStats.height, width, height); 
-   }
-
-   // Check if encodings changed (ignore flags related to tx only or irelevant: retransmission window, duplication percent)
-
-   if ( (m_SM_VideoDecodeStats.video_link_profile & 0x0F) != (video_link_profile & 0x0F) ||
-        (m_SM_VideoDecodeStats.uProfileEncodingFlags & (~(VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | 0x00FF0000))) != (uProfileEncodingFlags & (~(VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | 0x00FF0000))) ||
-        m_SM_VideoDecodeStats.data_packets_per_block != block_packets ||
-        m_SM_VideoDecodeStats.fec_packets_per_block != block_fecs ||
-        m_SM_VideoDecodeStats.video_data_length != video_data_length
-      )
-   if ( (m_uLastHardEncodingsChangeVideoBlockIndex == MAX_U32) || (video_block_index > m_uLastHardEncodingsChangeVideoBlockIndex) )
-   {
-      m_uEncodingsChangeCount++;
-      m_uLastHardEncodingsChangeVideoBlockIndex = video_block_index;
-
-      
-      bool bOnlyECschemeChanged = false;
-      if ( (block_packets != m_SM_VideoDecodeStats.data_packets_per_block) || (block_fecs != m_SM_VideoDecodeStats.fec_packets_per_block) )
-      if ( (m_SM_VideoDecodeStats.video_link_profile & 0x0F) == (video_link_profile & 0x0F) &&
-           (m_SM_VideoDecodeStats.uProfileEncodingFlags & (~(VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | 0x00FF0000))) == (uProfileEncodingFlags & (~(VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | 0x00FF0000))) &&
-           (m_SM_VideoDecodeStats.video_data_length == video_data_length)
-         )
-         bOnlyECschemeChanged = true;
-
-      static u32 s_TimeLastEncodingsChangedLog = 0;
-      if ( bOnlyECschemeChanged )
-      {
-          log("[VideoRx] Detected (only) error correction scheme change (%u times) on video at block idx %u. Data/EC Old: %d/%d, New: %d/%d", m_uEncodingsChangeCount, video_block_index, m_SM_VideoDecodeStats.data_packets_per_block, m_SM_VideoDecodeStats.fec_packets_per_block, block_packets, block_fecs);
-      }
-      else if ( g_TimeNow > s_TimeLastEncodingsChangedLog + 5000 )
-      {
-         s_TimeLastEncodingsChangedLog = g_TimeNow;
-         m_uTimeLastVideoStreamChanged = g_TimeNow;
-         log_line("[VideoRx] Detected video encodings change (%u times) on the received stream (at video block index %u):", m_uEncodingsChangeCount, video_block_index);
-         if ( ( m_SM_VideoDecodeStats.video_link_profile & 0x0F) != (video_link_profile & 0x0F) )
-            log_line("Video link profile (from [user/current] to [user/current]: [%s/%s] -> [%s/%s]", str_get_video_profile_name((m_SM_VideoDecodeStats.video_link_profile >> 4) & 0x0F), str_get_video_profile_name(m_SM_VideoDecodeStats.video_link_profile & 0x0F), str_get_video_profile_name((video_link_profile >> 4) & 0x0F), str_get_video_profile_name(video_link_profile & 0x0F));
-         if ( m_SM_VideoDecodeStats.data_packets_per_block != block_packets )
-            log_line("data packets (from/to): %d -> %d", m_SM_VideoDecodeStats.data_packets_per_block, block_packets);
-         if ( m_SM_VideoDecodeStats.fec_packets_per_block != block_fecs )
-            log_line("ec packets (from/to): %d -> %d", m_SM_VideoDecodeStats.fec_packets_per_block, block_fecs);
-         if ( m_SM_VideoDecodeStats.video_data_length != video_data_length )
-            log_line("video data length (from/to): %d -> %d", m_SM_VideoDecodeStats.video_data_length, video_data_length);
-         if ( (m_SM_VideoDecodeStats.uProfileEncodingFlags & (~(VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | 0x00FF0000))) != (uProfileEncodingFlags & (~(VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | 0x00FF0000))) )
-            log_line("Encoding flags (from/to): %u -> %u", m_SM_VideoDecodeStats.uProfileEncodingFlags, uProfileEncodingFlags);
-         log_line("keyframe (from/to): %d ms -> %d ms", m_SM_VideoDecodeStats.keyframe_ms, keyframe_ms);
-      }
-      else
-      {
-         //log_line("New encodings: [%u/0], %d/%d/%d", pPHVF->video_block_index, pPHVF->block_packets, pPHVF->block_fecs, pPHVF->video_data_length);
-      }
-      // Max retransmission window changed on user selected profile?
-
-      bool bReinitDueToWindowChange = false;
-      if ( (video_link_profile & 0x0F) == pModel->video_params.user_selected_video_link_profile )
-      if ( m_uLastReceivedVideoLinkProfile == pModel->video_params.user_selected_video_link_profile )
-      if ( (uProfileEncodingFlags & 0xFF00) != (m_SM_VideoDecodeStats.uProfileEncodingFlags & 0xFF00) )
-         bReinitDueToWindowChange = true;
-
-      if ( (m_SM_VideoDecodeStats.uProfileEncodingFlags & (~(VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | 0x00FF0000))) != (uProfileEncodingFlags & (~(VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | 0x00FF0000))) )
-      {
-         log_line("[VideoRx] Encoding flags changed from/to: %u -> %u.", m_SM_VideoDecodeStats.uProfileEncodingFlags, uProfileEncodingFlags);
-         log_line("[VideoRx] Encoding flags old: [%s]", str_format_video_encoding_flags(m_SM_VideoDecodeStats.uProfileEncodingFlags));
-         log_line("[VideoRx] Encoding flags new: [%s]", str_format_video_encoding_flags(uProfileEncodingFlags));
-      }   
-      m_SM_VideoDecodeStats.video_link_profile = video_link_profile;
-      m_SM_VideoDecodeStats.uProfileEncodingFlags = uProfileEncodingFlags;
-      m_SM_VideoDecodeStats.data_packets_per_block = block_packets;
-      m_SM_VideoDecodeStats.fec_packets_per_block = block_fecs;
-      m_SM_VideoDecodeStats.video_data_length = video_data_length;
-
-      if ( bReinitDueToWindowChange )
-      {
-         log("[VideoRx] Retransmission window (milisec) has changed (to %d ms). Reinitializing rx state...", ((uProfileEncodingFlags & 0xFF00)>>8)*5);
-         resetReceiveState();
-         resetOutputState();
-         gap = 0;
-         m_uLastHardEncodingsChangeVideoBlockIndex = video_block_index;
-         m_uLastVideoResolutionChangeVideoBlockIndex = video_block_index;      
-      }
-   }
-
-   #if defined(RUBY_BUILD_HW_PLATFORM_PI)
-   if (((pPHVF->video_stream_and_type >> 4) & 0x0F) == VIDEO_TYPE_H265 )
-   {
-      static u32 s_uTimeLastSendVideoUnsuportedAlarmToCentral = 0;
-      if ( g_TimeNow > s_uTimeLastSendVideoUnsuportedAlarmToCentral + 20000 )
-      {
-         s_uTimeLastSendVideoUnsuportedAlarmToCentral = g_TimeNow;
-         send_alarm_to_central(ALARM_ID_UNSUPPORTED_VIDEO_TYPE, pPHVF->video_stream_and_type, pPH->vehicle_id_src);
-      }
-   }
-   #endif
-   
-   m_uLastReceivedVideoLinkProfile = (video_link_profile & 0x0F);
-
-   if ( (m_SM_VideoDecodeStats.uProfileEncodingFlags & (~(VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | 0x00FF0000))) != (uProfileEncodingFlags & (~(VIDEO_PROFILE_ENCODING_FLAG_MASK_RETRANSMISSIONS_DUPLICATION_PERCENT | 0x00FF0000))) )
-   {
-      log_line("[VideoRx] Received video encoding flags changed from/to: %u -> %u.", m_SM_VideoDecodeStats.uProfileEncodingFlags, uProfileEncodingFlags);
-      log_line("[VideoRx] Video encoding flags old: [%s]", str_format_video_encoding_flags(m_SM_VideoDecodeStats.uProfileEncodingFlags));
-      log_line("[VideoRx] Video encoding flags new: [%s]", str_format_video_encoding_flags(uProfileEncodingFlags));
-   } 
-
-   m_SM_VideoDecodeStats.uProfileEncodingFlags = uProfileEncodingFlags;
-   m_SM_VideoDecodeStats.video_stream_and_type = video_stream_and_type;
-   m_SM_VideoDecodeStats.keyframe_ms = keyframe_ms;
-   m_SM_VideoDecodeStats.fps = video_fps;
-   m_SM_VideoDecodeStats.width = width;
-   m_SM_VideoDecodeStats.height = height;
-   m_SM_VideoDecodeStats.fec_time = fec_time;
-
-   return gap;
-   */
-   return 0;
-}
-
-
-int ProcessorRxVideo::onNewReceivedValidVideoPacket(Model* pModel, u8* pBuffer, int length, int iAddedToStackIndex)
-{
-  // To fix
- /*
-   t_packet_header* pPH = (t_packet_header*) pBuffer;
-   t_packet_header_video_full_77* pPHVF = (t_packet_header_video_full_77*) (pBuffer+sizeof(t_packet_header));    
-
-   u32 video_block_index = pPHVF->video_block_index;
-   u8 video_block_packet_index = pPHVF->video_block_packet_index;
-   u8 block_packets = pPHVF->block_packets;
-   u8 block_fecs = pPHVF->block_fecs;
-
-   int nReturnCanTx = 0;
-   if ( pPH->packet_flags & PACKET_FLAGS_BIT_CAN_START_TX )
-   if ( !( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED) )
-   if ( video_block_packet_index >= block_packets + block_fecs - 1 )
-      nReturnCanTx = 1;
-
-   if ( pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED )
-   {
-      if ( m_SM_VideoDecodeStatsHistory.outputHistoryReceivedVideoRetransmittedPackets[0] < 254 )
-         m_SM_VideoDecodeStatsHistory.outputHistoryReceivedVideoRetransmittedPackets[0]++;
-   }
-   else
-   {
-      if ( m_SM_VideoDecodeStatsHistory.outputHistoryReceivedVideoPackets[0] < 254 )
-         m_SM_VideoDecodeStatsHistory.outputHistoryReceivedVideoPackets[0]++;
-   }
-   
-   bool bCanSendPacketNow = false;
-   
-   if ( video_block_packet_index == 0 )
-   if ( video_block_index == m_uLastOutputVideoBlockIndex+1 )
-   if ( m_uLastOutputVideoBlockPacketIndex == (m_uLastOutputVideoBlockDataPackets-1) )
-      bCanSendPacketNow = true;
-
-   if ( video_block_packet_index < block_packets )
-   if ( video_block_index == m_uLastOutputVideoBlockIndex )
-   if ( video_block_packet_index == m_uLastOutputVideoBlockPacketIndex+1 )
-      bCanSendPacketNow = true;
-
-   if ( bCanSendPacketNow )
-   {
-      sendPacketToOutput(iAddedToStackIndex, video_block_packet_index);
-   }
-
-   // Can we output the first few blocks?
-   int maxBlocksToOutputIfAvailable = MAX_BLOCKS_TO_OUTPUT_IF_AVAILABLE;
-   do
-   {
-      if ( (m_iRXBlocksStackTopIndex < 0) || (m_pRXBlocksStack[0]->data_packets == 0) )
+      if ( NULL == g_pVideoProcessorRxList[i] )
          break;
-      if ( m_pRXBlocksStack[0]->received_data_packets + m_pRXBlocksStack[0]->received_fec_packets < m_pRXBlocksStack[0]->data_packets )
-         break;
-
-      pushFirstBlockOut();
-      nReturnCanTx = 1;
-      maxBlocksToOutputIfAvailable--;
+      g_pVideoProcessorRxList[i]->discardRetransmissionsInfo();
    }
-   while ( maxBlocksToOutputIfAvailable > 0 );
-
-
-   // Output packets from first video block (if we still have one) if we did reconstructed and outputed older blocks
-   if ( m_iRXBlocksStackTopIndex >= 0 )
-   if ( maxBlocksToOutputIfAvailable != MAX_BLOCKS_TO_OUTPUT_IF_AVAILABLE )
-
-   {
-      for( int i=0; i<m_pRXBlocksStack[0]->data_packets; i++ )
-      {
-         if ( ! (m_pRXBlocksStack[0]->packetsInfo[i].uState & RX_PACKET_STATE_RECEIVED) )
-            break;
-
-         bCanSendPacketNow = false;
-   
-        if ( i == 0 )
-        if ( m_pRXBlocksStack[0]->video_block_index == m_uLastOutputVideoBlockIndex+1 )
-        if ( m_uLastOutputVideoBlockPacketIndex == (m_uLastOutputVideoBlockDataPackets-1) )
-           bCanSendPacketNow = true;
-
-        if ( i == (int)m_uLastOutputVideoBlockPacketIndex+1 )
-           bCanSendPacketNow = true;
-
-        if ( ! bCanSendPacketNow )
-           break;
-
-        sendPacketToOutput(0, i);
-      }
-   }
-
-   // Output it anyway if not using bidirectional video or not using retransmissions and we are past the first block
-   // if EC scheme is new, we need to wait [ECSpread] block
-   // if EC scheme is old, we need to wait only one block
-
-   bool bOutputBocksAsIs = false;
-
-   if ( pModel->isVideoLinkFixedOneWay() )
-      bOutputBocksAsIs = true;
-   if ( !( m_SM_VideoDecodeStats.uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_RETRANSMISSIONS ) )
-      bOutputBocksAsIs = true;
-   if ( g_pControllerSettings->iDisableRetransmissionsAfterControllerLinkLostMiliseconds != 0 )
-   if ( g_TimeNow > g_uTimeLastReceivedResponseToAMessage + g_pControllerSettings->iDisableRetransmissionsAfterControllerLinkLostMiliseconds )
-      bOutputBocksAsIs = true;
-
-   if ( bOutputBocksAsIs )
-   {
-      int iWaitBlocks = 0;
-      u32 uECSpreadHigh = (pPHVF->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
-      u32 uECSpreadLow = (pPHVF->uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
-      iWaitBlocks = uECSpreadLow + (uECSpreadHigh*2);
-      if ( m_iRXBlocksStackTopIndex > iWaitBlocks )
-      {
-         pushFirstBlockOut();
-         nReturnCanTx = 1;
-         return nReturnCanTx;
-      }
-   }
-
-   return nReturnCanTx;
-   */
- return 1;
 }

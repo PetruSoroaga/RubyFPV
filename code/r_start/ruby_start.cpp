@@ -1148,12 +1148,12 @@ void _step_load_init_devices()
 
    #ifdef HW_CAPABILITY_I2C
 
-   char szComm[256];
    board_type = (hardware_getOnlyBoardType() & BOARD_TYPE_MASK);
 
    #if defined HW_PLATFORM_RASPBERRY
    // Initialize I2C bus 0 for different boards types
    log_line("Initialize I2C busses...");
+   char szComm[256];
    sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config 2>/dev/null; cd $current_dir", VEYE_COMMANDS_FOLDER);
    hw_execute_bash_command(szComm, szOutput);
    strcat(szOutput, "\n*END*\n");
@@ -1488,12 +1488,15 @@ int main(int argc, char *argv[])
    _log_oipc_boot_step("Done init radios.");
 
    #ifdef HW_PLATFORM_RADXA_ZERO3
-   strcpy(szFile, FOLDER_RUBY_TEMP);
-   strcat(szFile, FILE_TEMP_INTRO_PLAYING);
-   sprintf(szComm, "touch %s", szFile);
-   hw_execute_bash_command(szComm, NULL);
-   sprintf(szComm, "./%s -b -f res/intro.h264 15 -endexit&", VIDEO_PLAYER_OFFLINE);
-   hw_execute_bash_command_nonblock(szComm, NULL);
+   if ( ! g_bIsFirstBoot )
+   {
+      strcpy(szFile, FOLDER_RUBY_TEMP);
+      strcat(szFile, FILE_TEMP_INTRO_PLAYING);
+      sprintf(szComm, "touch %s", szFile);
+      hw_execute_bash_command(szComm, NULL);
+      sprintf(szComm, "./%s -b -f res/intro.h264 15 -endexit&", VIDEO_PLAYER_OFFLINE);
+      hw_execute_bash_command_nonblock(szComm, NULL);
+   }
    #endif
 
    sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_CONFIG_SYSTEM_TYPE);
@@ -1573,12 +1576,6 @@ int main(int argc, char *argv[])
    log_line("Feature local audio recording is: On.");
 #else
    log_line("Feature local audio recording is: Off.");
-#endif
-
-#ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   log_line("Feature vehicle computes adaptive video is: On.");
-#else
-   log_line("Feature vehicle computes adaptive video is: Off.");
 #endif
 
 #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS

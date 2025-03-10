@@ -369,19 +369,6 @@ u32 compute_ping_interval_ms(u32 uModelFlags, u32 uRxTxSyncType, u32 uCurrentVid
    if ( uModelFlags & MODEL_FLAG_PRIORITIZE_UPLINK )
       ping_interval_ms = (ping_interval_ms * 80) / 100;
 
-   #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   // Send more frequent pings so that vehicle can compute uplink link quality from controller
-   if ( uCurrentVideoProfileFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK )
-   if ( uCurrentVideoProfileFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
-   {
-      if ( ping_interval_ms > 100 )
-      {
-         ping_interval_ms = 100;
-         if ( uModelFlags & MODEL_FLAG_PRIORITIZE_UPLINK )
-            ping_interval_ms = 70;
-      }
-   }
-   #endif
    return ping_interval_ms;
 }
 

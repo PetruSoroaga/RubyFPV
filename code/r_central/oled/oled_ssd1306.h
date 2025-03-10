@@ -61,7 +61,7 @@ int ssd1306_oled_get_point(int16_t x, int16_t y);
 
 int ssd1306_oled_draw_line(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint8_t color);
 
-int ssd1306_oled_draw_string(int16_t x, int16_t y, char *str, uint16_t len, uint8_t color, bool center, ssd1306_font_t font);
+int ssd1306_oled_draw_string(int16_t x, int16_t y, const char *str, uint16_t len, uint8_t color, bool center, ssd1306_font_t font);
 
 int ssd1306_oled_draw_rect(int16_t x, int16_t y, int16_t width, int16_t height, uint8_t corner, uint8_t color, int8_t fill_color);
 

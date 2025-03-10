@@ -690,56 +690,6 @@ int send_packet_to_radio_interfaces(u8* pPacketData, int nPacketLength, int iSen
    return -1;
 }
 
-int get_controller_radio_link_stats_size()
-{
-   #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   int len = sizeof(u8) + sizeof(u32) + 3 * sizeof(u8);
-   len += sizeof(u8) * CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES * g_PD_ControllerLinkStats.radio_interfaces_count;
-   len += sizeof(u8) * CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES * 5 * g_PD_ControllerLinkStats.video_streams_count;
-   return len;
-   #endif
-
-   return 0;
-}
-
-void add_controller_radio_link_stats_to_buffer(u8* pDestBuffer)
-{
-   #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   
-   *pDestBuffer = g_PD_ControllerLinkStats.flagsAndVersion;
-   pDestBuffer++;
-   memcpy(pDestBuffer, &g_PD_ControllerLinkStats.lastUpdateTime, sizeof(u32));
-   pDestBuffer += sizeof(u32);
-   *pDestBuffer = CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES;
-   pDestBuffer++;
-   *pDestBuffer = g_PD_ControllerLinkStats.radio_interfaces_count;
-   pDestBuffer++;
-   *pDestBuffer = g_PD_ControllerLinkStats.video_streams_count;
-   pDestBuffer++;
-
-   for( int i=0; i<g_PD_ControllerLinkStats.radio_interfaces_count; i++ )
-   {
-      memcpy(pDestBuffer, &(g_PD_ControllerLinkStats.radio_interfaces_rx_quality[i][0]), CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES);
-      pDestBuffer += CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES;
-   }
-
-   for( int i=0; i<g_PD_ControllerLinkStats.video_streams_count; i++ )
-   {
-      memcpy(pDestBuffer, &(g_PD_ControllerLinkStats.radio_streams_rx_quality[i][0]), CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES);
-      pDestBuffer += CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES;
-      memcpy(pDestBuffer, &(g_PD_ControllerLinkStats.video_streams_blocks_clean[i][0]), CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES);
-      pDestBuffer += CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES;
-      memcpy(pDestBuffer, &(g_PD_ControllerLinkStats.video_streams_blocks_reconstructed[i][0]), CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES);
-      pDestBuffer += CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES;
-      memcpy(pDestBuffer, &(g_PD_ControllerLinkStats.video_streams_blocks_max_ec_packets_used[i][0]), CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES);
-      pDestBuffer += CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES;
-      memcpy(pDestBuffer, &(g_PD_ControllerLinkStats.video_streams_requested_retransmission_packets[i][0]), CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES);
-      pDestBuffer += CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES;
-   }
-   #endif
-}
-
-
 int get_controller_radio_interface_index_for_radio_link(int iLocalRadioLinkId)
 {
    if ( (iLocalRadioLinkId < 0) || (iLocalRadioLinkId >= g_SM_RadioStats.countLocalRadioLinks) )

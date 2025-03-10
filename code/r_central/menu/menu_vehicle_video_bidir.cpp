@@ -255,7 +255,7 @@ void MenuVehicleVideoBidirectional::sendVideoLinkProfiles()
 
    // Propagate changes to lower video profiles
 
-   propagate_video_profile_changes( &g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], pProfile, &(profiles[0]));
+   propagate_video_profile_changes_to_lower_profiles( &g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], pProfile, &(profiles[0]));
 
    log_line("Sending video encoding flags: %s", str_format_video_encoding_flags(pProfile->uProfileEncodingFlags));
       

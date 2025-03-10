@@ -741,7 +741,7 @@ bool vehicle_launch_video_capture_csi(Model* pModel)
    }
 
    //log_line("Executing video pipeline: [%s]", szBuff);
-   bResult = hw_execute_bash_command_nonblock(szBuff, NULL);
+   bResult = (1 == hw_execute_bash_command_nonblock(szBuff, NULL));
 
    if ( pModel->isActiveCameraVeye() )
    {

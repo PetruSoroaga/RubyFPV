@@ -64,6 +64,7 @@
 #define FILE_TEMP_VIDEO_FILE_PROCESS_ERROR "tmpErrorVideo.stat"
 #define FILE_TEMP_UPDATE_IN_PROGRESS "updateinprogress"
 #define FILE_TEMP_UPDATE_IN_PROGRESS_APPLY "updateinprogressapply"
+#define FILE_TEMP_UPDATE_CONTROLLER_PROGRESS "tmp_ctrl_update_result.txt"
 #define FILE_TEMP_REINIT_RADIO_IN_PROGRESS "radioreinitinprogress"
 #define FILE_TEMP_REINIT_RADIO_REQUEST "radioreinitrequest"
 #define FILE_TEMP_ARMED "armed"

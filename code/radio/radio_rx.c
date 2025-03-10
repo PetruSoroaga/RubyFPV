@@ -458,7 +458,7 @@ int _radio_rx_process_serial_short_packet(int iInterfaceIndex, u8* pPacketBuffer
    return 1;
 }
 
-// return 0 on success, -1 if the interface is now invalid or broken
+// return nb of bytes on success, -1 if the interface is now invalid or broken
 
 int _radio_rx_parse_received_serial_radio_data(int iInterfaceIndex)
 {
@@ -510,7 +510,7 @@ int _radio_rx_parse_received_serial_radio_data(int iInterfaceIndex)
    
    // Received at least the full header?
    if ( iBufferLength < (int)sizeof(t_packet_header_short) )
-      return 0;
+      return iRead;
 
    int iPacketPos = -1;
    do
@@ -539,7 +539,7 @@ int _radio_rx_parse_received_serial_radio_data(int iInterfaceIndex)
             _radio_rx_update_local_stats_on_new_radio_packet(iInterfaceIndex, 1, s_uLastRxShortPacketsVehicleIds[iInterfaceIndex], s_uBuffersSerialMessages[iInterfaceIndex], iBytesToDiscard, 0);
             radio_stats_set_bad_data_on_current_rx_interval(s_pSMRadioStats, iInterfaceIndex);
          }
-         return 0;
+         return iRead;
       }
 
       if ( iPacketPos > 0 )
@@ -560,7 +560,7 @@ int _radio_rx_parse_received_serial_radio_data(int iInterfaceIndex)
       s_uBuffersSerialMessagesReadPos[iInterfaceIndex] -= iShortTotalPacketSize;
       iBufferLength -= iShortTotalPacketSize;
    } while ( (iPacketPos >= 0) && (iBufferLength >= (int)sizeof(t_packet_header_short)) );
-   return 0;
+   return iRead;
 }
 
 // return number of packets parsed, -1 if the interface is now invalid or broken
@@ -845,17 +845,20 @@ void * _thread_radio_rx(void *argument)
          s_uRadioRxLoopTimeMax = uDeltaTime;
       s_uRadioRxLoopTimeAvg = (s_uRadioRxLoopTimeAvg * 99 + uDeltaTime)/100;
       
-      if ( (uDeltaTime >= iPollTimeoutMs + 10) || (uTimeNow - uTimeReadSignaled > 5) )
+      if ( iLoopCounter > 1 )
       {
-         iLoopErrorsCounter++;
-         if ( (iLoopErrorsCounter % 20) == 1 )
-            log_softerror_and_alarm("ERROR Rx loop (count %d) took %u ms (bf-read: %u + aft-read: %u)", iLoopErrorsCounter, uDeltaTime, uTimeReadSignaled - uTimeLastLoopCheck, uTimeNow - uTimeReadSignaled);
-      }
-      else
-      {
-         if ( iLoopErrorsCounter > 1 )
-            log_softerror_and_alarm("ERROR Rx loop (lcount %d) took %u ms (bf-read: %u + aft-read: %u)", iLoopErrorsCounter, uDeltaTime, uTimeReadSignaled - uTimeLastLoopCheck, uTimeNow - uTimeReadSignaled);
-         iLoopErrorsCounter = 0;
+         if ( (uDeltaTime >= iPollTimeoutMs + 10) || (uTimeNow - uTimeReadSignaled > 5) )
+         {
+            iLoopErrorsCounter++;
+            if ( (iLoopErrorsCounter % 20) == 1 )
+               log_softerror_and_alarm("ERROR Rx loop (count %d) took %u ms (bf-read: %u + aft-read: %u)", iLoopErrorsCounter, uDeltaTime, uTimeReadSignaled - uTimeLastLoopCheck, uTimeNow - uTimeReadSignaled);
+         }
+         else
+         {
+            if ( iLoopErrorsCounter > 1 )
+               log_softerror_and_alarm("ERROR Rx loop (lcount %d) took %u ms (bf-read: %u + aft-read: %u)", iLoopErrorsCounter, uDeltaTime, uTimeReadSignaled - uTimeLastLoopCheck, uTimeNow - uTimeReadSignaled);
+            iLoopErrorsCounter = 0;
+         }
       }
       uTimeLastLoopCheck = uTimeNow;
 
@@ -967,18 +970,24 @@ void * _thread_radio_rx(void *argument)
                continue;
             kIndex++;
 
+            if ( iParsedPackets[iInterfaceIndex] <= 0 )
+               continue;
+
             if ( hardware_radio_index_is_serial_radio(iInterfaceIndex) )
             {
-               int iResult = _radio_rx_parse_received_serial_radio_data(iInterfaceIndex);
-               if ( iResult < 0 )
+               iParsedPackets[iInterfaceIndex] = _radio_rx_parse_received_serial_radio_data(iInterfaceIndex);
+               if ( iParsedPackets[iInterfaceIndex] < 0 )
+               {
+                  log_line("[RadioRx] Mark serial radio interface %d as broken", iInterfaceIndex+1);
                   s_RadioRxState.iRadioInterfacesBroken[iInterfaceIndex] = 1;
+               }
             }
-            else if ( iParsedPackets[iInterfaceIndex] > 0 )
+            else
             {
                iParsedPackets[iInterfaceIndex] = _radio_rx_parse_received_wifi_radio_data(iInterfaceIndex, 3);
                if ( (iParsedPackets[iInterfaceIndex] < 0) || ( radio_get_last_read_error_code() == RADIO_READ_ERROR_INTERFACE_BROKEN ) )
                {
-                  log_line("[RadioRx] Mark interface %d as broken", iInterfaceIndex+1);
+                  log_line("[RadioRx] Mark radio interface %d as broken", iInterfaceIndex+1);
                   s_RadioRxState.iRadioInterfacesBroken[iInterfaceIndex] = 1;
                   continue;
                }

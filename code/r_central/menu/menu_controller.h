@@ -30,5 +30,5 @@ class MenuController: public Menu
       bool m_bWaitingForUserFinishUpdateConfirmation;
       void addMessage(const char* szMessage);
       void addMessage2(const char* szMessage, const char* szMsg2);
-      void updateSoftware();
+      void updateControllerSoftware();
 };

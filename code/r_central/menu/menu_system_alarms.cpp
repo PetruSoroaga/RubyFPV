@@ -95,6 +95,12 @@ MenuSystemAlarms::MenuSystemAlarms(void)
 
    addSeparator();
 
+   m_pItemsSelect[10] = new MenuItemSelect("Recording SD Card Overload", "Alarm when recording to SD card slows down the system. Turn this alarm on or off.");
+   m_pItemsSelect[10]->addSelection("Disabled");
+   m_pItemsSelect[10]->addSelection("Enabled");
+   m_pItemsSelect[10]->setUseMultiViewLayout();
+   m_IndexAlarmControllerRecording = addMenuItem( m_pItemsSelect[10]);
+
    m_pItemsSelect[4] = new MenuItemSelect("Controller CPU or Rx Overload", "Turn this alarm on or off.");
    m_pItemsSelect[4]->addSelection("Disabled");
    m_pItemsSelect[4]->addSelection("Enabled");
@@ -155,6 +161,9 @@ void MenuSystemAlarms::valuesToUI()
    m_pItemsSelect[9]->setEnabled(true);
    m_pItemsSelect[9]->setSelectedIndex((pP->uEnabledAlarms & ALARM_ID_DEVELOPER_ALARM)?1:0);
 
+   m_pItemsSelect[10]->setEnabled(true);
+   m_pItemsSelect[10]->setSelectedIndex((pP->uEnabledAlarms & ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING)?1:0);
+
    if ( 0 == m_pItemsSelect[0]->getSelectedIndex() )
    {
       m_pItemsSelect[1]->setEnabled(false);
@@ -166,6 +175,7 @@ void MenuSystemAlarms::valuesToUI()
       m_pItemsSelect[7]->setEnabled(false);
       m_pItemsSelect[8]->setEnabled(false);
       m_pItemsSelect[9]->setEnabled(false);
+      m_pItemsSelect[10]->setEnabled(false);
 
       m_pItemsSelect[1]->setSelectedIndex(0);
       m_pItemsSelect[2]->setSelectedIndex(0);
@@ -176,6 +186,7 @@ void MenuSystemAlarms::valuesToUI()
       m_pItemsSelect[7]->setSelectedIndex(0);
       m_pItemsSelect[8]->setSelectedIndex(0);
       m_pItemsSelect[9]->setSelectedIndex(0);
+      m_pItemsSelect[10]->setSelectedIndex(0);
    }   
 }
 
@@ -280,6 +291,14 @@ void MenuSystemAlarms::onSelectItem()
          pP->uEnabledAlarms &= ~(ALARM_ID_CONTROLLER_RX_TIMEOUT);
       else
          pP->uEnabledAlarms |= (ALARM_ID_CONTROLLER_RX_TIMEOUT);
+   }
+
+   if ( m_IndexAlarmControllerRecording == m_SelectedIndex )
+   {
+      if ( 0 == m_pItemsSelect[10]->getSelectedIndex() )
+         pP->uEnabledAlarms &= ~(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING);
+      else
+         pP->uEnabledAlarms |= (ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING);
    }
 
 

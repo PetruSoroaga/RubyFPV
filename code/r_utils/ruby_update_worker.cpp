@@ -217,17 +217,39 @@ long compute_file_sizes()
    return lTotalSize;
 }
 
-void _write_return_code(int iCode)
+void _write_return_code(int iCode, const char* szText)
 {
+   char szComm[256];
+   char szFile[MAX_FILE_PATH_SIZE];
+   strcpy(szFile, FOLDER_RUBY_TEMP);
+   strcat(szFile, FILE_TEMP_UPDATE_CONTROLLER_PROGRESS);
+
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s", szFile);
+   hw_execute_bash_command(szComm, NULL);
+   FILE* fd = fopen(szFile, "wb");
+   if ( fd != NULL )
+   {
+      fprintf(fd, "%d\n", iCode);
+      if ( (NULL != szText) && (0 != szText[0]) )
+         fprintf(fd, "%s\n", szText);
+      else
+         fprintf(fd, " \n");
+      fclose(fd);
+      log_line("Wrote status code %d and status text: (%s)", iCode, (NULL != szText)?szText:"empty");
+   }
+   else
+     log_softerror_and_alarm("Failed to write update result to file (%s)", szFile);
+
+   // Write legacy code too for older controllers
    hw_execute_bash_command("chmod 777 tmp/tmp_update_result.txt", NULL);
-   FILE* fd = fopen("tmp/tmp_update_result.txt", "wb");
+   fd = fopen("tmp/tmp_update_result.txt", "wb");
    if ( fd != NULL )
    {
       fprintf(fd, "%d\n", iCode);
       fclose(fd);
-      return;
    }
-   log_softerror_and_alarm("Failed to write update result to file tmp/tmp_update_result.txt");
+   else
+     log_softerror_and_alarm("Failed to write update result to legacy file (tmp/tmp_update_result.txt)");
 }
 
 int _replace_runtime_binary_files()
@@ -235,7 +257,7 @@ int _replace_runtime_binary_files()
    if ( (0 == g_szUpdateUnpackFolder[0]) )
    {
       log_line("Invalid function param for copy binary files.");
-      _write_return_code(-10);
+      _write_return_code(-10, "Invalid unpacked update");
       return -1;
    }
 
@@ -266,7 +288,7 @@ int _replace_runtime_binary_files()
       log_line("Content of tmp update folder:");
       log_line("[%s]", szOutput);
       log_line("Found zip archive with no valid ruby_start file in binaries folder. Ignoring it.");
-      _write_return_code(-10);
+      _write_return_code(-10, "Invalid update archive");
       return -1;
    }
 
@@ -300,7 +322,7 @@ int _copy_update_binary_files()
    if ( 0 == g_szUpdateUnpackFolder[0] )
    {
       log_line("Invalid function param for copy update binary files.");
-      _write_return_code(-10);
+      _write_return_code(-10, "Invalid unpacketd achive");
       return -1;
    }
 
@@ -312,24 +334,26 @@ int _copy_update_binary_files()
    sprintf(szComm, "mkdir -p %sbin/", FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
 
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_PI);
+   /*
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s* 2>/dev/null", FOLDER_UPDATES, SUBFOLDER_UPDATES_PI);
    hw_execute_bash_command(szComm, NULL);
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_RADXA);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s* 2>/dev/null", FOLDER_UPDATES, SUBFOLDER_UPDATES_RADXA);
    hw_execute_bash_command(szComm, NULL);
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_OIPC);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s* 2>/dev/null", FOLDER_UPDATES, SUBFOLDER_UPDATES_OIPC);
    hw_execute_bash_command(szComm, NULL);
-
+   */
+   
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %sbin/* %sbin 2>/dev/null", g_szUpdateUnpackFolder, FOLDER_UPDATES);
    hw_execute_bash_command(szComm, NULL);
 
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_PI);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s* 2>/dev/null", FOLDER_UPDATES, SUBFOLDER_UPDATES_PI);
    hw_execute_bash_command(szComm, NULL);
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_RADXA);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s* 2>/dev/null", FOLDER_UPDATES, SUBFOLDER_UPDATES_RADXA);
    hw_execute_bash_command(szComm, NULL);
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_OIPC);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s* 2>/dev/null", FOLDER_UPDATES, SUBFOLDER_UPDATES_OIPC);
    hw_execute_bash_command(szComm, NULL);
 
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_DRIVERS);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s%s* 2>/dev/null", FOLDER_UPDATES, SUBFOLDER_UPDATES_DRIVERS);
    hw_execute_bash_command(szComm, NULL);
 
    hardware_sleep_ms(50);
@@ -343,7 +367,7 @@ int _copy_res_files()
    if ( 0 == g_szUpdateUnpackFolder[0] )
    {
       log_line("Invalid function param for copy res files.");
-      _write_return_code(-10);
+      _write_return_code(-10, "Invalid unpacked archive");
       return -1;
    }
 
@@ -364,7 +388,7 @@ int _copy_plugin_files()
    if ( 0 == g_szUpdateUnpackFolder[0] )
    {
       log_line("Invalid function param for copy plugin files.");
-      _write_return_code(-10);
+      _write_return_code(-10, "Invalid unpacked archive");
       return -1;
    }
 
@@ -398,7 +422,7 @@ int _copy_config_files()
    if ( 0 == g_szUpdateUnpackFolder[0] )
    {
       log_line("Invalid function param for copy config files.");
-      _write_return_code(-10);
+      _write_return_code(-10, "Invalid unpacked archive");
       return -1;
    }
    #ifdef HW_PLATFORM_RASPBERRY
@@ -434,7 +458,7 @@ int _copy_update_drivers()
    if ( 0 == g_szUpdateUnpackFolder[0] )
    {
       log_line("Invalid function param for copy update drivers files.");
-      _write_return_code(-10);
+      _write_return_code(-10, "Invalid unpacked archive");
       return -1;
    }
 
@@ -551,7 +575,7 @@ bool _find_update_info_file()
       log_line("Content of tmp update folder:");
       log_line("[%s]", szOutput);
       log_line("Found zip archive with no valid update info file (missing update file: [%s]). Ignoring it.", szFile);
-      _write_return_code(-10);
+      _write_return_code(-10, "Missing update info from the update archive");
       return false;
    }
    log_line("Found update info file in zip update (%s)", g_szUpdateZipFileName);
@@ -589,15 +613,20 @@ int main(int argc, char *argv[])
       else
          log_line("There is no update update archive on the Ruby main folder.");
 
-      _write_return_code(-1);
+      _write_return_code(-1, "No update found");
       return -1;
    }
 
+   _write_return_code(0, "Unpacking update");
+
    _step_copy_and_extract_zip();
   
+   _write_return_code(0, "Checking update content");
+
    if ( ! _find_update_info_file() )
       return -1;
 
+   _write_return_code(0, "Updating software");
 
    g_TimeNow = get_current_timestamp_ms();
 
@@ -607,12 +636,16 @@ int main(int argc, char *argv[])
    if ( _copy_update_binary_files() < 0 )
       return -1;
 
+   _write_return_code(0, "Updating resources");
+
    if ( _copy_res_files() < 0 )
       return -1;
 
    _copy_plugin_files();
 
    _copy_config_files();
+
+   _write_return_code(0, "Updating drivers");
 
    _copy_update_drivers();
 
@@ -624,6 +657,7 @@ int main(int argc, char *argv[])
 
    process_custom_commands_file();
 
+   _write_return_code(0, "Executing update pre config");
 
    if( access( "ruby_update", R_OK ) != -1 )
    {
@@ -633,6 +667,8 @@ int main(int argc, char *argv[])
       hw_execute_bash_command("chmod 777 ruby_update*", NULL);
    }
 
+   _write_return_code(0, "Finishing up");
+
    if ( ! g_bIsController )
       hw_execute_bash_command("rm -rf ruby_update*.zip", NULL);
 
@@ -641,6 +677,10 @@ int main(int argc, char *argv[])
    else
       log_line("Update vehicle finished.");
 
-   _write_return_code(0);
+   _write_return_code(0, "Finished Successfully");
+   for( int i=0; i<10; i++ )
+      hardware_sleep_ms(200);
+   _write_return_code(1, "Completed");
+
    return (0);
 } 

@@ -57,7 +57,6 @@ u32  g_uControllerId = 0;
 
 t_packet_header_ruby_telemetry_extended_extra_info_retransmissions g_PHTE_Retransmissions;
 t_packet_header_vehicle_tx_history g_PHVehicleTxStats;
-t_packet_data_controller_link_stats g_PD_LastRecvControllerLinksStats;
 // To fix
 //shared_mem_video_link_stats_and_overwrites g_SM_VideoLinkStats;
 shared_mem_video_link_graphs g_SM_VideoLinkGraphs;

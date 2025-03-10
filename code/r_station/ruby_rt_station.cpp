@@ -67,6 +67,7 @@
 #include "processor_rx_audio.h"
 #include "processor_rx_video.h"
 #include "rx_video_output.h"
+#include "rx_video_recording.h"
 #include "process_radio_in_packets.h"
 #include "process_radio_out_packets.h"
 #include "process_local_packets.h"
@@ -1117,21 +1118,6 @@ void init_shared_memory_objects()
    if ( NULL != g_pSM_RadioStats )
       memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
 
-
-   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->audio_params.has_audio_device && g_pCurrentModel->audio_params.enabled )
-   {
-      g_pSM_AudioDecodeStats = shared_mem_controller_audio_decode_stats_open_for_write();
-      if ( NULL == g_pSM_AudioDecodeStats )
-         log_softerror_and_alarm("Failed to open shared mem audio decode stats for writing: %s", SHARED_MEM_AUDIO_DECODE_STATS);
-      else
-         log_line("Opened shared mem audio decode stats stats for writing.");
-   }
-   else
-   {
-      log_line("No audio present on this vehicle. No audio decode stats shared mem to open.");
-      g_pSM_AudioDecodeStats = NULL;
-   }
-
    g_pSM_VideoDecodeStats = shared_mem_video_stream_stats_rx_processors_open_for_write();
    if ( NULL == g_pSM_VideoDecodeStats )
       log_softerror_and_alarm("Failed to open video decoder stats shared memory for write.");
@@ -1497,9 +1483,7 @@ int main(int argc, char *argv[])
       log_error_and_alarm("Failed to open required pipes. Exit.");
       return -1;
    }
-   
-   radio_controller_links_stats_reset(&g_PD_ControllerLinkStats);
-   
+      
    u32 delayMs = DEFAULT_DELAY_WIFI_CHANGE;
    if ( NULL != pP )
       delayMs = (u32) pP->iDebugWiFiChangeDelay;
@@ -1647,6 +1631,10 @@ int main(int argc, char *argv[])
             g_TimeNow - g_pProcessStats->uLoopTimer2,
             g_pProcessStats->uLoopCounter2, g_pProcessStats->uLoopCounter3);
       }
+      if ( g_TimeNow - uLastLoopTime >= 70 )
+      {
+         discardRetransmissionsInfoAndBuffersOnLengthyOp();
+      }
   
       uLastLoopTime = g_TimeNow;
       
@@ -1682,7 +1670,6 @@ int main(int argc, char *argv[])
    vehicle_rt_info_close(g_pSMVehicleRTInfo);
    
    shared_mem_radio_stats_rx_hist_close(g_pSM_HistoryRxStats);
-   shared_mem_controller_audio_decode_stats_close(g_pSM_AudioDecodeStats);
    shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_ROUTER_RX, g_pProcessStats);
    shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_CENTRAL, g_pProcessStatsCentral);
    shared_mem_video_stream_stats_rx_processors_close(g_pSM_VideoDecodeStats);
@@ -1743,12 +1730,6 @@ void video_processors_init()
       log_line("Do one time init of processors rx video...");
       ProcessorRxVideo::oneTimeInit();
    }
-
-   if ( ! g_bSearching )
-   {
-      // To fix video_link_adaptive_init(g_pCurrentModel->uVehicleId);
-      // To fix video_link_keyframe_init(g_pCurrentModel->uVehicleId);
-   }
 }
 
 void video_processors_cleanup()
@@ -1781,7 +1762,8 @@ void _main_loop_try_recevive_video_data()
 
    u32 uTimeStart = g_TimeNow;
    u32 uMaxWait = 2;
-   int iMaxCountToConsume = 20;
+   u32 uReadTimeoutMicros = 400;
+   int iMaxCountToConsume = 5;
    int iTotalConsumedHighPriority = 0;
    int iTotalConsumedRegPriority = 0;
    int iTotalConsumeLoops = 0;
@@ -1793,8 +1775,8 @@ void _main_loop_try_recevive_video_data()
       //---------------------------------------------
       // Check and process first:
       //  Retransmissions received and pings received and other high priority radio messages
-      int iConsumedHigh = _try_read_consume_rx_packets(true, 20, 250);
-      int iConsumedReg = _try_read_consume_rx_packets(false, 20, 250);
+      int iConsumedHigh = _try_read_consume_rx_packets(true, iMaxCountToConsume, 0);
+      int iConsumedReg = _try_read_consume_rx_packets(false, iMaxCountToConsume, uReadTimeoutMicros);
       iTotalConsumedHighPriority += iConsumedHigh;
       iTotalConsumedRegPriority += iConsumedReg;
 
@@ -1809,7 +1791,7 @@ void _main_loop_try_recevive_video_data()
    }
 
    static int s_iCountConsumePacketsLogError = 0;
-   if ( g_TimeNow > uTimeStart + uMaxWait+2 )
+   if ( g_TimeNow > uTimeStart + uMaxWait + 5 )
    {
       //if ( 0 == (s_iCountConsumePacketsLogError % 10) )
          log_softerror_and_alarm("Consuming %d video packets and %d high priority packets in %d consume loops took too long: %u ms", iTotalConsumedRegPriority, iTotalConsumedHighPriority, iTotalConsumeLoops, g_TimeNow - uTimeStart);
@@ -1909,7 +1891,7 @@ void _main_loop_simple(bool bDoBasicTxSync)
       {
          if ( pProcessorRxVideo->m_pVideoRxBuffer->isFrameEndDetected() )
              bSendNow = true;
-         if ( g_TimeNow >= pProcessorRxVideo->getLastestVideoPacketReceiveTime() + 5 )
+         if ( g_TimeNow >= pProcessorRxVideo->getLastestVideoPacketReceiveTime() + DEFAULT_VIDEO_END_FRAME_DETECTION_TIMEOUT )
              bSendNow = true;
       }
    }
@@ -1924,17 +1906,32 @@ void _main_loop_simple(bool bDoBasicTxSync)
    u32 tTime4 = g_TimeNow;
    if ( (g_TimeNow > g_TimeStart + 10000) && (tTime4 > tTime0 + uMaxLoopTime) )
    {
-      log_softerror_and_alarm("Router %s main loop took too long to complete (loop count: %u) (%d milisec: %u + %u + %u + %u), repeat count: %u!!!", bDoBasicTxSync?"basic":"simple", g_pProcessStats->uLoopCounter, tTime4 - tTime0, tTime1-tTime0, tTime2-tTime1, tTime3-tTime2, tTime4-tTime3, s_iCountCPULoopOverflows+1);
+      log_softerror_and_alarm("Router %s main loop took too long to complete (loop count: %u) (%d milisec: %u + %u + %u + %u) recording: %s, repeat count: %u!!!",
+        bDoBasicTxSync?"basic":"simple", g_pProcessStats->uLoopCounter, tTime4 - tTime0, tTime1-tTime0, tTime2-tTime1, tTime3-tTime2, tTime4-tTime3,
+        rx_video_is_recording()?"yes":"no", s_iCountCPULoopOverflows+1);
       if ( ! test_link_is_in_progress() )
       {
          s_iCountCPULoopOverflows++;
-         if ( s_iCountCPULoopOverflows > 5 )
-         if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
-            send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD,(tTime4-tTime0), 0);
+         if ( rx_video_is_recording() )
+         {
+            if ( s_iCountCPULoopOverflows >= 1 )
+            if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
+               send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING,(tTime4-tTime0), 0);
 
-         if ( tTime4 >= tTime0 + 300 )
-         if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
-            send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD,(tTime4-tTime0)<<16, 0);
+            if ( tTime4 >= tTime0 + 300 )
+            if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
+               send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING,(tTime4-tTime0)<<16, 0);
+         }
+         else
+         {
+            if ( s_iCountCPULoopOverflows > 5 )
+            if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
+               send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD,(tTime4-tTime0), 0);
+
+            if ( tTime4 >= tTime0 + 300 )
+            if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
+               send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD,(tTime4-tTime0)<<16, 0);
+         }
       }
    }
    else
@@ -2001,7 +1998,7 @@ void _main_loop_adv_sync()
          bool bSyncNow = false;
          if ( pProcessorRxVideo->m_pVideoRxBuffer->isFrameEndDetected() )
              bSyncNow = true;
-         if ( g_TimeNow >= pProcessorRxVideo->getLastestVideoPacketReceiveTime() + 5 )
+         if ( g_TimeNow >= pProcessorRxVideo->getLastestVideoPacketReceiveTime() + DEFAULT_VIDEO_END_FRAME_DETECTION_TIMEOUT )
              bSyncNow = true;
          pProcessorRxVideo->periodicLoop(g_TimeNow, bSyncNow);
 
@@ -2081,17 +2078,32 @@ void _main_loop_adv_sync()
    u32 tTime4 = g_TimeNow;
    if ( (g_TimeNow > g_TimeStart + 10000) && (tTime4 > tTime0 + uMaxLoopTime) )
    {
-      log_softerror_and_alarm("Router adv sync main loop took too long to complete (loop counter: %u) (%d milisec: %u + %u + %u + %u), repeat count: %u!!!", g_pProcessStats->uLoopCounter, tTime4 - tTime0, tTime1-tTime0, tTime2-tTime1, tTime3-tTime2, tTime4-tTime3, s_iCountCPULoopOverflows+1);
+      log_softerror_and_alarm("Router adv sync main loop took too long to complete (loop counter: %u) (%d milisec: %u + %u + %u + %u), recording: %s, repeat count: %u!!!",
+         g_pProcessStats->uLoopCounter, tTime4 - tTime0, tTime1-tTime0, tTime2-tTime1, tTime3-tTime2, tTime4-tTime3,
+         rx_video_is_recording()?"yes":"no", s_iCountCPULoopOverflows+1);
       if ( ! test_link_is_in_progress() )
       {
          s_iCountCPULoopOverflows++;
-         if ( s_iCountCPULoopOverflows > 5 )
-         if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
-            send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD,(tTime4-tTime0), 0);
+         if ( rx_video_is_recording() )
+         {
+            if ( s_iCountCPULoopOverflows > 1 )
+            if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
+               send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING,(tTime4-tTime0), 0);
 
-         if ( tTime4 >= tTime0 + 300 )
-         if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
-            send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD,(tTime4-tTime0)<<16, 0);
+            if ( tTime4 >= tTime0 + 300 )
+            if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
+               send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING,(tTime4-tTime0)<<16, 0);
+         }
+         else
+         {
+            if ( s_iCountCPULoopOverflows > 5 )
+            if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
+               send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD,(tTime4-tTime0), 0);
+
+            if ( tTime4 >= tTime0 + 300 )
+            if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
+               send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD,(tTime4-tTime0)<<16, 0);
+         }
       }
    }
    else

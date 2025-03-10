@@ -8,7 +8,6 @@
 #include "../radio/radiopackets2.h"
 #include "../radio/radiopackets_rc.h"
 
-
 // These are received using router messages, not shared memory:
 
 extern t_packet_header_vehicle_tx_history g_PHVehicleTxHistory;
@@ -39,9 +38,6 @@ extern shared_mem_radio_stats g_SM_RadioStats;
 extern shared_mem_radio_stats_rx_hist* g_pSM_HistoryRxStats;
 extern shared_mem_radio_stats_rx_hist g_SM_HistoryRxStats;
 extern shared_mem_radio_stats_rx_hist g_SM_HistoryRxStatsVehicle;
-
-extern shared_mem_audio_decode_stats* g_pSM_AudioDecodeStats;
-extern shared_mem_audio_decode_stats g_SM_AudioDecodeStats;
 
 extern shared_mem_video_frames_stats* g_pSM_VideoFramesStatsOutput;
 extern shared_mem_video_frames_stats g_SM_VideoFramesStatsOutput;

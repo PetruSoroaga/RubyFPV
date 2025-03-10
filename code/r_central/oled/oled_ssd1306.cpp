@@ -34,7 +34,7 @@ int ssd1306_iic_write(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t len)
     if (len == 0)
         return 0;
 
-#ifdef HW_PLATFORM_RASPBERRY
+#if defined (HW_PLATFORM_RASPBERRY)
     if (len == 1)
     {
         return wiringPiI2CWriteReg8(i2c_fd, reg, *buf);
@@ -46,15 +46,16 @@ int ssd1306_iic_write(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t len)
     return 0;
 
 #endif
-
+#if defined (HW_PLATFORM_RADXA_ZERO3)
     if (len == 1)
     {
-        return wiringPiI2CWriteReg8(i2c_fd, reg, *buf);
+       return wiringPiI2CWriteReg8(i2c_fd, reg, *buf);
     }
     else
     {
-        return wiringPiI2CWriteBlockData(i2c_fd, reg, len, buf);
+       return wiringPiI2CWriteBlockData(i2c_fd, reg, len, buf);
     }
+#endif
 }
 
 void ssd1306_delay_ms(uint32_t ms)
@@ -241,7 +242,7 @@ int ssd1306_oled_get_point(int16_t x, int16_t y)
 }
 
 // The function has been verified.
-int ssd1306_oled_draw_string(int16_t x, int16_t y, char *str, uint16_t len, uint8_t color, bool center, ssd1306_font_t font)
+int ssd1306_oled_draw_string(int16_t x, int16_t y, const char *str, uint16_t len, uint8_t color, bool center, ssd1306_font_t font)
 {
     if (center)
     {

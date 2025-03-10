@@ -12,6 +12,7 @@ class MenuVehicleOSDPlugin: public Menu
       MenuVehicleOSDPlugin(int pluginIndex);
       virtual ~MenuVehicleOSDPlugin();
       virtual void valuesToUI();
+      virtual void onShow();
       virtual void Render();
       virtual bool periodicLoop();
 

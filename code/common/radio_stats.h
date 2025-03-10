@@ -34,9 +34,6 @@ void radio_stats_update_on_packet_sent_for_radio_stream(shared_mem_radio_stats* 
 
 void radio_stats_set_tx_radio_datarate_for_packet(shared_mem_radio_stats* pSMRS, int iInterfaceIndex, int iLocalRadioLinkIndex, int iDataRate, int iIsVideoPacket);
 
-void radio_controller_links_stats_reset(t_packet_data_controller_link_stats* pControllerStats);
-void radio_controller_links_stats_periodic_update(t_packet_data_controller_link_stats* pControllerStats, u32 timeNow);
-
 int radio_stats_get_reset_stream_lost_packets_flags(shared_mem_radio_stats* pSMRS, u32 uVehicleId, u32 uStreamIndex);
 #ifdef __cplusplus
 }  

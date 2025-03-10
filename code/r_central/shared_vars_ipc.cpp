@@ -64,9 +64,6 @@ shared_mem_radio_stats_rx_hist* g_pSM_HistoryRxStats = NULL;
 shared_mem_radio_stats_rx_hist g_SM_HistoryRxStats;
 shared_mem_radio_stats_rx_hist g_SM_HistoryRxStatsVehicle;
 
-shared_mem_audio_decode_stats* g_pSM_AudioDecodeStats = NULL;
-shared_mem_audio_decode_stats g_SM_AudioDecodeStats;
-
 shared_mem_video_frames_stats* g_pSM_VideoFramesStatsOutput = NULL;
 shared_mem_video_frames_stats g_SM_VideoFramesStatsOutput;
 //shared_mem_video_frames_stats* g_pSM_VideoInfoStatsRadioIn = NULL;

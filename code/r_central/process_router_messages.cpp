@@ -567,6 +567,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
 {
    if ( NULL == pPacketBuffer )
       return -1;
+
    t_packet_header* pPH = (t_packet_header*) pPacketBuffer;
    
    if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) != PACKET_COMPONENT_LOCAL_CONTROL )
@@ -681,6 +682,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
 
    if ( pPH->packet_type == PACKET_TYPE_OTA_UPDATE_STATUS )
    {
+      g_TimeNow = get_current_timestamp_ms();
       u8 uStatus = 0;
       u32 uCounter = 0;
 
@@ -709,8 +711,8 @@ int _process_received_message_from_router(u8* pPacketBuffer)
    }
 
    if ( pPH->packet_type == PACKET_TYPE_TEST_RADIO_LINK )
-   {
-      
+   { 
+      g_TimeNow = get_current_timestamp_ms();
       if ( (get_sw_version_major(g_pCurrentModel) < 9) ||
            ((get_sw_version_major(g_pCurrentModel) == 9) && (get_sw_version_minor(g_pCurrentModel) <= 20)) )
          return 0;
@@ -1034,6 +1036,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
 
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROLLER_RADIO_INTERFACE_FAILED_TO_INITIALIZE )
    {
+      g_TimeNow = get_current_timestamp_ms();
       int iRadioInterface = pPH->vehicle_id_dest;
       char szBuff[256];
       
@@ -1165,12 +1168,14 @@ int _process_received_message_from_router(u8* pPacketBuffer)
 
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_BROADCAST_RADIO_REINITIALIZED )
    {
+      g_TimeNow = get_current_timestamp_ms();
       warnings_add_radio_reinitialized();
       return 0;
    }
 
    if ( pPH->packet_type == PACKET_TYPE_RUBY_ALARM )
    {
+      g_TimeNow = get_current_timestamp_ms();
       u32 uAlarmIndex = 0;
       u32 uAlarm = 0;
       u32 uFlags1 = 0;

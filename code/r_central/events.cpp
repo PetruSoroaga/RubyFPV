@@ -40,6 +40,7 @@
 #include "../common/string_utils.h"
 #include "../common/strings_table.h"
 #include "../utils/utils_controller.h"
+#include <ctype.h>
 #include "events.h"
 #include "shared_vars.h"
 #include "timers.h"
@@ -596,7 +597,26 @@ bool _onEventCheckNewModelForActionsToTake(Model* pCurrentlyStoredModel, Model* 
       }
    }
 
-   bool bMustUpdate = false;  
+
+   if ( SYSTEM_SW_BUILD_NUMBER < get_sw_version_build(pNewReceivedModel) )
+   {
+      char szBuff[256];
+      char szBuff2[32];
+      char szBuff3[32];
+      char szBuff4[64];
+      getSystemVersionString(szBuff2, pNewReceivedModel->sw_version);
+      getSystemVersionString(szBuff3, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
+      strcpy(szBuff4, pNewReceivedModel->getVehicleTypeString());
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s has Ruby version %s (b%u) and your controller %s (b%u). You should update your controller.", szBuff4, szBuff2, pNewReceivedModel->sw_version>>16, szBuff3, SYSTEM_SW_BUILD_NUMBER);
+      szBuff[0] = toupper(szBuff[0]);
+      warnings_add(pNewReceivedModel->uVehicleId, szBuff, 0, NULL, 10);
+      MenuConfirmation* pMC = new MenuConfirmation(L("Update Info"), szBuff, 0, true);
+      pMC->m_yPos = 0.3;
+      add_menu_to_stack(pMC);
+      bTookActions = true;
+   }
+
+   bool bMustUpdate = false;
    if ( ((u32)SYSTEM_SW_VERSION_MAJOR)*(int)256 + (u32)SYSTEM_SW_VERSION_MINOR > (pNewReceivedModel->sw_version & 0xFFFF) )
       bMustUpdate = true;
    
@@ -617,6 +637,7 @@ bool _onEventCheckNewModelForActionsToTake(Model* pCurrentlyStoredModel, Model* 
       getSystemVersionString(szBuff3, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
       strcpy(szBuff4, pNewReceivedModel->getVehicleTypeString());
       snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s has Ruby version %s (b%u) and your controller %s (b%u). You should update your %s.", szBuff4, szBuff2, pNewReceivedModel->sw_version>>16, szBuff3, SYSTEM_SW_BUILD_NUMBER, szBuff4);
+      szBuff[0] = toupper(szBuff[0]);
       warnings_add(pNewReceivedModel->uVehicleId, szBuff, 0, NULL, 12);
       bool bArmed = false;
       if ( -1 != iCurrentModelActiveRuntimeIndex )

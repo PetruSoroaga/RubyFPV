@@ -99,6 +99,15 @@ void MenuVehicleOSDPlugins::valuesToUI()
    }
 }
 
+void MenuVehicleOSDPlugins::onShow()
+{
+   int iTemp = m_SelectedIndex;
+   Menu::onShow();
+   valuesToUI();
+   if ( iTemp >= 0 )
+      m_SelectedIndex = iTemp;
+}
+
 
 void MenuVehicleOSDPlugins::Render()
 {

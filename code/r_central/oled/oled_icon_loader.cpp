@@ -70,7 +70,7 @@ OLEDIcon OLEDIconLoader::parse_bmp(const std::string &filename) const
         log_error_and_alarm("[OLED] Resolution over the 128x64 limit: %s", filename.c_str());
     }
 
-    // 读取颜色表
+    // Read color table
     uint32_t color_table[2];
     file.seekg(sizeof(BMPHeader), std::ios::beg);
     file.read(reinterpret_cast<char *>(color_table), 8);

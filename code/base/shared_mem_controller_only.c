@@ -90,25 +90,6 @@ void shared_mem_radio_rx_queue_info_close(shared_mem_radio_rx_queue_info* pAddre
       munmap(pAddress, sizeof(shared_mem_radio_rx_queue_info));
 }
 
-shared_mem_audio_decode_stats* shared_mem_controller_audio_decode_stats_open_for_read()
-{
-   void *retVal = open_shared_mem_for_read(SHARED_MEM_AUDIO_DECODE_STATS, sizeof(shared_mem_audio_decode_stats));
-   return (shared_mem_audio_decode_stats*)retVal;
-}
-
-shared_mem_audio_decode_stats* shared_mem_controller_audio_decode_stats_open_for_write()
-{
-   void *retVal = open_shared_mem_for_write(SHARED_MEM_AUDIO_DECODE_STATS, sizeof(shared_mem_audio_decode_stats));
-   return (shared_mem_audio_decode_stats*)retVal;
-}
-
-void shared_mem_controller_audio_decode_stats_close(shared_mem_audio_decode_stats* pAddress)
-{
-   if ( NULL != pAddress )
-      munmap(pAddress, sizeof(shared_mem_audio_decode_stats));
-   //shm_unlink(szName);
-}
-
 shared_mem_router_vehicles_runtime_info* shared_mem_router_vehicles_runtime_info_open_for_read()
 {
    void *retVal = open_shared_mem_for_read(SHARED_MEM_CONTROLLER_ROUTER_VEHICLES_INFO, sizeof(shared_mem_router_vehicles_runtime_info));

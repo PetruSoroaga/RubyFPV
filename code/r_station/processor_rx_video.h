@@ -83,9 +83,6 @@ class ProcessorRxVideo
 
       u32 getLastTimeVideoStreamChanged();
       u32 getLastestVideoPacketReceiveTime();
-      int getCurrentlyReceivedVideoFPS();
-      int getCurrentlyReceivedVideoKeyframe();
-      int getCurrentlyMissingVideoPackets();
       int getVideoWidth();
       int getVideoHeight();
       int getVideoFPS();
@@ -108,28 +105,12 @@ class ProcessorRxVideo
    protected:
       void resetReceiveState();
       void resetOutputState();
-      void resetReceiveBuffers(int iToMaxIndex);
-      void resetReceiveBuffersBlock(int iBlockIndex);
-
+      
       void updateControllerRTInfoAndVideoDecodingStats(u8* pRadioPacket, int iPacketLength);
       
-      void reconstructBlock(int rx_buffer_block_index);
-
       // Returns how many retransmission packets where requested, if any
       int checkAndRequestMissingPackets(bool bForceSyncNow);
-      // Returns true if buffer was discarded
-      bool checkAndDiscardBlocksTooOld();
-      void sendPacketToOutput(int rx_buffer_block_index, int block_packet_index);
-      void pushIncompleteBlocksOut(int iStackIndexToDiscardTo, bool bTooOld);
-      void pushFirstBlockOut();
-
-      int preProcessRetransmittedVideoPacket(int interfaceNb, u8* pBuffer, int length);
-      int preProcessReceivedVideoPacket(int interfaceNb, u8* pBuffer, int length);
-
-      int processRetransmittedVideoPacket(u8* pBuffer, int length);
-      int processReceivedVideoPacket(u8* pBuffer, int length);
-      
-      int onNewReceivedValidVideoPacket(Model* pModel, u8* pBuffer, int length, int iAddedToStackIndex);
+      void checkAndDiscardBlocksTooOld();
 
       bool m_bInitialized;
       int m_iInstanceIndex;
@@ -162,7 +143,6 @@ class ProcessorRxVideo
       u32 m_TimeLastHistoryStatsUpdate;
       u32 m_TimeLastRetransmissionsStatsUpdate;
 
-      u32 m_uTimeLastReceivedNewVideoPacket;
       u32 m_uLastBlockReceivedAckKeyframeInterval;
       u32 m_uLastBlockReceivedAdaptiveVideoInterval;
       u32 m_uLastBlockReceivedSetVideoBitrate;
@@ -171,3 +151,6 @@ class ProcessorRxVideo
       u32 m_uLastVideoBlockIndexResolutionChange;
       u32 m_uLastVideoBlockPacketIndexResolutionChange;
 };
+
+
+void discardRetransmissionsInfoAndBuffersOnLengthyOp();

@@ -32,6 +32,7 @@ int GPIOExport(int pin)
    bytes_written = snprintf(buffer, 6, "%d", pin);
    write(fd, buffer, bytes_written);
    close(fd);
+   log_line("[GPIO] Exported pin %d", pin);
    return 0;
 }
 

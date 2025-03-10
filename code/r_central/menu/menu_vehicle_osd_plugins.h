@@ -13,6 +13,7 @@ class MenuVehicleOSDPlugins: public Menu
       MenuVehicleOSDPlugins();
       virtual ~MenuVehicleOSDPlugins();
       virtual void Render();
+      virtual void onShow();
       virtual void onSelectItem();
       virtual void onItemValueChanged(int itemIndex);
       virtual void valuesToUI();

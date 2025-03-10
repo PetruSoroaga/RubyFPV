@@ -25,5 +25,6 @@ class MenuSystemAlarms: public Menu
       int m_IndexAlarmVehicleRxTimeout;
       int m_IndexAlarmControllerCPUOverload;
       int m_IndexAlarmControllerRxTimeout;
+      int m_IndexAlarmControllerRecording;
       int m_IndexAlarmsDev;
 };

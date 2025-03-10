@@ -244,6 +244,10 @@ int controller_rt_info_check_advance_index(controller_runtime_info* pRTInfo, u32
    pRTInfo->uOutputedVideoPacketsMaxECUsed[iIndex] = 0;
    pRTInfo->uOutputedVideoPacketsSkippedBlocks[iIndex] = 0;
 
+   pRTInfo->uOutputedAudioPackets[iIndex] = 0;
+   pRTInfo->uOutputedAudioPacketsCorrected[iIndex] = 0;
+   pRTInfo->uOutputedAudioPacketsSkipped[iIndex] = 0;
+
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
       pRTInfo->uDbmChangeSpeed[iIndex][i] = 0;
    pRTInfo->uRadioLinkQuality[iIndex] = 0;

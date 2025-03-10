@@ -183,7 +183,7 @@ int ssd1306_draw_char(ssd1306_handle_t *handle, int16_t x, int16_t y, uint8_t ch
     return 0;
 }
 
-int ssd1306_draw_string(ssd1306_handle_t *handle, int16_t x, int16_t y, char *str, uint16_t len, uint8_t color, ssd1306_font_t font)
+int ssd1306_draw_string(ssd1306_handle_t *handle, int16_t x, int16_t y, const char *str, uint16_t len, uint8_t color, ssd1306_font_t font)
 {
     if (handle == NULL || !handle->inited)
     {

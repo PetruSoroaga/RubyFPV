@@ -42,10 +42,13 @@
 #include "../radio/radiopacketsqueue.h"
 #include "../radio/fec.h" 
 #include "packets_utils.h"
+#include "processor_rx_video.h"
+#include "generic_rx_ecbuffers.h"
 
 #include "shared_vars.h"
 #include "timers.h"
 
+GenericRxECBuffers s_RxEcBuffersAudio;
 bool s_bAudioProcessingStarted = false;
 bool s_bHasAudioOutputDevice = false;
 int s_fPipeAudioPlayerOutput = -1;
@@ -54,35 +57,20 @@ int s_fPipeAudioPlayerQueueRead = -1;
 int s_fPipeAudioBufferWrite = -1;
 int s_fPipeAudioBufferRead = -1;
 
-u32 s_uCurrentRxAudioBlockIndex = MAX_U32;
-
 int s_iAudioDataPacketsPerBlock = DEFAULT_AUDIO_P_DATA;
 int s_iAudioECPacketsPerBlock = DEFAULT_AUDIO_P_EC;
 int s_iAudioPacketSize = 0;
 
-u8 s_BufferAudioPackets[MAX_BUFFERED_AUDIO_PACKETS][MAX_PACKET_PAYLOAD];
-bool s_BufferAudioPacketsReceived[MAX_BUFFERED_AUDIO_PACKETS];
-u32 s_uReceivedDataPacketsForCurrentBlock = 0;
-u32 s_uReceivedECPacketsForCurrentBlock = 0;
-
 u32 s_uLastRecvAudioBlockIndex = MAX_U32;
 u32 s_uLastRecvAudioBlockPacketIndex = MAX_U32;
-
-u32 s_uLastOutputedBlockIndex = MAX_U32;
-u32 s_uLastOutputedPacketIndex = MAX_U32;
-
-unsigned int fec_decode_audio_missing_packets[MAX_TOTAL_PACKETS_IN_BLOCK];
-unsigned int fec_decode_audio_fec_indexes[MAX_TOTAL_PACKETS_IN_BLOCK];
-u8* fec_decode_audio_data_packets[MAX_TOTAL_PACKETS_IN_BLOCK];
-u8* fec_decode_audio_fec_packets[MAX_TOTAL_PACKETS_IN_BLOCK];
-unsigned int missing_audio_packets_count_for_fec = 0;
+u32 s_uLastTimeRecvAudioPacket = 0;
 
 int s_iAudioRecordingSegment = 0;
 FILE* s_pFileAudioRecording = NULL;
 int s_iTokenPositionToCheck = 0;
 char s_szAudioToken[24];
 
-FILE* s_pFileRawStreamOutput = NULL;
+bool s_bAudioPlayerStarted = false;
 pthread_t s_ThreadAudioBuffering;
 bool s_bThreadAudioBufferingStarted = false;
 bool s_bStopThreadAudioBuffering = false;
@@ -92,11 +80,9 @@ bool s_bThreadAudioQueueingStarted = false;
 bool s_bStopThreadAudioQueueing = false;
 
 u8  s_uAudioBufferedPackets[MAX_BUFFERED_AUDIO_PACKETS][MAX_PACKET_PAYLOAD];
-int s_iAudioBufferedPacketsSizes[MAX_BUFFERED_AUDIO_PACKETS];
 int s_iAudioBufferWritePos = 0;
 int s_iAudioBufferReadPos = 0;
 int s_iAudioBufferPacketsToCache = DEFAULT_AUDIO_BUFFERING_SIZE;
-
 
 
 void* _thread_audio_queueing_playback(void *argument)
@@ -113,6 +99,11 @@ void* _thread_audio_queueing_playback(void *argument)
    {
       if ( s_fPipeAudioPlayerQueueRead <= 0 )
       {
+         if ( s_bStopThreadAudioQueueing )
+         {
+            log_line("[AudioRx-ThdQue] Received request to stop.");
+            break;
+         }
          hardware_sleep_ms(10);
          continue;
       }
@@ -123,9 +114,14 @@ void* _thread_audio_queueing_playback(void *argument)
       FD_ZERO(&exceSet);
       FD_SET(s_fPipeAudioPlayerQueueRead, &exceSet);
       timePipeInput.tv_sec = 0;
-      timePipeInput.tv_usec = 20*1000; // 20 miliseconds timeout
+      timePipeInput.tv_usec = 50*1000; // 50 miliseconds timeout
 
       int iSelResult = select(s_fPipeAudioPlayerQueueRead+1, &readSet, NULL, &exceSet, &timePipeInput);
+      if ( s_bStopThreadAudioQueueing )
+      {
+         log_line("[AudioRx-ThdQue] Received request to stop.");
+         break;
+      }
       if ( iSelResult <= 0 )
          continue;
       if( FD_ISSET(s_fPipeAudioPlayerQueueRead, &exceSet) || g_bQuit )
@@ -134,7 +130,12 @@ void* _thread_audio_queueing_playback(void *argument)
          break;
       }
 
-      iReadSize = read(s_fPipeAudioPlayerQueueRead, uBuffer, s_iAudioPacketSize);
+      iReadSize = read(s_fPipeAudioPlayerQueueRead, uBuffer, s_iAudioPacketSize-sizeof(u32));
+      if ( s_bStopThreadAudioQueueing )
+      {
+         log_line("[AudioRx-ThdQue] Received request to stop.");
+         break;
+      }
 
       if ( 0 == iCountReads )
          log_line("[AudioRx-ThdQue] Start reading input data (%d bytes)", iReadSize);
@@ -142,8 +143,6 @@ void* _thread_audio_queueing_playback(void *argument)
 
       if ( iReadSize <= 0 )
       {
-         if ( s_bStopThreadAudioQueueing )
-            break;
          hardware_sleep_ms(10);
          continue;
       }
@@ -180,6 +179,11 @@ void* _thread_audio_buffering_playback(void *argument)
    {
       if ( s_fPipeAudioBufferRead <= 0 )
       {
+         if ( s_bStopThreadAudioBuffering )
+         {
+            log_line("[AudioRx-ThdBuf] Received request to stop.");
+            break;
+         }
          hardware_sleep_ms(10);
          continue;
       }
@@ -190,9 +194,14 @@ void* _thread_audio_buffering_playback(void *argument)
       FD_ZERO(&exceSet);
       FD_SET(s_fPipeAudioBufferRead, &exceSet);
       timePipeInput.tv_sec = 0;
-      timePipeInput.tv_usec = 20*1000; // 20 miliseconds timeout
+      timePipeInput.tv_usec = 50*1000; // 50 miliseconds timeout
 
       int iSelResult = select(s_fPipeAudioBufferRead+1, &readSet, NULL, &exceSet, &timePipeInput);
+      if ( s_bStopThreadAudioBuffering )
+      {
+         log_line("[AudioRx-ThdBuf] Received request to stop.");
+         break;
+      }
       if ( iSelResult <= 0 )
          continue;
       if( FD_ISSET(s_fPipeAudioBufferRead, &exceSet) )
@@ -201,39 +210,52 @@ void* _thread_audio_buffering_playback(void *argument)
          break;
       }
 
-      iReadSize = read(s_fPipeAudioBufferRead, &s_uAudioBufferedPackets[s_iAudioBufferWritePos][0], s_iAudioPacketSize);
-
+      iReadSize = read(s_fPipeAudioBufferRead, &s_uAudioBufferedPackets[s_iAudioBufferWritePos][0], s_iAudioPacketSize-sizeof(u32));
+      if ( s_bStopThreadAudioBuffering )
+      {
+         log_line("[AudioRx-ThdBuf] Received request to stop.");
+         break;
+      }
       if ( iReadSize <= 0 )
       {
-         if ( s_bStopThreadAudioBuffering )
-            break;
          hardware_sleep_ms(10);
          continue;
       }
-      if ( s_bStopThreadAudioBuffering )
-         break;
+      if ( iReadSize != s_iAudioPacketSize-(int)sizeof(u32) )
+      {
+         log_softerror_and_alarm("[AudioRx-ThdBuf] Read a buffered packet that is smaller (%d bytes) than expected audio packet size (%d bytes)",
+            iReadSize, s_iAudioPacketSize-sizeof(u32));
+         continue;
+      }
 
-      s_iAudioBufferedPacketsSizes[s_iAudioBufferWritePos] = iReadSize;
       s_iAudioBufferWritePos++;
       if ( s_iAudioBufferWritePos >= MAX_BUFFERED_AUDIO_PACKETS )
          s_iAudioBufferWritePos = 0;
-      s_iAudioBufferedPacketsSizes[s_iAudioBufferWritePos] = 0;
 
       if ( s_iAudioBufferReadPos == s_iAudioBufferWritePos )
-         continue;
+      {
+         s_iAudioBufferReadPos++;
+         if ( s_iAudioBufferReadPos >= MAX_BUFFERED_AUDIO_PACKETS )
+            s_iAudioBufferReadPos = 0;
+      }
 
       int iDiff = s_iAudioBufferWritePos - s_iAudioBufferReadPos;
       if ( s_iAudioBufferWritePos < s_iAudioBufferReadPos )
          iDiff = MAX_BUFFERED_AUDIO_PACKETS - s_iAudioBufferReadPos + s_iAudioBufferWritePos;
 
-      if ( iDiff < s_iAudioBufferPacketsToCache )
+      if ( (iDiff == 0) || (iDiff < (s_iAudioBufferPacketsToCache+1)) )
          continue;
 
       while ( iDiff > s_iAudioBufferPacketsToCache )
       {
+         if ( s_bStopThreadAudioBuffering )
+         {
+            log_line("[AudioRx-ThdBuf] Received request to stop.");
+            break;
+         }
          if ( s_fPipeAudioPlayerQueueWrite > 0 )
          {
-            int iRes = write(s_fPipeAudioPlayerQueueWrite, &s_uAudioBufferedPackets[s_iAudioBufferReadPos][0], s_iAudioBufferedPacketsSizes[s_iAudioBufferReadPos]);
+            int iRes = write(s_fPipeAudioPlayerQueueWrite, &s_uAudioBufferedPackets[s_iAudioBufferReadPos][0], s_iAudioPacketSize-sizeof(u32));
             if ( iRes < 0 )
             {
                log_line("[AudioRx-ThdBuf] Failed to write to audio player pipe.");
@@ -246,7 +268,17 @@ void* _thread_audio_buffering_playback(void *argument)
          s_iAudioBufferReadPos++;
          if ( s_iAudioBufferReadPos >= MAX_BUFFERED_AUDIO_PACKETS )
             s_iAudioBufferReadPos = 0;
+         if ( s_iAudioBufferReadPos == s_iAudioBufferWritePos )
+            break;
          iDiff--;
+      }
+      if ( s_iAudioBufferPacketsToCache > 0 )
+         s_iAudioBufferPacketsToCache--;
+
+      if ( s_bStopThreadAudioBuffering )
+      {
+         log_line("[AudioRx-ThdBuf] Received request to stop.");
+         break;
       }
    }
    log_line("[AudioRx-ThdBuf] Finished audio playback buffering thread.");
@@ -319,6 +351,7 @@ void _open_audio_pipes()
 
 void stop_audio_player_and_pipe()
 {
+   log_line("[AudioRx] Stopping adio stream and player...");
    if ( -1 != s_fPipeAudioPlayerQueueWrite )
       close(s_fPipeAudioPlayerQueueWrite);
    s_fPipeAudioPlayerQueueWrite = -1;
@@ -340,27 +373,42 @@ void stop_audio_player_and_pipe()
    s_fPipeAudioPlayerOutput = -1;
 
    s_bStopThreadAudioBuffering = true;
+   int iCounter = 50;
+   while ( s_bThreadAudioBufferingStarted && (iCounter > 0) )
+   {
+      hardware_sleep_ms(10);
+      iCounter--;
+   }
+
    if ( s_bThreadAudioBufferingStarted )
    {
+      log_softerror_and_alarm("[AudioRx] Thread audio buffering failed to stop. Cancel it.");
       pthread_cancel(s_ThreadAudioBuffering);
    }
    s_bThreadAudioBufferingStarted = false;
+   s_bStopThreadAudioBuffering = false;
+
+   log_line("[AudioRx] Stopped thread for audio buffering.");
 
    s_bStopThreadAudioQueueing = true;
+   iCounter = 50;
+   while ( s_bThreadAudioQueueingStarted && (iCounter > 0) )
+   {
+      hardware_sleep_ms(10);
+      iCounter--;
+   }
    if ( s_bThreadAudioQueueingStarted )
    {
+      log_softerror_and_alarm("[AudioRx] Thread audio queueing failed to stop. Cancel it.");
       pthread_cancel(s_ThreadAudioQueueing);
    }
    s_bThreadAudioQueueingStarted = false;
+   s_bStopThreadAudioQueueing = false;
+   log_line("[AudioRx] Stopped thread for audio queueing.");
 
-   if ( g_bSearching )
-      return;
-   if ( ! g_pCurrentModel->isAudioCapableAndEnabled() )
-      return;
-   if ( ! s_bHasAudioOutputDevice )
-      return;    
-
-   hw_stop_process("aplay");
+   if ( s_bAudioPlayerStarted )
+      hw_stop_process("aplay");
+   log_line("[AudioRx] Stopped adio stream and player.");
 }
 
 void start_audio_player_and_pipe()
@@ -388,13 +436,27 @@ void start_audio_player_and_pipe()
       return;
    }
    
+   log_line("[AudioRx] Starting audio streaming and player...");
+
    char szComm[128];
-   sprintf(szComm, "aplay -q --disable-resample -N -R 10000 -c 1 --rate 44100 --format S16_LE %s 2>/dev/null &", FIFO_RUBY_AUDIO1);
+   //sprintf(szComm, "aplay -q --disable-resample -N -R 10000 -c 1 --rate 44100 --format S16_LE %s 2>/dev/null &", FIFO_RUBY_AUDIO1);
+   sprintf(szComm, "aplay -q -N -R 10000 -c 1 --rate 44100 --format S16_LE %s", FIFO_RUBY_AUDIO1);
    if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
-      sprintf(szComm, "aplay -q -N -R 10000 -c 1 --rate 8000 --format S16_BE %s 2>/dev/null &", FIFO_RUBY_AUDIO1);
+      sprintf(szComm, "aplay -q -N -R 10000 -c 1 --rate 8000 --format S16_BE %s", FIFO_RUBY_AUDIO1);
+   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   char szDevice[64];
+   szDevice[0] = 0;
+   if ( hardware_getOnlyBoardType() == BOARD_TYPE_RADXA_3C )
+      strcpy(szDevice, "-D hw:CARD=rockchiphdmi0 ");
+
+   sprintf(szComm, "aplay -q %s-N -R 10000 -c 1 --rate 44100 --format S16_LE %s", szDevice, FIFO_RUBY_AUDIO1);
+   if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
+      sprintf(szComm, "aplay -q %s-N -R 10000 -c 1 --rate 8000 --format S16_BE %s", szDevice, FIFO_RUBY_AUDIO1);
+   #endif
    hw_execute_bash_command_nonblock(szComm, NULL);
    hardware_sleep_ms(20);
 
+   s_bAudioPlayerStarted = true;
    _open_audio_pipes();
 
    pthread_attr_t attr;
@@ -406,12 +468,13 @@ void start_audio_player_and_pipe()
    pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
    params.sched_priority = 0;
    pthread_attr_setschedparam(&attr, &params);
-   s_bThreadAudioQueueingStarted = false;
+   s_bThreadAudioQueueingStarted = true;
    s_bStopThreadAudioQueueing = false;
    if ( 0 != pthread_create(&s_ThreadAudioQueueing, &attr, &_thread_audio_queueing_playback, NULL) )
+   {
       log_softerror_and_alarm("[AudioRx] Failed to create queueing thread.");
-   else
-      s_bThreadAudioQueueingStarted = true;
+      s_bThreadAudioQueueingStarted = false;
+   }
    pthread_attr_destroy(&attr);
 
    pthread_attr_init(&attr);
@@ -420,134 +483,16 @@ void start_audio_player_and_pipe()
    pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
    params.sched_priority = 0;
    pthread_attr_setschedparam(&attr, &params);
-   s_bThreadAudioBufferingStarted = false;
+   s_bThreadAudioBufferingStarted = true;
    s_bStopThreadAudioBuffering = false;
    if ( 0 != pthread_create(&s_ThreadAudioBuffering, &attr, &_thread_audio_buffering_playback, NULL) )
-      log_softerror_and_alarm("[AudioRx] Failed to create playback thread.");
-   else
-      s_bThreadAudioBufferingStarted = true;
+   {
+      log_softerror_and_alarm("[AudioRx] Failed to create playback buffering thread.");
+      s_bThreadAudioBufferingStarted = false;
+   }
    pthread_attr_destroy(&attr);
-}
 
-void _reset_current_audio_rx_block()
-{
-   for( int i=0; i<MAX_BUFFERED_AUDIO_PACKETS; i++ )
-      s_BufferAudioPacketsReceived[i] = false;
-   s_uReceivedDataPacketsForCurrentBlock = 0;
-   s_uReceivedECPacketsForCurrentBlock = 0;
-}
-
-void _output_audio_block(u32 uBlockIndex, u32 uPacketIndex, int iAudioSize)
-{
-   s_uLastOutputedBlockIndex = uBlockIndex;
-   s_uLastOutputedPacketIndex = uPacketIndex;
-
-   int iBreakFoundPosition = -1;
-   u8* pData = &s_BufferAudioPackets[uPacketIndex][0];
-
-   for( int i=0; i<iAudioSize; i++ )
-   {
-      if ( (*pData) != s_szAudioToken[s_iTokenPositionToCheck] )
-      {
-         s_iTokenPositionToCheck = 0;
-         pData++;
-         continue;
-      }
-      pData++;
-      s_iTokenPositionToCheck++;
-      if ( s_szAudioToken[s_iTokenPositionToCheck] == 0 )
-      {
-         iBreakFoundPosition = i+1;
-         break;
-      }
-   }
-
-   if ( iBreakFoundPosition == -1 )
-   {
-      if ( s_fPipeAudioBufferWrite > 0 )
-         write(s_fPipeAudioBufferWrite, &s_BufferAudioPackets[uPacketIndex][0], iAudioSize);
-      #ifdef FEATURE_LOCAL_AUDIO_RECORDING
-      if ( NULL != s_pFileAudioRecording )
-        fwrite(&s_BufferAudioPackets[uPacketIndex][0], 1, iAudioSize, s_pFileAudioRecording);
-      #endif
-      return;
-   }
-
-   #ifdef FEATURE_LOCAL_AUDIO_RECORDING
-   if ( NULL != s_pFileAudioRecording )
-   {
-      fclose(s_pFileAudioRecording);
-      s_pFileAudioRecording = NULL;
-   }
-   #endif
-
-   if ( iBreakFoundPosition >= 0 )
-   {
-      if ( ! g_bSearching )
-      if ( g_pCurrentModel->isAudioCapableAndEnabled() )
-      if ( hardware_has_audio_playback() )
-      {
-         stop_audio_player_and_pipe();
-         start_audio_player_and_pipe();
-      }
-
-      int iToOutput = iAudioSize - iBreakFoundPosition;
-
-      if ( (iToOutput > 0) && (s_fPipeAudioBufferWrite > 0) )
-         write(s_fPipeAudioBufferWrite, &s_BufferAudioPackets[uPacketIndex][iBreakFoundPosition], iToOutput);
-   
-      #ifdef FEATURE_LOCAL_AUDIO_RECORDING
-      s_iAudioRecordingSegment++;
-      char szBuff[128];
-      sprintf(szBuff, "%s%s%d", FOLDER_RUBY_TEMP, FILE_TEMP_AUDIO_RECORDING, s_iAudioRecordingSegment);
-      s_pFileAudioRecording = fopen(szBuff, "wb");
-
-      if ( NULL != s_pFileAudioRecording )
-      if ( iToOutput > 0 )
-         fwrite(&s_BufferAudioPackets[uPacketIndex][iBreakFoundPosition], 1, iToOutput, s_pFileAudioRecording);
-      #endif
-   }
-}
-
-
-void _try_reconstruct_and_output_audio()
-{
-   if ( s_uReceivedDataPacketsForCurrentBlock + s_uReceivedECPacketsForCurrentBlock < (u32)s_iAudioDataPacketsPerBlock )
-      return;
-
-   // Reconstruct block
-
-   // Add existing data packets, mark and count the ones that are missing
-
-   missing_audio_packets_count_for_fec = 0;
-   for(int i=0; i<s_iAudioDataPacketsPerBlock; i++)
-   {
-      fec_decode_audio_data_packets[i] = &s_BufferAudioPackets[i][0];
-      if ( ! s_BufferAudioPacketsReceived[i] )
-      {
-         fec_decode_audio_missing_packets[missing_audio_packets_count_for_fec] = i;
-         missing_audio_packets_count_for_fec++;
-      }
-   }
-
-   // Add the needed FEC packets to the list
-   unsigned int pos = 0;
-   for( int i=0; i<s_iAudioECPacketsPerBlock; i++ )
-   {
-      if ( s_BufferAudioPacketsReceived[i+s_iAudioDataPacketsPerBlock] )
-      {
-         fec_decode_audio_fec_packets[pos] = &s_BufferAudioPackets[i+s_iAudioDataPacketsPerBlock][0];
-         fec_decode_audio_fec_indexes[pos] = i;
-         pos++;
-         if ( pos == missing_audio_packets_count_for_fec )
-            break;
-      }
-   }
-
-   fec_decode(s_iAudioPacketSize, fec_decode_audio_data_packets, (unsigned int) s_iAudioDataPacketsPerBlock, fec_decode_audio_fec_packets, fec_decode_audio_fec_indexes, fec_decode_audio_missing_packets, missing_audio_packets_count_for_fec );
-
-   for(int i=0; i<s_iAudioDataPacketsPerBlock; i++)
-      _output_audio_block(s_uCurrentRxAudioBlockIndex, (u32)i, s_iAudioPacketSize);
+   log_line("[AudioRx] Started audio streaming and player...");
 }
 
 bool is_audio_processing_started()
@@ -557,8 +502,10 @@ bool is_audio_processing_started()
 
 void init_processing_audio()
 {
+   log_line("[AudioRx] Init audio processing...");
    init_audio_rx_state();
-
+   hardware_audio_stop_async_play();
+   
    s_fPipeAudioPlayerOutput = -1;
    s_fPipeAudioBufferWrite = -1;
    s_fPipeAudioBufferRead = -1;
@@ -566,8 +513,10 @@ void init_processing_audio()
    s_bAudioProcessingStarted = false;
 
    if ( g_bSearching || (NULL == g_pCurrentModel) )
+   {
+      log_line("[AudioRx] Searching or NULL model.");
       return;
-
+   }
    if ( ! g_pCurrentModel->audio_params.has_audio_device )
    {
       log_line("[AudioRx] Current vehicle has no audio device. Do not enable audio rx.");
@@ -605,36 +554,51 @@ void init_processing_audio()
    else
       log_softerror_and_alarm("[AudioRx] No output audio devices/soundcards on the controller. Audio output is disabled.");
 
-   //s_pFileRawStreamOutput = fopen("raw_audio_in_stream.data", "wb");
-   //if ( s_pFileRawStreamOutput <= 0 )
-   //   log_softerror_and_alarm("[AudioRx] Failed to open audio rx input stream (%s)", "raw_audio_in_stream.data");
+   log_line("[AudioRx] Init audio processing complete.");
 }
 
 void uninit_processing_audio()
 {
+   log_line("[AudioRx] Uninit audio processing...");
    if ( s_bHasAudioOutputDevice )
       stop_audio_player_and_pipe();
 
-   if ( NULL != s_pFileRawStreamOutput )
-      fclose(s_pFileRawStreamOutput);
-   s_pFileRawStreamOutput = NULL;
-
    s_bAudioProcessingStarted = false;
+
+   log_line("[AudioRx] Uninit audio processing complete.");
 }
 
 void init_audio_rx_state()
 {
-   s_uCurrentRxAudioBlockIndex = MAX_U32;
-   _reset_current_audio_rx_block();
+   log_line("[AudioRx] Init Rx state...");
+   bool bRestartBufferingThread = false;
+   if ( s_bThreadAudioBufferingStarted )
+   {
+      log_line("[AudioRx] Init Rx state: stop buffering thread...");
+      bRestartBufferingThread = true;
+      s_bStopThreadAudioBuffering = true;
+      int iCounter = 50;
+      while ( s_bThreadAudioBufferingStarted && (iCounter > 0) )
+      {
+         hardware_sleep_ms(10);
+         iCounter--;
+      }
+
+      if ( s_bThreadAudioBufferingStarted )
+      {
+         log_softerror_and_alarm("[AudioRx] Thread audio buffering failed to stop. Cancel it.");
+         pthread_cancel(s_ThreadAudioBuffering);
+      }
+      s_bThreadAudioBufferingStarted = false;
+      log_line("[AudioRx] Init Rx state: stopped buffering thread.");
+   }
+
+   log_line("[AudioRx] Init Rx state: config...");
 
    s_uLastRecvAudioBlockIndex = MAX_U32;
    s_uLastRecvAudioBlockPacketIndex = MAX_U32;
-   s_uLastOutputedBlockIndex = MAX_U32;
-   s_uLastOutputedPacketIndex = MAX_U32;
+   s_uLastTimeRecvAudioPacket = 0;
 
-   s_iAudioDataPacketsPerBlock = DEFAULT_AUDIO_P_DATA;
-   s_iAudioECPacketsPerBlock = DEFAULT_AUDIO_P_EC;
-   s_iAudioPacketSize = DEFAULT_AUDIO_PACKET_LENGTH;
    s_iAudioRecordingSegment = 0;
    s_iTokenPositionToCheck = 0;
    strcpy(s_szAudioToken, "0123456789");
@@ -644,6 +608,9 @@ void init_audio_rx_state()
    s_iAudioBufferWritePos = 0;
    s_iAudioBufferReadPos = 0;
    s_iAudioBufferPacketsToCache = DEFAULT_AUDIO_BUFFERING_SIZE;
+   s_iAudioDataPacketsPerBlock = DEFAULT_AUDIO_P_DATA;
+   s_iAudioECPacketsPerBlock = DEFAULT_AUDIO_P_EC;
+   s_iAudioPacketSize = DEFAULT_AUDIO_PACKET_LENGTH;
 
    if ( NULL != g_pCurrentModel )
    {
@@ -653,16 +620,40 @@ void init_audio_rx_state()
       s_iAudioBufferPacketsToCache = (int)((g_pCurrentModel->audio_params.uFlags >> 8) & 0xFF);
    }
 
-   log_line("[AudioRx] Rx state init: current EC scheme: %d/%d, packet length: %d bytes, cache %d packets", s_iAudioDataPacketsPerBlock, s_iAudioECPacketsPerBlock, s_iAudioPacketSize, s_iAudioBufferPacketsToCache);
+   s_RxEcBuffersAudio.init(MAX_BUFFERED_AUDIO_PACKETS, true, (u32)s_iAudioDataPacketsPerBlock, (u32)s_iAudioECPacketsPerBlock, s_iAudioPacketSize);
+   if ( bRestartBufferingThread )
+   {
+      log_line("[AudioRx] Init Rx state: restarting buffering thread...");
+      pthread_attr_t attr;
+      struct sched_param params;
+
+      pthread_attr_init(&attr);
+      pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+      pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+      pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
+      params.sched_priority = 0;
+      pthread_attr_setschedparam(&attr, &params);
+      s_bThreadAudioBufferingStarted = true;
+      s_bStopThreadAudioBuffering = false;
+      if ( 0 != pthread_create(&s_ThreadAudioBuffering, &attr, &_thread_audio_buffering_playback, NULL) )
+      {
+         log_softerror_and_alarm("[AudioRx] Failed to create playback buffering thread.");
+         s_bThreadAudioBufferingStarted = false;
+      }
+      pthread_attr_destroy(&attr);
+      log_line("[AudioRx] Init Rx state: Restarted buffering thread.");
+   }
+   log_line("[AudioRx] Rx state init complete: current EC scheme: %d/%d, packet length: %d bytes, cache %d packets", s_iAudioDataPacketsPerBlock, s_iAudioECPacketsPerBlock, s_iAudioPacketSize, s_iAudioBufferPacketsToCache);
 }
 
 void process_received_audio_packet(u8* pPacketBuffer)
 {
+   // 10.5 or older are incompatible
+   if ( (NULL != g_pCurrentModel) && get_sw_version_build(g_pCurrentModel) < 274 )
+      return;
+
    t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
    u8* pData = pPacketBuffer + sizeof(t_packet_header);
-
-   if ( NULL != s_pFileRawStreamOutput )
-      fwrite(pPacketBuffer, 1, pPH->total_length, s_pFileRawStreamOutput);
 
    u32 uAudioBlockSegmentIndex = 0;
    memcpy((u8*)&uAudioBlockSegmentIndex, pData, sizeof(u32));
@@ -671,13 +662,14 @@ void process_received_audio_packet(u8* pPacketBuffer)
    pData += sizeof(u32);
    int iAudioSize = (int)(pPH->total_length - sizeof(t_packet_header)- sizeof(u32));
    s_iAudioPacketSize = iAudioSize;
-
+   
    if ( s_uLastRecvAudioBlockIndex != MAX_U32 )
-   if ( s_uLastRecvAudioBlockIndex > 20 )
-   if ( uAudioBlockIndex < s_uLastRecvAudioBlockIndex - 20 )
+   if ( s_uLastRecvAudioBlockIndex > 50 )
+   if ( uAudioBlockIndex < s_uLastRecvAudioBlockIndex - 50 )
    {
-      log_line("[AudioRx] Detected audio stream restart. Reset audio rx state.");
+      log_line("[AudioRx] Detected audio stream restart (from audio block %u to audio block %u. Reset audio rx state.", s_uLastRecvAudioBlockIndex, uAudioBlockIndex);
       init_audio_rx_state();
+      discardRetransmissionsInfoAndBuffersOnLengthyOp();
    }
 
    /*
@@ -699,12 +691,30 @@ void process_received_audio_packet(u8* pPacketBuffer)
       }
    }
    */
+
    s_uLastRecvAudioBlockIndex = uAudioBlockIndex;
    s_uLastRecvAudioBlockPacketIndex = uAudioBlockPacketIndex;
-   
-   if ( uAudioBlockPacketIndex >= MAX_BUFFERED_AUDIO_PACKETS )
-      return;
+   s_uLastTimeRecvAudioPacket = g_TimeNow;
 
+   s_RxEcBuffersAudio.checkAddPacket(uAudioBlockIndex, uAudioBlockPacketIndex, pData, iAudioSize, g_TimeNow);
+
+   int iCount = 10;
+   int iOutputSize = 0;
+   u32 uOutputBlockIndex = 0;
+   u32 uOutputBlockPacketIndex = 0;
+   u8* pOutput = s_RxEcBuffersAudio.getMarkFirstPacketToOutput(&iOutputSize, &uOutputBlockIndex, &uOutputBlockPacketIndex, true);
+   while ( (NULL != pOutput) && (iOutputSize > (int)sizeof(u32)) && (iCount > 0) )
+   {
+      iCount--;
+      if ( s_fPipeAudioBufferWrite > 0 )
+         write(s_fPipeAudioBufferWrite, pOutput + sizeof(u32), iOutputSize - (int)sizeof(u32));
+
+      iOutputSize = 0;
+      uOutputBlockIndex = 0;
+      uOutputBlockPacketIndex = 0;
+      pOutput = s_RxEcBuffersAudio.getMarkFirstPacketToOutput(&iOutputSize, &uOutputBlockIndex, &uOutputBlockPacketIndex, true);
+   }
+/*
    // First time we try to process audio packets?
 
    if ( s_uCurrentRxAudioBlockIndex == MAX_U32 )
@@ -724,11 +734,15 @@ void process_received_audio_packet(u8* pPacketBuffer)
    {
       // Try reconstruction of last block if needed
       if ( s_uLastOutputedPacketIndex < (u32)s_iAudioDataPacketsPerBlock-1 )
-      if ( s_uReceivedDataPacketsForCurrentBlock + s_uReceivedECPacketsForCurrentBlock >= (u32)s_iAudioDataPacketsPerBlock )
       {
-         _try_reconstruct_and_output_audio();
+         if ( s_uReceivedDataPacketsForCurrentBlock + s_uReceivedECPacketsForCurrentBlock >= (u32)s_iAudioDataPacketsPerBlock )
+         {
+            _try_reconstruct_and_output_audio();
+            g_SMControllerRTInfo.uOutputedAudioPacketsCorrected[g_SMControllerRTInfo.iCurrentIndex]++;
+         }
+         else
+            g_SMControllerRTInfo.uOutputedAudioPacketsSkipped[g_SMControllerRTInfo.iCurrentIndex]++;
       }
-
       s_uLastOutputedBlockIndex = s_uCurrentRxAudioBlockIndex;
       s_uLastOutputedPacketIndex = s_iAudioDataPacketsPerBlock-1;
 
@@ -744,7 +758,10 @@ void process_received_audio_packet(u8* pPacketBuffer)
       return;
 
    if ( uAudioBlockPacketIndex < (u32)s_iAudioDataPacketsPerBlock )
+   {
       s_uReceivedDataPacketsForCurrentBlock++;
+      g_SMControllerRTInfo.uOutputedAudioPackets[g_SMControllerRTInfo.iCurrentIndex]++;
+   }
    else
       s_uReceivedECPacketsForCurrentBlock++;
 
@@ -766,4 +783,30 @@ void process_received_audio_packet(u8* pPacketBuffer)
    {
       _output_audio_block(uAudioBlockIndex, uAudioBlockPacketIndex, iAudioSize);
    }
+*/
+}
+
+void periodic_loop_audio()
+{
+   static u32 s_uLastTimePeriodicLoopAudio = 0;
+   if ( g_TimeNow < s_uLastTimePeriodicLoopAudio + 50 )
+      return;
+   s_uLastTimePeriodicLoopAudio = g_TimeNow;
+
+   /*
+   if ( 0 != s_uLastTimeRecvAudioPacket )
+   {
+      if ( s_uLastTimeRecvAudioPacket < g_TimeNow-200 )
+      {
+         if ( s_iAudioBufferPacketsToCache > 0 )
+            s_iAudioBufferPacketsToCache--;
+      }
+      else
+      {
+         s_iAudioBufferPacketsToCache = DEFAULT_AUDIO_BUFFERING_SIZE;
+         if ( NULL != g_pCurrentModel )
+            s_iAudioBufferPacketsToCache = (int)((g_pCurrentModel->audio_params.uFlags >> 8) & 0xFF);
+      }
+   }
+   */
 }

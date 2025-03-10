@@ -279,6 +279,17 @@ u32 get_current_timestamp_ms()
    return (lt - sStartTimeStamp_ms);
 }
 
+u32 get_current_timestamp_ms_tens()
+{
+   struct timespec t;
+   clock_gettime(RUBY_HW_CLOCK_ID, &t);
+   long long lt = t.tv_sec*10000LL + t.tv_nsec/1000LL/100LL;
+   //struct timeval t;
+   //gettimeofday(&t, NULL);
+   //long long lt = t.tv_sec*1000LL + t.tv_usec/1000LL;
+   return (lt - sStartTimeStamp_ms*10);
+}
+
 u32 get_boot_timestamp_ms()
 {
    return sStartTimeStamp_ms;
@@ -596,6 +607,12 @@ void log_format_time(u32 miliseconds, char* szOutTime)
    sprintf(szOutTime,"%d-%d:%02d:%02d.%03d", s_bootCount, (int)(miliseconds/1000/60/60), (int)(miliseconds/1000/60)%60, (int)((miliseconds/1000)%60), (int)(miliseconds%1000));
 }
 
+void _log_format_time_mstens(char* szOutTime)
+{
+   u32 uMilisTens = get_current_timestamp_ms_tens();
+   sprintf(szOutTime,"%d-%d:%02d:%02d.%03d", s_bootCount, (int)(uMilisTens/1000/60/60/10), (int)(uMilisTens/1000/60/10)%60, (int)((uMilisTens/1000/10)%60), (int)((uMilisTens/10)%1000));
+}
+
 void log_line(const char* format, ...)
 {
    if ( s_logDisabled || s_logOnlyErrors )
@@ -606,7 +623,7 @@ void log_line(const char* format, ...)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      _log_format_time_mstens(s_szTimeLog);
  
    if ( _log_check_for_service_log_access() )
    {
@@ -684,7 +701,7 @@ void log_line_forced_to_file(const char* format, ...)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      _log_format_time_mstens(s_szTimeLog);
 
    char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_LOGS);
@@ -754,7 +771,7 @@ void log_line_watchdog(const char* format, ...)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      _log_format_time_mstens(s_szTimeLog);
  
    if ( _log_check_for_service_log_access() )
    {
@@ -819,7 +836,7 @@ void log_line_commands(const char* format, ...)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      _log_format_time_mstens(s_szTimeLog);
  
    if ( _log_check_for_service_log_access() )
    {
@@ -1044,7 +1061,7 @@ void log_dword(const char* szText, u32 value)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      _log_format_time_mstens(s_szTimeLog);
  
    if ( _log_check_for_service_log_access() )
    {
@@ -1102,7 +1119,7 @@ void log_dword_bits(const char* szText, u32 value)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      _log_format_time_mstens(s_szTimeLog);
  
    if ( _log_check_for_service_log_access() )
    {
@@ -1165,7 +1182,7 @@ void log_error_and_alarm(const char* format, ...)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      _log_format_time_mstens(s_szTimeLog);
 
    if ( _log_check_for_service_log_access() )
    {
@@ -1265,7 +1282,7 @@ void log_softerror_and_alarm(const char* format, ...)
 
    s_szTimeLog[0] = 0;
    if ( s_logAddTime )
-      log_format_time(get_current_timestamp_ms(), s_szTimeLog);
+      _log_format_time_mstens(s_szTimeLog);
 
    if ( _log_check_for_service_log_access() )
    {

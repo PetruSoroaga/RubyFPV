@@ -55,6 +55,7 @@
 #include "test_link_params.h"
 #include "packets_utils.h"
 #include "rx_video_output.h"
+#include "processor_rx_audio.h"
 
 u32 s_debugLastFPSTime = 0;
 u32 s_debugFramesCount = 0; 
@@ -388,13 +389,6 @@ bool _check_queue_ping()
    else
       PH.total_length = sizeof(t_packet_header) + 2*sizeof(u8);
 
-   #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK )
-   if ( g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ADAPTIVE_VIDEO_LINK_USE_CONTROLLER_INFO_TOO )
-   if ( g_TimeNow > g_TimeLastControllerLinkStatsSent + CONTROLLER_LINK_STATS_HISTORY_SLICE_INTERVAL_MS/2 )
-      PH.total_length += get_controller_radio_link_stats_size();
-   #endif
-
    u8 packet[MAX_PACKET_TOTAL_SIZE];
    // u8 ping id, u8 radio link id, u8 relay flags for destination vehicle
    memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
@@ -405,18 +399,6 @@ bool _check_queue_ping()
       memcpy(packet+sizeof(t_packet_header)+2*sizeof(u8), &uDestinationRelayCapabilities, sizeof(u8));
       memcpy(packet+sizeof(t_packet_header)+3*sizeof(u8), &uDestinationRelayMode, sizeof(u8));
    }
-   #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   if ( NULL != g_pCurrentModel && (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK) )
-   if ( g_TimeNow > g_TimeLastControllerLinkStatsSent + CONTROLLER_LINK_STATS_HISTORY_SLICE_INTERVAL_MS/2 )
-   {
-      if ( (g_pCurrentModel->sw_version>>16) > 79 ) // 7.7
-         add_controller_radio_link_stats_to_buffer(packet+sizeof(t_packet_header)+4*sizeof(u8));
-      else
-         add_controller_radio_link_stats_to_buffer(packet+sizeof(t_packet_header)+2*sizeof(u8));
-      g_TimeLastControllerLinkStatsSent = g_TimeNow;
-   }
-   #endif
-
    packets_queue_add_packet(&s_QueueRadioPacketsRegPrio, packet);
 
    return true;
@@ -469,6 +451,9 @@ void router_periodic_loop()
 
    if ( test_link_is_in_progress() )
       test_link_loop();
+
+   if ( is_audio_processing_started() )
+      periodic_loop_audio();
 
    /*
    bool bInterfcesWithNoData = false;
@@ -564,7 +549,6 @@ void router_periodic_loop()
       }
    }
 
-   radio_controller_links_stats_periodic_update(&g_PD_ControllerLinkStats, g_TimeNow);
    if ( NULL != g_pProcessStats )
       g_pProcessStats->lastActiveTime = g_TimeNow;
 

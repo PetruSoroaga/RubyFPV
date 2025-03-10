@@ -415,7 +415,7 @@ int ssd1306_deinit(ssd1306_handle_t *handle);
 int ssd1306_draw_point(ssd1306_handle_t *handle, int16_t x, int16_t y, uint8_t data);
 int ssd1306_draw_stright_line(ssd1306_handle_t *handle, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint8_t data);
 int ssd1306_draw_char(ssd1306_handle_t *handle, int16_t x, int16_t y, uint8_t chr, uint8_t size, uint8_t mode);
-int ssd1306_draw_string(ssd1306_handle_t *handle, int16_t x, int16_t y, char *str, uint16_t len, uint8_t color, ssd1306_font_t font);
+int ssd1306_draw_string(ssd1306_handle_t *handle, int16_t x, int16_t y, const char *str, uint16_t len, uint8_t color, ssd1306_font_t font);
 int ssd1306_draw_rect(ssd1306_handle_t *handle, int16_t x, int16_t y, uint8_t width, uint8_t height, uint8_t color);
 int ssd1306_get_point(ssd1306_handle_t *handle, int16_t x, int16_t y);
 int ssd1306_update(ssd1306_handle_t *handle);

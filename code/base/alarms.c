@@ -95,6 +95,8 @@ void alarms_to_string(u32 uAlarms, u32 uFlags1, u32 uFlags2, char* szOutput)
 
    if ( uAlarms & ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD )
       strcat(szOutput, " CONTROLLER_CPU_LOOP_OVERLOAD");
+   if ( uAlarms & ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING )
+      strcat(szOutput, " ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING");
    if ( uAlarms & ALARM_ID_CONTROLLER_RX_TIMEOUT )
       strcat(szOutput, " CONTROLLER_RX_TIMEOUT");
    if ( uAlarms & ALARM_ID_CONTROLLER_IO_ERROR )
@@ -153,6 +155,13 @@ void alarms_to_string(u32 uAlarms, u32 uFlags1, u32 uFlags2, char* szOutput)
       }
       snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), ", Flags1: %s, Flags2: %u", szFlags1, uFlags2);
    }
+   else if ( (uAlarms & ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING) || (uAlarms & ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD) )
+   {
+      u32 uTimeRepeated = uFlags1 & 0xFFFF;
+      u32 uTimeSpike = (uFlags1 >> 16);
+      sprintf(szBuff, ", Repeated overflow: %u ms, Spike overflow: %u ms", uTimeRepeated, uTimeSpike);
+   }
+   
    else if ( ! (uAlarms & ALARM_ID_GENERIC_STATUS_UPDATE) )
    {
       char szFlags1[128];

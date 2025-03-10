@@ -6,57 +6,45 @@
 #include "../../base/config.h"
 #include "../../base/hardware.h"
 #include "../../base/hw_procs.h"
+#include "../shared_vars.h"
+
 #include <pthread.h>
 #include <string.h>
 #include <iostream>
 #include <stdexcept>
 
-int inited = -1;
+int s_iOLEDRenderInit = -1;
 pthread_t s_pThreadOLEDRenderAsync;
+bool s_bHasOLEDRenderThread = false;
 t_i2c_device_settings *g_pDeviceInfoOLED = NULL;
-u32 last_render_time = 0;
-
-int oled_render_init()
-{
-    g_pDeviceInfoOLED = hardware_i2c_get_device_settings(I2C_DEVICE_ADDRESS_SSD1306_1);
-    if (NULL == g_pDeviceInfoOLED || (!g_pDeviceInfoOLED->bEnabled))
-    {
-        g_pDeviceInfoOLED = hardware_i2c_get_device_settings(I2C_DEVICE_ADDRESS_SSD1306_2);
-    }
-
-    if (NULL == g_pDeviceInfoOLED || (!g_pDeviceInfoOLED->bEnabled))
-        return -1;
-
-    inited = ssd1306_oled_init(SSD1306_INTERFACE_IIC, g_pDeviceInfoOLED->nI2CAddress);
-    return inited;
-}
+u32 s_uOLDERRenderLastTime = 0;
 
 void *_thread_oled_render_async(void *argument)
 {
-    log_line("Started oled render thread.");
+    log_line("[OLED] Started OLED render thread.");
+    s_bHasOLEDRenderThread = true;
     OLEDIconLoader &loader = OLEDIconLoader::get_instance();
     loader.load_icons("res/");
 
     uint8_t test_count = 0;
-    uint8_t start_count = 0;
 
     //load the bitmap picture which put in res/icon_oled_xxxxx.bmp
     //only support 1 bit color bmp file
     //you can use img2lcd to convert normal pjpg to bmp,and set the resolution above 128*64
     const OLEDIcon &icon_logo = loader.get_icon("logo");
     bool firstFrame = true;
-    while (1)
+    while ( ! g_bQuit )
     {
         test_count = test_count > 100 ? 0 : test_count;
         // control the frame rate less than 30fps
         u32 timestamp = get_current_timestamp_ms();
-        u32 delta = timestamp - last_render_time;
-        last_render_time = timestamp;
+        u32 delta = timestamp - s_uOLDERRenderLastTime;
         if (delta < 30)
         {
             hardware_sleep_ms(30 - delta);
             continue;
         }
+        s_uOLDERRenderLastTime = timestamp;
 
         ssd1306_oled_clear();
         ///////////////////////////////////////////////////////////////
@@ -64,7 +52,6 @@ void *_thread_oled_render_async(void *argument)
         {
             firstFrame = false;
 
-            
             ssd1306_oled_draw_bitmap(64, 24, 1, true, true, icon_logo);
             ssd1306_oled_draw_rect(34, 53, 60, 8, 3, 1, -1);
             for(int i = 0;i< 20;i++){
@@ -79,7 +66,6 @@ void *_thread_oled_render_async(void *argument)
 
             //hardware_sleep_ms(800);
             hardware_sleep_ms(500);
-            
             
             continue;
         }
@@ -112,9 +98,9 @@ void *_thread_oled_render_async(void *argument)
         // ssd1306_oled_draw_arc(20, 42, 22, 270, 33, 1);
         // ssd1306_oled_draw_arc(20, 42, 22, 0, 33, 1);
         char timestamp_str[30];
-        int length = snprintf(timestamp_str, sizeof(timestamp_str), "%" PRIu32 "ms", delta);
+        int length = snprintf(timestamp_str, sizeof(timestamp_str), "%u ms", delta);
         ssd1306_oled_draw_string(100, 2, timestamp_str, length, 1, false, SSD1306_FONT_12);
-        length = snprintf(timestamp_str, sizeof(timestamp_str), "%" PRIu8 "%%", test_count);
+        length = snprintf(timestamp_str, sizeof(timestamp_str), "%d %%", test_count);
         ssd1306_oled_draw_string(27, 27, timestamp_str, length, 1, true, SSD1306_FONT_12);
         ssd1306_oled_draw_string(54, 2, "Ruby FPV", 8, 1, false, SSD1306_FONT_12);
         ssd1306_oled_draw_string(54, 13, "Ruby FPV", 8, 1, false, SSD1306_FONT_16);
@@ -123,14 +109,49 @@ void *_thread_oled_render_async(void *argument)
         ///////////////////////////////////////////////////////////////
         ssd1306_oled_display();
     }
+
+    log_line("[OLED] Finished OLED render thread.");
+    s_bHasOLEDRenderThread = false;
     return NULL;
+}
+
+int oled_render_init()
+{
+   if ( s_iOLEDRenderInit != -1 )
+      return s_iOLEDRenderInit;
+   g_pDeviceInfoOLED = hardware_i2c_get_device_settings(I2C_DEVICE_ADDRESS_SSD1306_1);
+   if ( (NULL == g_pDeviceInfoOLED) || (!g_pDeviceInfoOLED->bEnabled))
+   {
+       g_pDeviceInfoOLED = hardware_i2c_get_device_settings(I2C_DEVICE_ADDRESS_SSD1306_2);
+   }
+
+   if ( (NULL == g_pDeviceInfoOLED) || (!g_pDeviceInfoOLED->bEnabled))
+       return -1;
+
+   s_iOLEDRenderInit = ssd1306_oled_init(SSD1306_INTERFACE_IIC, g_pDeviceInfoOLED->nI2CAddress);
+   return s_iOLEDRenderInit;
+}
+
+void oled_render_shutdown()
+{
+   if ( (-1 == s_iOLEDRenderInit) || (! s_bHasOLEDRenderThread) )
+      return;
+
+   u32 uTimeStart = get_current_timestamp_ms();
+   while ( s_bHasOLEDRenderThread && (get_current_timestamp_ms() < uTimeStart + 1000) )
+   {
+      hardware_sleep_ms(20);
+   }
+   if ( s_bHasOLEDRenderThread )
+      pthread_cancel(s_pThreadOLEDRenderAsync);
 }
 
 int oled_render_thread_start()
 {
-    if (inited == -1)
+    if ( s_iOLEDRenderInit == -1 )
         return -1;
 
+   s_bHasOLEDRenderThread = false;
     pthread_attr_t attr;
     struct sched_param params;
 
@@ -143,9 +164,10 @@ int oled_render_thread_start()
     if (0 != pthread_create(&s_pThreadOLEDRenderAsync, &attr, &_thread_oled_render_async, NULL))
     {
         pthread_attr_destroy(&attr);
-        log_softerror_and_alarm("[HardwareAudio] Failed to start oled render thread.");
+        log_softerror_and_alarm("[OLED] Failed to start oled render thread.");
         return -1;
     }
     pthread_attr_destroy(&attr);
+    s_bHasOLEDRenderThread = true;
     return 0;
 }

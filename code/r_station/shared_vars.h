@@ -44,7 +44,6 @@ extern vehicle_runtime_info* g_pSMVehicleRTInfo;
 
 extern shared_mem_radio_stats_rx_hist* g_pSM_HistoryRxStats;
 extern shared_mem_radio_stats_rx_hist g_SM_HistoryRxStats;
-extern shared_mem_audio_decode_stats* g_pSM_AudioDecodeStats;
 
 extern shared_mem_video_frames_stats g_SM_VideoFramesStatsOutput;
 extern shared_mem_video_frames_stats* g_pSM_VideoFramesStatsOutput;
@@ -68,7 +67,6 @@ extern shared_mem_radio_stats* g_pSM_RadioStats;
 extern shared_mem_video_link_graphs* g_pSM_VideoLinkGraphs;
 extern shared_mem_process_stats* g_pProcessStats;
 extern shared_mem_process_stats* g_pProcessStatsCentral;
-extern t_packet_data_controller_link_stats g_PD_ControllerLinkStats;
 
 extern int g_fIPCFromCentral;
 extern int g_fIPCToCentral;

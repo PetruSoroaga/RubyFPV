@@ -19,6 +19,7 @@ typedef struct
    t_packet_header* pPH; // pointer inside pRawData
    t_packet_header_video_segment* pPHVS; // pointer inside pRawData
    t_packet_header_video_segment_important* pPHVSImp; // pointer inside pRawData
+   bool bEmpty;
 }
 type_tx_video_packet_info;
 

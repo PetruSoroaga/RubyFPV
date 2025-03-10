@@ -3,7 +3,6 @@
 #include "config.h"
 
 #define SHARED_MEM_CONTROLLER_ROUTER_VEHICLES_INFO "R_SHARED_MEM_CONTROLLER_ROUTER_VEHICLE_INFO"
-#define SHARED_MEM_AUDIO_DECODE_STATS "/SYSTEM_SHARED_MEM_AUDIO_DECODE_STATS"
 #define SHARED_MEM_VIDEO_STREAM_STATS "/SYSTEM_SHARED_MEM_STATION_VIDEO_STREAM_STATS"
 #define SHARED_MEM_RADIO_RX_QUEUE_INFO_STATS "/SYSTEM_SHARED_MEM_RADIO_RX_QUEUE_STATS"
 
@@ -16,25 +15,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-
-#define MAX_AUDIO_HISTORY_BUFFERS 32
-
-typedef struct
-{
-    u32 uLastReceivedAudioPacketIndex; // byte 0-2: block index, byte 3: packet index
-    u8 uCurrentSchemeDataPackets;
-    u8 uCurrentSchemeECPackets;
-    u16 uCurrentSchemePacketLength;
-    int uCurrentReceivedAudioBps;
-
-    u32 uGraphUpdateIntervalMs;
-    u8 uHistoryReceivedDataPackets[MAX_AUDIO_HISTORY_BUFFERS];
-    u8 uHistoryReceivedECPackets[MAX_HISTORY_VIDEO_INTERVALS];
-    u8 uHistoryReceivedIncompleteBlocks[MAX_HISTORY_VIDEO_INTERVALS];
-    u8 uHistoryRepairedBlocks[MAX_HISTORY_VIDEO_INTERVALS];
-    u8 uHistoryBadBlocks[MAX_HISTORY_VIDEO_INTERVALS];
-} ALIGN_STRUCT_SPEC_INFO shared_mem_audio_decode_stats;
 
 typedef struct
 {
@@ -84,10 +64,6 @@ shared_mem_video_stream_stats_rx_processors* shared_mem_video_stream_stats_rx_pr
 shared_mem_video_stream_stats_rx_processors* shared_mem_video_stream_stats_rx_processors_open_for_write();
 void shared_mem_video_stream_stats_rx_processors_close(shared_mem_video_stream_stats_rx_processors* pAddress);
 shared_mem_video_stream_stats* get_shared_mem_video_stream_stats_for_vehicle(shared_mem_video_stream_stats_rx_processors* pSM, u32 uVehicleId);
-
-shared_mem_audio_decode_stats* shared_mem_controller_audio_decode_stats_open_for_read();
-shared_mem_audio_decode_stats* shared_mem_controller_audio_decode_stats_open_for_write();
-void shared_mem_controller_audio_decode_stats_close(shared_mem_audio_decode_stats* pAddress);
 
 shared_mem_router_vehicles_runtime_info* shared_mem_router_vehicles_runtime_info_open_for_read();
 shared_mem_router_vehicles_runtime_info* shared_mem_router_vehicles_runtime_info_open_for_write();

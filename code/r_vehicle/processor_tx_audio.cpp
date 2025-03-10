@@ -46,8 +46,6 @@
 #include "video_source_majestic.h"
 #endif
 
-FILE* s_pFileRawStream = NULL;
-
 u8* p_ec_audio_packets[MAX_DATA_PACKETS_IN_BLOCK];
 u8* p_ec_audio_ecs[MAX_FECS_PACKETS_IN_BLOCK];
 
@@ -66,7 +64,7 @@ ProcessorTxAudio::ProcessorTxAudio()
    strcpy(m_szBreakStamp, "0123456789");
    m_szBreakStamp[10] = 10;
    m_szBreakStamp[11] = 0;
-
+   m_pBuffers = new GenericTxECBuffers();
    resetState(NULL);
 }
 
@@ -74,6 +72,8 @@ ProcessorTxAudio::~ProcessorTxAudio()
 {
    stopLocalRecording();
    closeAudioStream();
+   delete m_pBuffers;
+   m_pBuffers = NULL;
 }
 
 void ProcessorTxAudio::init(Model* pModel)
@@ -83,13 +83,6 @@ void ProcessorTxAudio::init(Model* pModel)
 
 void ProcessorTxAudio::resetState(Model* pModel)
 {
-   m_iCurrentInputReadPacketIndex = 0;
-   m_iCurrentInputReadPacketPosition = 0;
-
-   m_iCurrentInputBufferPacketToSend = 0;
-   m_uCurrentTxAudioBlockIndex = 0;
-   m_uCurrentTxAudioSegmentIndex = 0;
-
    m_iSchemePacketSize = DEFAULT_AUDIO_PACKET_LENGTH;
    m_iSchemeDataPackets = 4;
    m_iSchemeECPackets = 2;
@@ -109,6 +102,8 @@ void ProcessorTxAudio::resetState(Model* pModel)
    if ( m_iSchemePacketSize > MAX_PACKET_PAYLOAD )
       m_iSchemePacketSize = MAX_PACKET_PAYLOAD;
 
+   if ( NULL != m_pBuffers )
+      m_pBuffers->init(MAX_BUFFERED_AUDIO_PACKETS, true, (u32)m_iSchemeDataPackets, (u32)m_iSchemeECPackets, m_iSchemePacketSize);
    log_line("[AudioTx] Reset state. Current EC scheme: %d/%d, packet length: %d bytes", m_iSchemeDataPackets, m_iSchemeECPackets, m_iSchemePacketSize);
 }
 
@@ -130,12 +125,6 @@ int ProcessorTxAudio::openAudioStream()
    m_StatsTmpAudioInputReadBytes = 0;
 
    m_iBreakStampMatchPosition = 0;
-   m_iCurrentInputReadPacketIndex = 0;
-   m_iCurrentInputReadPacketPosition = 0;
-
-   m_iCurrentInputBufferPacketToSend = 0;
-   m_uCurrentTxAudioBlockIndex = 0;
-   m_uCurrentTxAudioSegmentIndex = 0;
 
    if ( NULL == g_pCurrentModel )
    {
@@ -198,16 +187,9 @@ void ProcessorTxAudio::closeAudioStream()
    m_StatsAudioInputComputedBps = 0;
 }
 
-bool ProcessorTxAudio::isAudioStreamOpened()
-{
-   if ( m_iAudioStream != -1 )
-      return true;
-   return false;
-}
-
-
 int ProcessorTxAudio::startLocalRecording()
 {
+   return 0;
    if ( m_bLocalRecording )
       return 0;
 
@@ -248,15 +230,12 @@ int ProcessorTxAudio::startLocalRecording()
       log_line("[AudioTx] Opened audio recording output file %s, fd:%d", szFile, fileno(m_fAudioRecordingFile));
    #endif
 
-   // To remove
-   hw_execute_bash_command("rm -rf /tmp/audio.raw", NULL);
-   s_pFileRawStream = fopen("/tmp/audio.raw", "wb");
-
    return 1;
 }
 
 int ProcessorTxAudio::stopLocalRecording()
 {
+   return 0;
    if ( ! m_bLocalRecording )
       return 0;
 
@@ -277,18 +256,14 @@ int ProcessorTxAudio::stopLocalRecording()
    }
    m_iRecordingFileNumber = 0;
    #endif
-
-   if ( NULL != s_pFileRawStream )
-      fclose(s_pFileRawStream);
-   s_pFileRawStream = NULL;
-
    return 0;
 }
 
 int ProcessorTxAudio::tryReadAudioInputStream()
 {
-   if ( (NULL == g_pCurrentModel) || (! g_pCurrentModel->audio_params.enabled) || (!g_pCurrentModel->audio_params.has_audio_device) )
+   if ( (NULL == g_pCurrentModel) || (! g_pCurrentModel->isAudioCapableAndEnabled()) )
       return 0;
+
    // Try to read only every 10 ms (100 times/sec)
 
    if ( g_TimeNow < m_uTimeLastTryReadAudioInputStream + 10 )
@@ -333,9 +308,6 @@ int ProcessorTxAudio::tryReadAudioInputStream()
    if ( iCountRead == 0 )
       return 0;
 
-   if ( NULL != s_pFileRawStream )
-      fwrite(uBuffer, 1, iCountRead, s_pFileRawStream);
-
    m_StatsTmpAudioInputReadBytes += iCountRead;
 
    if ( g_TimeNow >= m_StatsTimeLastComputeAudioInputBps+500 )
@@ -345,7 +317,7 @@ int ProcessorTxAudio::tryReadAudioInputStream()
       m_StatsTmpAudioInputReadBytes = 0;
       static int s_iCounterAudioTxStats = 0;
       s_iCounterAudioTxStats++;
-      if ( (s_iCounterAudioTxStats%10) == 0 )
+      if ( (s_iCounterAudioTxStats % 10) == 0 )
          log_line("[AudioTx] Output audio bitrate: %u bps", m_StatsAudioInputComputedBps);
    }
 
@@ -354,28 +326,8 @@ int ProcessorTxAudio::tryReadAudioInputStream()
       _localRecordBuffer(uBuffer, iCountRead);
    #endif
 
-   while ( iCountRead > 0 )
-   {
-      // Still room in the current input packet ?
-      if ( m_iCurrentInputReadPacketPosition + iCountRead <= m_iSchemePacketSize )
-      {
-         memcpy(&m_ListBufferedInputPackets[m_iCurrentInputReadPacketIndex][m_iCurrentInputReadPacketPosition], uBuffer, iCountRead );
-         m_iCurrentInputReadPacketPosition += iCountRead;
-         iCountRead = 0;
-         break;
-      }
-
-      int iAvailableRoom = m_iSchemePacketSize - m_iCurrentInputReadPacketPosition;
-      memcpy(&m_ListBufferedInputPackets[m_iCurrentInputReadPacketIndex][m_iCurrentInputReadPacketPosition], uBuffer, iAvailableRoom );
-      m_iCurrentInputReadPacketPosition = 0;
-      m_iCurrentInputReadPacketIndex++;
-      if ( m_iCurrentInputReadPacketIndex >= MAX_BUFFERED_AUDIO_PACKETS )
-         m_iCurrentInputReadPacketIndex = 0;
-
-      for( int i=iAvailableRoom; i<iCountRead; i++ )
-         uBuffer[i-iAvailableRoom] = uBuffer[i];
-      iCountRead -= iAvailableRoom;
-   }
+   if ( NULL != m_pBuffers )
+      m_pBuffers->addData(uBuffer, iCountRead);
    return 1;
 }
 
@@ -469,78 +421,21 @@ void ProcessorTxAudio::_sendAudioPacket(u8* pBuffer, int iLength, u32 uAudioPack
    send_packet_to_radio_interfaces(packet, PH.total_length, -1);
 }
 
-// Returns number of packets sent (no matter if they where data or EC packets )
-
-int ProcessorTxAudio::sendAudioPackets()
+void ProcessorTxAudio::sendAudioPackets()
 {
-   if ( (NULL == g_pCurrentModel) || (! g_pCurrentModel->audio_params.enabled) || (!g_pCurrentModel->audio_params.has_audio_device) )
-      return 0;
-   
-   // No full packet read from input?
-   if ( m_iCurrentInputBufferPacketToSend == m_iCurrentInputReadPacketIndex )
-      return 0;
+   if ( (NULL == g_pCurrentModel) || (! g_pCurrentModel->isAudioCapableAndEnabled()) )
+      return;
+  
+   u32 uBufferIndex = 0;
+   int iBufferIndex = -1;
+   int iPacketIndex = -1;
+   type_generic_tx_ec_packet* pPacket = m_pBuffers->getMarkFirstUnsendPacket(&uBufferIndex, &iBufferIndex, &iPacketIndex);
+   while ( NULL != pPacket )
+   {   
+      u32 uAudioPacketIndex = ((uBufferIndex & 0xFFFFFF) << 8) | ((u32)iPacketIndex);
+      _sendAudioPacket(pPacket->uPacketData, pPacket->iFilledBytes, uAudioPacketIndex);
 
-   int iPacketsReadyToSend = m_iCurrentInputReadPacketIndex - m_iCurrentInputBufferPacketToSend;
-   if ( m_iCurrentInputReadPacketIndex < m_iCurrentInputBufferPacketToSend )
-       iPacketsReadyToSend = MAX_BUFFERED_AUDIO_PACKETS - m_iCurrentInputBufferPacketToSend + m_iCurrentInputReadPacketIndex;
-
-   if ( iPacketsReadyToSend <= 0 )
-      return 0;
-
-   if ( iPacketsReadyToSend > 5 )
-      iPacketsReadyToSend = 5;
-      
-   int iCountPacketsSent = 0;
-
-   for( int i=0; i<iPacketsReadyToSend; i++ )
-   {
-      if ( iCountPacketsSent >= 5 )
-         break;
-
-      u32 uAudioPacketIndex = ((m_uCurrentTxAudioBlockIndex & 0xFFFFFF) << 8) | m_uCurrentTxAudioSegmentIndex;
-      _sendAudioPacket(m_ListBufferedInputPackets[m_iCurrentInputBufferPacketToSend], m_iSchemePacketSize, uAudioPacketIndex);
-      
-      iCountPacketsSent++;
-      m_iCurrentInputBufferPacketToSend++;
-      if ( m_iCurrentInputBufferPacketToSend >= MAX_BUFFERED_AUDIO_PACKETS )
-         m_iCurrentInputBufferPacketToSend = 0;
-
-      m_uCurrentTxAudioSegmentIndex++;
-
-      // Must send EC packets now?
-      if ( m_uCurrentTxAudioSegmentIndex >= (u32)m_iSchemeDataPackets )
-      if ( m_iSchemeECPackets > 0 )
-      {
-         for(int u=0; u<m_iSchemeDataPackets; u++ )
-         {
-            int iIndex = m_iCurrentInputBufferPacketToSend - m_iSchemeDataPackets;
-            if ( iIndex < 0 )
-               iIndex += MAX_BUFFERED_AUDIO_PACKETS;
-            p_ec_audio_packets[u] = &m_ListBufferedInputPackets[iIndex][0];
-         }
-
-         for(int u=0; u<m_iSchemeECPackets; u++ )
-            p_ec_audio_ecs[u] = &m_ListBufferedInputECPackets[u][0];
-
-         fec_encode(m_iSchemePacketSize, p_ec_audio_packets, (unsigned int)m_iSchemeDataPackets, p_ec_audio_ecs, (unsigned int)m_iSchemeECPackets);
-         
-         for(int u=0; u<m_iSchemeECPackets; u++ )
-         {
-            uAudioPacketIndex = ((m_uCurrentTxAudioBlockIndex & 0xFFFFFF)<<8) | m_uCurrentTxAudioSegmentIndex;
-            _sendAudioPacket(m_ListBufferedInputECPackets[u], m_iSchemePacketSize, uAudioPacketIndex);
-            iCountPacketsSent++;
-
-            m_uCurrentTxAudioSegmentIndex++;
-         }
-      }
-
-      if ( m_uCurrentTxAudioSegmentIndex >= (u32)(m_iSchemeDataPackets + m_iSchemeECPackets) )
-      {
-         m_uCurrentTxAudioSegmentIndex = 0;
-         m_uCurrentTxAudioBlockIndex++;
-         if ( m_uCurrentTxAudioBlockIndex > 0xFFFFFF )
-            m_uCurrentTxAudioBlockIndex = 0;
-      }
+      //m_pBuffers->markPacketAsSent(iBufferIndex, iPacketIndex);
+      pPacket = m_pBuffers->getMarkFirstUnsendPacket(&uBufferIndex, &iBufferIndex, &iPacketIndex);
    }
-   return iCountPacketsSent;
 }

@@ -248,8 +248,6 @@ void* _mpp_thread_update_display(void *param)
                   sem_trywait(g_pSemaphoreMPPDisplayFrameReadyRead);
             }
          }
-         //else
-         //   log_softerror_and_alarm("DBG Failed to get display frame sem value.");
       }
       else
          uNewDRMBufferIdToDisplay = g_uMPPDRMBufferIdToDisplay;

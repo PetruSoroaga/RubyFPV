@@ -11,6 +11,7 @@ class MenuVehicleOSD: public Menu
       virtual ~MenuVehicleOSD();
       virtual void valuesToUI();
       virtual void Render();
+      virtual void onShow();
       virtual void onSelectItem();
             
    private:
@@ -27,6 +28,7 @@ class MenuVehicleOSD: public Menu
       int m_IndexOSDWidgets;
       int m_IndexOSDPlugins;
       int m_IndexOSDStats;
+      int m_IndexOSDReset;
       int m_IndexOSDController;
       MenuItemSlider* m_pItemsSlider[3];
       MenuItemSelect* m_pItemsSelect[20];

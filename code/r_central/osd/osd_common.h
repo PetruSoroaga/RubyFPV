@@ -39,6 +39,7 @@ extern u32 g_idIconWind;
 extern u32 g_idIconController;
 extern u32 g_idIconX;
 extern u32 g_idIconFavorite;
+extern u32 g_idIconSDCard;
 
 extern u32 g_idImgMSPOSDBetaflight;
 extern u32 g_idImgMSPOSDINAV;

@@ -351,16 +351,21 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
 
    if ( uChangeType == MODEL_CHANGED_AUDIO_PARAMS )
    {
+      log_line("Received notification that audio params have changed. Updating state and config...");
       if ( (!g_pCurrentModel->audio_params.has_audio_device) || (!g_pCurrentModel->audio_params.enabled) )
       if ( is_audio_processing_started() )
       {
          uninit_processing_audio();
+         discardRetransmissionsInfoAndBuffersOnLengthyOp();
+         log_line("Done processing notification that audio params have changed.");
          return;
       }
       if ( g_pCurrentModel->audio_params.has_audio_device && g_pCurrentModel->audio_params.enabled )
       if ( ! is_audio_processing_started() )
       {
          init_processing_audio();
+         discardRetransmissionsInfoAndBuffersOnLengthyOp();
+         log_line("Done processing notification that audio params have changed.");
          return;
       }
 
@@ -368,13 +373,18 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
            (oldAudioParams.uECScheme != g_pCurrentModel->audio_params.uECScheme) )
       {
          init_audio_rx_state();
+         discardRetransmissionsInfoAndBuffersOnLengthyOp();
+         log_line("Done processing notification that audio params have changed.");
          return;
       }
       if ( (oldAudioParams.uFlags & 0xFF00) != (g_pCurrentModel->audio_params.uFlags & 0xFF00) )
       {
          init_audio_rx_state();
+         discardRetransmissionsInfoAndBuffersOnLengthyOp();
+         log_line("Done processing notification that audio params have changed.");
          return;
       }
+      log_line("Done processing notification that audio params have changed.");
       return;
    }
 
@@ -425,6 +435,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
       if ( NULL != g_pSM_RadioStats )
          memcpy((u8*)g_pSM_RadioStats, (u8*)&g_SM_RadioStats, sizeof(shared_mem_radio_stats));
    
+      discardRetransmissionsInfoAndBuffersOnLengthyOp();
       return;
    }
 
@@ -874,16 +885,7 @@ void process_local_control_packet(t_packet_header* pPH)
                g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[i] = uNewFreq;
          }
          links_set_cards_frequencies_and_params((int)uLinkId);
-         for( int i=0; i<MAX_VIDEO_PROCESSORS; i++ )
-         {
-            if ( NULL == g_pVideoProcessorRxList[i] )
-               break;
-            if ( g_pVideoProcessorRxList[i]->m_uVehicleId == pPH->vehicle_id_src )
-            {
-               g_pVideoProcessorRxList[i]->discardRetransmissionsInfo();
-               break;
-            }
-         }
+         discardRetransmissionsInfoAndBuffersOnLengthyOp();
       }
       hardware_save_radio_info();
             

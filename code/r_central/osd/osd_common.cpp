@@ -89,6 +89,7 @@ u32 g_idIconWind = 0;
 u32 g_idIconController = 0;
 u32 g_idIconX = 0;
 u32 g_idIconFavorite = 0;
+u32 g_idIconSDCard = 0;
 
 u32 g_idImgMSPOSDBetaflight = 0;
 u32 g_idImgMSPOSDINAV = 0;
@@ -284,6 +285,7 @@ bool osd_load_resources()
    g_idIconController = g_pRenderEngine->loadIcon("res/icon_controller.png");
    g_idIconX = g_pRenderEngine->loadIcon("res/icon_x.png");
    g_idIconFavorite = g_pRenderEngine->loadIcon("res/favorite.png");
+   g_idIconSDCard = g_pRenderEngine->loadIcon("res/icon_sdcard.png");
 
    osd_reload_msp_resources();
    osd_stats_init();

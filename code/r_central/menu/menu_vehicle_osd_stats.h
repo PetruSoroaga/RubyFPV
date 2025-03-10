@@ -10,6 +10,7 @@ class MenuVehicleOSDStats: public Menu
       MenuVehicleOSDStats();
       virtual ~MenuVehicleOSDStats();
       virtual void valuesToUI();
+      virtual void onShow();
       virtual void Render();
       virtual void onSelectItem();
             

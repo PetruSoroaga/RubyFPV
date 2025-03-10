@@ -450,10 +450,12 @@ int init_hardware_only_status_led()
 
 void hardware_reboot()
 {
+   log_line("[Hardware] Entered reboot sequence...");
    hardware_sleep_ms(200);
    hw_execute_bash_command("sync", NULL);
-   hardware_sleep_sec(1);
-   hw_execute_bash_command("reboot", NULL);
+   hardware_sleep_ms(500);
+   hw_execute_bash_command_nonblock("reboot -f", NULL);
+   log_softerror_and_alarm("[Hardware] Done executing reboot command");
    int iCounter = 0;
    // reboot -f --no-wall
    // reboot --reboot --no-wall
@@ -461,10 +463,14 @@ void hardware_reboot()
    {
       hardware_sleep_ms(500);
       iCounter++;
-
-      if ( iCounter > 10 )
+      if ( iCounter > 4 )
       {
-         hw_execute_bash_command("reboot -f", NULL);
+         log_softerror_and_alarm("[Hardware] Regular reboot failed. Force reboot...");
+         #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+         hw_execute_bash_command_nonblock("reboot -f", NULL);
+         #else
+         hw_execute_bash_command_nonblock("reboot -f --no-wall", NULL);
+         #endif
          iCounter = 0;
       }
    }

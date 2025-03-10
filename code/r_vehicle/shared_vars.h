@@ -85,7 +85,6 @@ extern u32 g_uControllerId;
 
 extern t_packet_header_ruby_telemetry_extended_extra_info_retransmissions g_PHTE_Retransmissions;
 extern t_packet_header_vehicle_tx_history g_PHVehicleTxStats;
-extern t_packet_data_controller_link_stats g_PD_LastRecvControllerLinksStats;
 //To fix
 //extern shared_mem_video_link_stats_and_overwrites g_SM_VideoLinkStats;
 extern shared_mem_video_link_graphs g_SM_VideoLinkGraphs;

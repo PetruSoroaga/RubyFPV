@@ -36,6 +36,7 @@ class MenuControllerExpert: public Menu
       int m_IndexReset;
       int m_IndexVersions;
       int m_IndexReboot;
+      int m_IndexResetPriorities;
 
       int m_iDefaultARMFreq;
       int m_iDefaultGPUFreq;

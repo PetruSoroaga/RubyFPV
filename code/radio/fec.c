@@ -30,7 +30,6 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/*#define PROFILE*/
 /*
  * fec.c -- forward error correction based on Vandermonde matrices
  * 980624
@@ -169,6 +168,8 @@ static char *allPp[] = {    /* GF_BITS	polynomial		*/
  * otherwhise we use a table of logarithms.
  * In any case the macro gf_mul(x,y) takes care of multiplications.
  */
+
+static int s_iAssertion = 0;
 
 static gf gf_exp[2*GF_SIZE];	/* index->poly form conversion table	*/
 static int gf_log[GF_SIZE + 1];	/* Poly->index form conversion table	*/
@@ -866,20 +867,9 @@ static inline void reduce(unsigned int blockSize,
     }
 
     assert(nr_fec_blocks == erasedIdx);
+    if ( nr_fec_blocks != erasedIdx )
+       s_iAssertion = -2;
 }
-
-#ifdef PROFILE
-static long long rdtsc(void)
-{
-    unsigned long low, hi;
-    asm volatile ("rdtsc" : "=d" (hi), "=a" (low));
-    return ( (((long long)hi) << 32) | ((long long) low));
-}
-
-long long reduceTime = 0;
-long long resolveTime =0;
-long long invTime =0;
-#endif
 
 /**
  * Resolves reduced system. Constructs "mini" encoding matrix, inverts
@@ -892,9 +882,6 @@ static inline void resolve(int blockSize,
 			   unsigned int *erased_blocks,
 			   short nr_fec_blocks)
 {
-#ifdef PROFILE
-    long long begin;
-#endif
     /* construct matrix */
     int row;
     unsigned char matrix[nr_fec_blocks*nr_fec_blocks];
@@ -915,27 +902,10 @@ static inline void resolve(int blockSize,
 	}
     }
 
-#ifdef PROFILE
-    begin = rdtsc();
-#endif
     r=invert_mat(matrix, nr_fec_blocks);
-#ifdef PROFILE
-    invTime += rdtsc()-begin;
-#endif
 
-    if(r) {
-	int col;
-	fprintf(stderr,"Pivot not found\n");
-	fprintf(stderr, "Rows: ");
-	for(row=0; row<nr_fec_blocks; row++)
-	    fprintf(stderr, "%d ", 128 + fec_block_nos[row]);
-	fprintf(stderr, "\n");
-	fprintf(stderr, "Columns: ");
-	for(col = 0; col < nr_fec_blocks; col++, ptr++)
-	    fprintf(stderr, "%d ", erased_blocks[col]);
-	fprintf(stderr, "\n");
-	assert(0);
-    }
+    if(r)
+	      s_iAssertion = -1;
 
     /* do the multiplication with the reduced code vector */
     for(row = 0, ptr=0; row < nr_fec_blocks; row++) {
@@ -948,7 +918,7 @@ static inline void resolve(int blockSize,
     }
 }
 
-void fec_decode(unsigned int blockSize,
+int fec_decode(unsigned int blockSize,
 		unsigned char **data_blocks,
 		unsigned int nr_data_blocks,
 		unsigned char **fec_blocks,
@@ -958,36 +928,14 @@ void fec_decode(unsigned int blockSize,
 {
    if ( 0 == fec_initialized )
       fec_init();
+   s_iAssertion = 0;
 
-#ifdef PROFILE
-    long long begin;
-    long long end;
-#endif
-
-#ifdef PROFILE
-    begin = rdtsc();
-#endif
     reduce(blockSize, data_blocks, nr_data_blocks,
 	   fec_blocks, fec_block_nos,  erased_blocks, nr_fec_blocks);
-#ifdef PROFILE
-    end = rdtsc();
-    reduceTime += end - begin;
-    begin = end;
-#endif
+
     resolve(blockSize, data_blocks,
 	    fec_blocks, fec_block_nos, erased_blocks,
 	    nr_fec_blocks);
-#ifdef PROFILE
-    end = rdtsc();
-    resolveTime += end - begin;
-#endif
+    return s_iAssertion;
 }
-
-
-#ifdef PROFILE
-void printDetail(void) {
-    fprintf(stderr, "red=%9lld\nres=%9lld\ninv=%9lld\n",  
-	    reduceTime, resolveTime, invTime);
-}
-#endif
 

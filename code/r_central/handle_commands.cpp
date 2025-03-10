@@ -1831,6 +1831,7 @@ bool handle_last_command_result()
                osd_apply_preferences();
                applyFontScaleChanges();
             }
+            menu_refresh_all_menus();
             break;
          }
 

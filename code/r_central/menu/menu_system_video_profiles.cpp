@@ -510,7 +510,7 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
 
    // Propagate changes to lower video profile
 
-   propagate_video_profile_changes(&g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], &(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]), &(profiles[0]));
+   propagate_video_profile_changes_to_lower_profiles(&g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], &(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]), &(profiles[0]));
 
    for( int k=VIDEO_PROFILE_MQ; k<=VIDEO_PROFILE_LQ; k++ )
    {

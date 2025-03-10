@@ -379,7 +379,7 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
    {
       int iNoise = m_pItemsSelect[20]->getSelectedIndex();
       pProfile->uProfileFlags &= ~ VIDEO_PROFILE_FLAGS_MASK_NOISE;
-      pProfile->uProfileFlags |= (iNoise) & VIDEO_PROFILE_FLAGS_MASK_NOISE;
+      pProfile->uProfileFlags |= ((u32)(iNoise)) & VIDEO_PROFILE_FLAGS_MASK_NOISE;
    }
 
    pProfile->video_data_length = m_pItemsSlider[0]->getCurrentValue();
@@ -471,7 +471,7 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
 
    // Propagate changes to lower video profiles
 
-   propagate_video_profile_changes( &g_pCurrentModel->video_link_profiles[iVideoProfile], pProfile, &(profiles[0]));
+   propagate_video_profile_changes_to_lower_profiles( &g_pCurrentModel->video_link_profiles[iVideoProfile], pProfile, &(profiles[0]));
 
    log_line("Sending video encoding flags: %s", str_format_video_encoding_flags(pProfile->uProfileEncodingFlags));
 

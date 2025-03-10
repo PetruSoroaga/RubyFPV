@@ -50,7 +50,6 @@ pthread_mutex_t s_pThreadKeyboardMutex;
 u32 s_uNextKeyboardDetectTime = 0;
 int s_iKeyboardDetectTryCount = 0;
 bool s_bHasLongPressFlag = false;
-
 typedef struct 
 {
    int iFile;
@@ -65,6 +64,8 @@ input_device_info s_InputDevicesInfo[10];
 u32 s_uKeyboardInputEvents[MAX_INPUT_EVENTS];
 int s_iCountKeyboardInputEvents = 0;
 u32 s_uKeyboardInputEventsSum = 0;
+u32 s_uKeyboardLastQAActionEventTime = 0;
+
 
 bool _input_device_has_key(int iFile, int iKey)
 {
@@ -263,6 +264,15 @@ bool _keyboard_try_detect()
 
 void _add_input_event(u32 uEvent)
 {
+   if ( (uEvent == INPUT_EVENT_PRESS_QA1) ||
+        (uEvent == INPUT_EVENT_PRESS_QA2) ||
+        (uEvent == INPUT_EVENT_PRESS_QA3) )
+   {
+      if ( get_current_timestamp_ms() < s_uKeyboardLastQAActionEventTime + 100 )
+         return;
+      s_uKeyboardLastQAActionEventTime = get_current_timestamp_ms();
+   }
+
    if ( uEvent == INPUT_EVENT_PRESS_MENU )
       log_line("[Input] Added input event %u, %d events", uEvent, s_iCountKeyboardInputEvents);
    int iLock = pthread_mutex_lock(&s_pThreadKeyboardMutex);

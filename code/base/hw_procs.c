@@ -98,6 +98,8 @@ void hw_stop_process(const char* szProcName)
       hw_execute_bash_command(szComm, NULL);
       hardware_sleep_ms(20);
    }
+   else
+      log_line("Process [%s] does not exists.", szProcName);
 }
 
 
@@ -437,6 +439,7 @@ int _hw_execute_bash_command(const char* command, char* outBuffer, int iSilent, 
    int iCountRead = 0;
    int iRead = 0;
    char* pOut = outBuffer;
+   int iResult = 1;
    while ( 1 )
    {
       if ( ferror(fp) || feof(fp) )
@@ -456,6 +459,7 @@ int _hw_execute_bash_command(const char* command, char* outBuffer, int iSilent, 
       if ( get_current_timestamp_ms() >= uTimeStart + uTimeoutMs )
       {
          log_line("Abandoning reading start process output.");
+         iResult = -1;
          break;
       }
    }
@@ -478,7 +482,7 @@ int _hw_execute_bash_command(const char* command, char* outBuffer, int iSilent, 
       log_softerror_and_alarm("Failed to close command: %s", command);
       return 0;
    }
-   return 1;
+   return iResult;
 }
 
 int hw_execute_bash_command_nonblock(const char* command, char* outBuffer)
@@ -489,11 +493,32 @@ int hw_execute_bash_command_nonblock(const char* command, char* outBuffer)
    if ( (NULL == command) || (0 == command[0]) )
       return 0;
 
-   log_line("Executing command nonblock: %s", command);
-   FILE* fp = popen( command, "r" );
+   char szCommand[1024];
+   int iLen = strlen(command);
+
+   if ( NULL == strstr(command, "2>/dev/null") )
+   {
+      if ( command[iLen-1] != '&' )
+         snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "%s 2>/dev/null &", command);
+      else
+      {
+         char szTmp[1024];
+         strncpy(szTmp, command, sizeof(szTmp)/sizeof(szTmp[0]));
+         szTmp[iLen-1] = 0;
+         if ( command[iLen-2] == ' ' )
+            szTmp[iLen-2] = 0;
+         snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "%s 2>/dev/null &", szTmp);
+      }
+   }
+   else
+      strncpy(szCommand, command, sizeof(szCommand)/sizeof(szCommand[0]));
+
+
+   log_line("Executing command nonblock: %s", szCommand);
+   FILE* fp = popen( szCommand, "r" );
    if ( NULL == fp )
    {
-      log_error_and_alarm("Failed to execute command: [%s]", command);
+      log_error_and_alarm("Failed to execute command: [%s]", szCommand);
       return 0;
    }
 
@@ -510,12 +535,12 @@ int hw_execute_bash_command_nonblock(const char* command, char* outBuffer)
    }
    if ( -1 == pclose(fp) )
    {
-      log_softerror_and_alarm("Failed to execute command: [%s]", command);
+      log_softerror_and_alarm("Failed to execute command: [%s]", szCommand);
       return 0;
    }
 
-   log_line("Executed command nonblock: [%s]", command);
-   return 0;
+   log_line("Executed command nonblock: [%s]", szCommand);
+   return 1;
 }
 
 int hw_execute_bash_command(const char* command, char* outBuffer)
@@ -539,7 +564,9 @@ int hw_execute_bash_command_silent(const char* command, char* outBuffer)
 
    if ( NULL == strstr(command, "2>/dev/null") )
    {
-      if ( command[iLen-1] == '&' )
+      if ( command[iLen-1] != '&' )
+         snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "%s 2>/dev/null &", command);
+      else
       {
          char szTmp[1024];
          strncpy(szTmp, command, sizeof(szTmp)/sizeof(szTmp[0]));
@@ -548,8 +575,6 @@ int hw_execute_bash_command_silent(const char* command, char* outBuffer)
             szTmp[iLen-2] = 0;
          snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "%s 2>/dev/null &", szTmp);
       }
-      else
-         snprintf(szCommand, sizeof(szCommand)/sizeof(szCommand[0]), "%s 2>/dev/null", command);
    }
    else
       strncpy(szCommand, command, sizeof(szCommand)/sizeof(szCommand[0]));

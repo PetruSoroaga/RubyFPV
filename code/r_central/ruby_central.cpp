@@ -214,13 +214,16 @@ void _draw_background()
    if ( g_TimeNow > s_uTimeLastChangeBgImage + 40000 )
    {
       s_uTimeLastChangeBgImage = g_TimeNow;
-      int iIndex = s_iBgImageIndex;
-      while ( iIndex == s_iBgImageIndex )
+      if ( ! g_bUpdateInProgress )
       {
-         iIndex = rand()%3;
+         int iIndex = s_iBgImageIndex;
+         while ( iIndex == s_iBgImageIndex )
+         {
+            iIndex = rand()%3;
+         }
+         s_iBgImageIndexPrev = s_iBgImageIndex;
+         s_iBgImageIndex = iIndex;
       }
-      s_iBgImageIndexPrev = s_iBgImageIndex;
-      s_iBgImageIndex = iIndex;
    }
 
    int iImageId = s_idBgImage[s_iBgImageIndex];
@@ -740,13 +743,6 @@ int ruby_start_recording()
    #ifdef HW_PLATFORM_RASPBERRY
    system("sudo mount -o remount,rw /");
    #endif
-   sprintf(szBuff, "mkdir -p %s",FOLDER_MEDIA);
-   hw_execute_bash_command(szBuff, NULL );
-   sprintf(szBuff, "chmod 777 %s",FOLDER_MEDIA);
-   hw_execute_bash_command(szBuff, NULL );
-
-   sprintf(szBuff, "chmod 777 %s*", FOLDER_MEDIA);
-   hw_execute_bash_command(szBuff, NULL);
    
    hw_execute_bash_command("mkdir -p tmp", NULL );
    hw_execute_bash_command("chmod 777 tmp", NULL );
@@ -756,10 +752,21 @@ int ruby_start_recording()
 
    if ( access( FOLDER_MEDIA, R_OK ) == -1 )
    {
-      Popup* p = new Popup("There is an issue writing to the SD card.", 0.1,0.7, 0.54, 5);
-      p->setIconId(g_idIconError, get_Color_IconError());
-      popups_add_topmost(p);
-      return -1;
+      sprintf(szBuff, "mkdir -p %s",FOLDER_MEDIA);
+      hw_execute_bash_command(szBuff, NULL );
+      sprintf(szBuff, "chmod 777 %s",FOLDER_MEDIA);
+      hw_execute_bash_command(szBuff, NULL );
+
+      sprintf(szBuff, "chmod 777 %s* 2>/dev/null", FOLDER_MEDIA);
+      hw_execute_bash_command(szBuff, NULL);
+
+      if ( access( FOLDER_MEDIA, R_OK ) == -1 )
+      {
+         Popup* p = new Popup("There is an issue writing to the SD card.", 0.1,0.7, 0.54, 5);
+         p->setIconId(g_idIconError, get_Color_IconError());
+         popups_add_topmost(p);
+         return -1;
+      }
    }
 
    g_uVideoRecordStartTime = get_current_timestamp_ms();
@@ -818,6 +825,8 @@ int ruby_start_recording()
 
 int ruby_stop_recording()
 {
+   if ( g_TimeNow < g_uVideoRecordStartTime + 200 )
+      return 0;
    s_TimeLastRecordingStop = g_TimeNow;
 
    if ( NULL == g_pCurrentModel )
@@ -1738,7 +1747,6 @@ void clear_shared_mems()
    //memset(&g_VideoInfoStatsFromVehicleRadioOut, 0, sizeof(shared_mem_video_frames_stats));
    memset(&g_SM_HistoryRxStats, 0, sizeof(shared_mem_radio_stats_rx_hist));
    memset(&g_SM_HistoryRxStatsVehicle, 0, sizeof(shared_mem_radio_stats_rx_hist));
-   memset(&g_SM_AudioDecodeStats, 0, sizeof(shared_mem_audio_decode_stats));
    memset(&g_SM_VideoDecodeStats, 0, sizeof(shared_mem_video_stream_stats_rx_processors));
    
    memset(&g_SMControllerRTInfo, 0, sizeof(controller_runtime_info));
@@ -1855,8 +1863,6 @@ void synchronize_shared_mems()
    
    if ( NULL != g_pSM_HistoryRxStats )
       memcpy((u8*)&g_SM_HistoryRxStats, g_pSM_HistoryRxStats, sizeof(shared_mem_radio_stats_rx_hist));
-   if ( NULL != g_pSM_AudioDecodeStats )
-      memcpy((u8*)&g_SM_AudioDecodeStats, g_pSM_AudioDecodeStats, sizeof(shared_mem_audio_decode_stats));
    
    if ( pCS->iDeveloperMode )
    if ( NULL != g_pCurrentModel )
@@ -1896,8 +1902,6 @@ void ruby_processing_loop(bool bNoKeys)
 
    try_read_messages_from_router(5);
 
-   u32 uTime1 = get_current_timestamp_ms();
-
    keyboard_consume_input_events();
    u32 uSumEvent = keyboard_get_triggered_input_events();
 
@@ -1905,15 +1909,9 @@ void ruby_processing_loop(bool bNoKeys)
       warnings_add_input_device_unknown_key((int)((uSumEvent >> 16) & 0xFF));
    handle_commands_loop();
 
-   u32 uTime2 = get_current_timestamp_ms();
-
    pairing_loop();
-   
-   u32 uTime3 = get_current_timestamp_ms();
 
    synchronize_shared_mems();
-
-   u32 uTime4 = get_current_timestamp_ms();
 
     if ( pCS->iFreezeOSD )
     if ( pCS->iDeveloperMode )
@@ -1936,8 +1934,6 @@ void ruby_processing_loop(bool bNoKeys)
           executeQuickActions();
     }
 
-   u32 uTime5 = get_current_timestamp_ms();
-
    if ( g_iMustSendCurrentActiveOSDLayoutCounter > 0 )
    if ( g_TimeNow >= g_TimeLastSentCurrentActiveOSDLayout+200 )
    if ( (NULL != g_pCurrentModel) && link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)  )
@@ -1947,31 +1943,20 @@ void ruby_processing_loop(bool bNoKeys)
       handle_commands_decrement_command_counter();
       handle_commands_send_single_oneway_command(0, COMMAND_ID_SET_OSD_CURRENT_LAYOUT, (u32)g_pCurrentModel->osd_params.iCurrentOSDLayout, NULL, 0);
    }
-   // To remove
-   u32 uTime6 = get_current_timestamp_ms();
-   u32 uTime7 = get_current_timestamp_ms();
-   u32 uTime8 = get_current_timestamp_ms();
-   u32 uTime9 = get_current_timestamp_ms();
 
    if ( g_bIsRouterReady )
    {
       local_stats_update_loop();
-      uTime7 = get_current_timestamp_ms();
       forward_streams_loop();
-      uTime8 = get_current_timestamp_ms();
       link_watch_loop();
       warnings_periodic_loop();
-      uTime9 = get_current_timestamp_ms();
    }
 
    u32 uTime10 = get_current_timestamp_ms();
    u32 dTime = uTime10 - uTimeStart;
    if ( dTime > 200 )
    if ( (s_StartSequence == START_SEQ_COMPLETED) || (s_StartSequence == START_SEQ_FAILED) )
-      log_softerror_and_alarm("Main processing loop took too long (%u ms: %u %u %u %u %u %u %u %u %u %u).", dTime,
-          uTime1 - uTimeStart, uTime2-uTime1, uTime3-uTime2, uTime4-uTime3,
-          uTime5-uTime4, uTime6-uTime5, uTime7-uTime6, uTime8-uTime7,
-          uTime9-uTime8, uTime10-uTime9);
+      log_softerror_and_alarm("Main processing loop took too long (%u ms)", dTime);
 }
 
 void main_loop_r_central()
@@ -2181,12 +2166,6 @@ int main(int argc, char *argv[])
 
    log_line("Ruby UI starting");
 
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
-   log_line("Ruby OLED Init...");
-   oled_render_init();
-   oled_render_thread_start();
-   #endif
-
    init_hardware();
 
    if ( ! load_Preferences() )
@@ -2281,6 +2260,15 @@ int main(int argc, char *argv[])
       
    save_ControllerInterfacesSettings();
 
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   log_line("Ruby OLED Init...");
+   if ( hardware_i2c_has_oled_screen() )
+   {
+      oled_render_init();
+      oled_render_thread_start();
+   }
+   #endif
+
    if ( pCS->iPrioritiesAdjustment )
       hw_set_priority_current_proc(pCS->iNiceCentral); 
 
@@ -2362,6 +2350,11 @@ int main(int argc, char *argv[])
    
    if ( ! g_bIsReinit )
       pairing_stop();
+
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   oled_render_shutdown();
+   #endif
+   
    controller_stop_i2c();
    log_line("Central: Releasing %d OSD plugins...", g_iPluginsOSDCount);
    for( int i=0; i<g_iPluginsOSDCount; i++ )

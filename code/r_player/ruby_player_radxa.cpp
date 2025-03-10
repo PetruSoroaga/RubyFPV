@@ -598,8 +598,6 @@ void _do_stream_mode_sm()
                      sem_trywait(s_pSemaphoreSMData);
                }
             }
-            //else
-            //   log_softerror_and_alarm("DBG Failed to get SM data sem value.");
 
             uWritePos1 = *pTmp1;
             uWritePos2 = *pTmp2;

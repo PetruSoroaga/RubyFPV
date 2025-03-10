@@ -11,9 +11,9 @@
         * Redistributions in binary form (partially or complete) must reproduce
         the above copyright notice, this list of conditions and the following disclaimer
         in the documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permitted.
@@ -35,6 +35,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include "config_hw.h"
+
 
 #if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RASPBERRY)
 #include <wiringPiI2C.h>
@@ -398,22 +399,22 @@ int hardware_get_i2c_device_bus_number(u8 deviceAddress)
 
 int hardware_is_known_i2c_device(u8 deviceAddress)
 {
-   if ( deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_HDMI ||
-        deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_CSI ||
-        deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_VEYE )
+   if ( (deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_HDMI) ||
+        (deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_CSI) ||
+        (deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_VEYE) )
      return 1;
 
-   if ( deviceAddress == I2C_DEVICE_ADDRESS_INA219_1 ||
-        deviceAddress == I2C_DEVICE_ADDRESS_INA219_2 )
+   if ( (deviceAddress == I2C_DEVICE_ADDRESS_INA219_1) ||
+        (deviceAddress == I2C_DEVICE_ADDRESS_INA219_2) )
      return 1;
 
-   if ( deviceAddress == I2C_DEVICE_ADDRESS_SSD1306_1 ||
-      deviceAddress == I2C_DEVICE_ADDRESS_SSD1306_2 )
+   if ( (deviceAddress == I2C_DEVICE_ADDRESS_PICO_RC_IN) ||
+        (deviceAddress == I2C_DEVICE_ADDRESS_PICO_EXTENDER) )
      return 1;
 
-   if ( deviceAddress == I2C_DEVICE_ADDRESS_PICO_RC_IN ||
-        deviceAddress == I2C_DEVICE_ADDRESS_PICO_EXTENDER )
-     return 1;
+   if ( (deviceAddress == I2C_DEVICE_ADDRESS_SSD1306_1) ||
+        (deviceAddress == I2C_DEVICE_ADDRESS_SSD1306_2) )
+      return 1;
 
    if ( deviceAddress >= I2C_DEVICE_MIN_ADDRESS_RANGE &&
         deviceAddress <= I2C_DEVICE_MAX_ADDRESS_RANGE )
@@ -434,8 +435,8 @@ void hardware_get_i2c_device_name(u8 deviceAddress, char* szOutput)
    if ( deviceAddress == I2C_DEVICE_ADDRESS_CAMERA_VEYE )
       strcpy(szOutput, I2C_DEVICE_NAME_CAMERA_VEYE);
 
-   if ( deviceAddress == I2C_DEVICE_ADDRESS_INA219_1 ||
-        deviceAddress == I2C_DEVICE_ADDRESS_INA219_2 )
+   if ( (deviceAddress == I2C_DEVICE_ADDRESS_INA219_1) ||
+        (deviceAddress == I2C_DEVICE_ADDRESS_INA219_2) )
       strcpy(szOutput, I2C_DEVICE_NAME_INA219);
 
    if ( deviceAddress == I2C_DEVICE_ADDRESS_PICO_RC_IN )
@@ -443,13 +444,12 @@ void hardware_get_i2c_device_name(u8 deviceAddress, char* szOutput)
    if ( deviceAddress == I2C_DEVICE_ADDRESS_PICO_EXTENDER )
       strcpy(szOutput, I2C_DEVICE_NAME_PICO_EXTENDER);
 
-      
-   if ( deviceAddress == I2C_DEVICE_ADDRESS_SSD1306_1 ||
-      deviceAddress == I2C_DEVICE_ADDRESS_SSD1306_2)
+   if ( (deviceAddress == I2C_DEVICE_ADDRESS_SSD1306_1) ||
+        (deviceAddress == I2C_DEVICE_ADDRESS_SSD1306_2) )
       strcpy(szOutput, I2C_DEVICE_NAME_OLED_SCREEN);
 
-   if ( deviceAddress >= I2C_DEVICE_MIN_ADDRESS_RANGE &&
-        deviceAddress <= I2C_DEVICE_MAX_ADDRESS_RANGE )
+   if ( (deviceAddress >= I2C_DEVICE_MIN_ADDRESS_RANGE) &&
+        (deviceAddress <= I2C_DEVICE_MAX_ADDRESS_RANGE) )
       strcpy(szOutput, I2C_DEVICE_NAME_RUBY_ADDON);
 }
 
@@ -713,8 +713,8 @@ t_i2c_device_settings* hardware_i2c_add_device_settings(u8 i2cAddress)
       return &(s_listI2CDevicesSettings[s_iCountI2CDevicesSettings-1]);
    }
 
-   if ( i2cAddress == I2C_DEVICE_ADDRESS_INA219_1 ||
-        i2cAddress == I2C_DEVICE_ADDRESS_INA219_2 )
+   if ( (i2cAddress == I2C_DEVICE_ADDRESS_INA219_1) ||
+        (i2cAddress == I2C_DEVICE_ADDRESS_INA219_2) )
    {
       strcpy(s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].szDeviceName, I2C_DEVICE_NAME_INA219);
       s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].nI2CAddress = i2cAddress;
@@ -729,7 +729,7 @@ t_i2c_device_settings* hardware_i2c_add_device_settings(u8 i2cAddress)
       return &(s_listI2CDevicesSettings[s_iCountI2CDevicesSettings-1]);
    }
 
-   if ( i2cAddress == I2C_DEVICE_ADDRESS_SSD1306_1 || i2cAddress == I2C_DEVICE_ADDRESS_SSD1306_2)
+   if ( (i2cAddress == I2C_DEVICE_ADDRESS_SSD1306_1) || (i2cAddress == I2C_DEVICE_ADDRESS_SSD1306_2) )
    {
       strcpy(s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].szDeviceName, I2C_DEVICE_NAME_OLED_SCREEN);
       s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].nI2CAddress = i2cAddress;
@@ -753,7 +753,7 @@ t_i2c_device_settings* hardware_i2c_add_device_settings(u8 i2cAddress)
       s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].bConfigurable = 1;
       s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].bEnabled = 0;
 
-      if ( i2cAddress >= I2C_DEVICE_MIN_ADDRESS_RANGE && i2cAddress <= I2C_DEVICE_MAX_ADDRESS_RANGE )
+      if ( (i2cAddress >= I2C_DEVICE_MIN_ADDRESS_RANGE) && (i2cAddress <= I2C_DEVICE_MAX_ADDRESS_RANGE) )
       {
          s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].nDeviceType = I2C_DEVICE_TYPE_RUBY_ADDON;
          s_listI2CDevicesSettings[s_iCountI2CDevicesSettings].bEnabled = 1;
@@ -1111,7 +1111,7 @@ int hardware_i2c_has_oled_screen()
    for( int i=0; i<s_iCountI2CDevicesSettings; i++ )
    {
       if ( s_listI2CDevicesSettings[i].nDeviceType == I2C_DEVICE_TYPE_OLED_SCREEN )
-         return 1;
+         return s_listI2CDevicesSettings[i].nI2CAddress;
    }
    return 0; 
 }

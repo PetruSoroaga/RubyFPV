@@ -363,6 +363,12 @@ void MenuVehicle::onSelectItem()
    }
    if ( m_IndexAudio == m_SelectedIndex )
    {
+
+      if ( ! g_pCurrentModel->audio_params.has_audio_device )
+      {
+         addMessage(L("This vehicle doesn't have any audio capture device. Audio can't be used on this vehicle."));
+         return;
+      }
       add_menu_to_stack(new MenuVehicleAudio());
       return;
    }

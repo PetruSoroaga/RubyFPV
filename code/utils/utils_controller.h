@@ -14,7 +14,7 @@ bool controller_utils_usb_import_has_any_controller_id_file();
 // Returns number of asignable radio interfaces or a negative error code number
 int controller_count_asignable_radio_interfaces_to_vehicle_radio_link(Model* pModel, int iVehicleRadioLinkId);
 
-void propagate_video_profile_changes(type_video_link_profile* pOrgProfile, type_video_link_profile* pUpdatedProfile, type_video_link_profile* pAllProfiles);
+void propagate_video_profile_changes_to_lower_profiles(type_video_link_profile* pOrgProfile, type_video_link_profile* pUpdatedProfile, type_video_link_profile* pAllProfiles);
 
 int tx_powers_get_max_usable_power_mw_for_controller();
 

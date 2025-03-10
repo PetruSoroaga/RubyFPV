@@ -11,9 +11,9 @@
         * Redistributions in binary form (partially or complete) must reproduce
         the above copyright notice, this list of conditions and the following disclaimer
         in the documentation and/or other materials provided with the distribution.
-         * Copyright info and developer info must be preserved as is in the user
+        * Copyright info and developer info must be preserved as is in the user
         interface, additions could be made to that info.
-       * Neither the name of the organization nor the
+        * Neither the name of the organization nor the
         names of its contributors may be used to endorse or promote products
         derived from this software without specific prior written permission.
         * Military use is not permitted.
@@ -42,14 +42,12 @@
 
 #include <time.h>
 #include <sys/resource.h>
-
 #if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RASPBERRY)
 #include <wiringPiI2C.h>
 #endif
 #if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RADXA_ZERO3)
 #include "../base/wiringPiI2C_radxa.h"
 #endif
-
 #include <math.h>
 
 
@@ -957,6 +955,13 @@ int main(int argc, char *argv[])
    
    log_init("RubyI2C");
    //log_enable_stdout();
+
+   #if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RASPBERRY)
+   log_line("Using Raspberry built in wiringPi library.");
+   #endif
+   #if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RADXA_ZERO3)
+   log_line("Using Radxa custom wiringPi library.");
+   #endif
 
    hardware_enumerate_i2c_busses();
 

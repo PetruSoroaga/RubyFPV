@@ -676,7 +676,10 @@ void radio_stats_log_tx_info(shared_mem_radio_stats* pSMRS, u32 uTimeNow)
          if ( pSMRS->radio_streams[iVehicle][i].uVehicleId != 0 )
          if ( (0 < pSMRS->radio_streams[iVehicle][i].txBytesPerSec) || (0 < pSMRS->radio_streams[iVehicle][i].txPacketsPerSec) )
          {
-            log_line("VID %u, Stream %d (%s): %u bps / %u pckts/s", pSMRS->radio_streams[iVehicle][i].uVehicleId, i, str_get_radio_stream_name(i), pSMRS->radio_streams[iVehicle][i].txBytesPerSec*8, pSMRS->radio_streams[iVehicle][i].txPacketsPerSec);
+            if ( pSMRS->radio_streams[iVehicle][i].uVehicleId == BROADCAST_VEHICLE_ID )
+               log_line("%d. To VID  Broadcast, Stream %d (%s): %s / %u pckts/s", iVehicle+1, i, str_get_radio_stream_name(i), str_format_bitrate_inline(pSMRS->radio_streams[iVehicle][i].txBytesPerSec*8), pSMRS->radio_streams[iVehicle][i].txPacketsPerSec);
+            else
+               log_line("%d. To VID %u, Stream %d (%s): %s / %u pckts/s", iVehicle+1, pSMRS->radio_streams[iVehicle][i].uVehicleId, i, str_get_radio_stream_name(i), str_format_bitrate_inline(pSMRS->radio_streams[iVehicle][i].txBytesPerSec*8), pSMRS->radio_streams[iVehicle][i].txPacketsPerSec);
          }
       }
    }
@@ -1490,96 +1493,6 @@ void radio_stats_set_tx_radio_datarate_for_packet(shared_mem_radio_stats* pSMRS,
    {
       pSMRS->radio_interfaces[iInterfaceIndex].lastSentDataRateData = iDataRate;
       pSMRS->radio_links[iLocalRadioLinkIndex].lastSentDataRateData = iDataRate;    
-   }
-}
-
-void radio_controller_links_stats_reset(t_packet_data_controller_link_stats* pControllerStats)
-{
-   if ( NULL == pControllerStats )
-      return;
-
-   pControllerStats->flagsAndVersion = 0;
-   pControllerStats->lastUpdateTime = 0;
-   pControllerStats->radio_interfaces_count = hardware_get_radio_interfaces_count();
-   pControllerStats->video_streams_count = 1;
-
-   for( int i=0; i<CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES; i++ )
-   {
-      for( int k=0; k<MAX_RADIO_INTERFACES; k++ )
-         pControllerStats->radio_interfaces_rx_quality[k][i] = 255;
-      for( int k=0; k<MAX_VIDEO_STREAMS; k++ )
-      {
-         pControllerStats->radio_streams_rx_quality[k][i] = 255;
-         pControllerStats->video_streams_blocks_clean[k][i] = 0;
-         pControllerStats->video_streams_blocks_reconstructed[k][i] = 0;
-         pControllerStats->video_streams_blocks_max_ec_packets_used[k][i] = 0;
-         pControllerStats->video_streams_requested_retransmission_packets[k][i] = 0;
-      }
-   }
-
-   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-   {
-      s_uControllerLinkStats_tmpRecv[i] = 0;
-      s_uControllerLinkStats_tmpRecvBad[i] = 0;
-      s_uControllerLinkStats_tmpRecvLost[i] = 0;
-   }
-
-   for( int k=0; k<MAX_VIDEO_STREAMS; k++ )
-   {
-      pControllerStats->tmp_radio_streams_rx_quality[k] = 0;
-      pControllerStats->tmp_video_streams_blocks_clean[k] = 0;
-      pControllerStats->tmp_video_streams_blocks_reconstructed[k] = 0;
-      pControllerStats->tmp_video_streams_requested_retransmission_packets[k] = 0;
-   }
-
-}
-
-void radio_controller_links_stats_periodic_update(t_packet_data_controller_link_stats* pControllerStats, u32 timeNow)
-{
-   if ( NULL == pControllerStats )
-      return;
-
-   if ( timeNow >= pControllerStats->lastUpdateTime && timeNow < pControllerStats->lastUpdateTime + CONTROLLER_LINK_STATS_HISTORY_SLICE_INTERVAL_MS )
-      return;
-   
-   pControllerStats->lastUpdateTime = timeNow;
-
-   for( int i=0; i<pControllerStats->radio_interfaces_count; i++ )
-   {
-      for( int k=CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES-1; k>0; k-- )
-         pControllerStats->radio_interfaces_rx_quality[i][k] = pControllerStats->radio_interfaces_rx_quality[i][k-1];
-
-      if ( 0 == s_uControllerLinkStats_tmpRecv[i] )
-         pControllerStats->radio_interfaces_rx_quality[i][0] = 0;
-      else
-         pControllerStats->radio_interfaces_rx_quality[i][0] = 100 - (100*(s_uControllerLinkStats_tmpRecvBad[i]+s_uControllerLinkStats_tmpRecvLost[i]))/(s_uControllerLinkStats_tmpRecv[i]+s_uControllerLinkStats_tmpRecvLost[i]);
-
-      s_uControllerLinkStats_tmpRecv[i] = 0;
-      s_uControllerLinkStats_tmpRecvBad[i] = 0;
-      s_uControllerLinkStats_tmpRecvLost[i] = 0;
-   }
-
-   for( int i=0; i<pControllerStats->video_streams_count; i++ )
-   {
-      for( int k=CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES-1; k>0; k-- )
-      {
-         pControllerStats->radio_streams_rx_quality[i][k] = pControllerStats->radio_streams_rx_quality[i][k-1];
-         pControllerStats->video_streams_blocks_clean[i][k] = pControllerStats->video_streams_blocks_clean[i][k-1];
-         pControllerStats->video_streams_blocks_reconstructed[i][k] = pControllerStats->video_streams_blocks_reconstructed[i][k-1];
-         pControllerStats->video_streams_blocks_max_ec_packets_used[i][k] = pControllerStats->video_streams_blocks_max_ec_packets_used[i][k-1];
-         pControllerStats->video_streams_requested_retransmission_packets[i][k] = pControllerStats->video_streams_requested_retransmission_packets[i][k-1];
-      }
-      pControllerStats->radio_streams_rx_quality[i][0] = pControllerStats->tmp_radio_streams_rx_quality[i];
-      pControllerStats->video_streams_blocks_clean[i][0] = pControllerStats->tmp_video_streams_blocks_clean[i];
-      pControllerStats->video_streams_blocks_reconstructed[i][0] = pControllerStats->tmp_video_streams_blocks_reconstructed[i];
-      pControllerStats->video_streams_blocks_max_ec_packets_used[i][0] = pControllerStats->tmp_video_streams_blocks_max_ec_packets_used[i];
-      pControllerStats->video_streams_requested_retransmission_packets[i][0] = pControllerStats->tmp_video_streams_requested_retransmission_packets[i];
-
-      pControllerStats->tmp_radio_streams_rx_quality[i] = 0;
-      pControllerStats->tmp_video_streams_blocks_clean[i] = 0;
-      pControllerStats->tmp_video_streams_blocks_reconstructed[i] = 0;
-      pControllerStats->tmp_video_streams_blocks_max_ec_packets_used[i] = 0;
-      pControllerStats->tmp_video_streams_requested_retransmission_packets[i] = 0;
    }
 }
 

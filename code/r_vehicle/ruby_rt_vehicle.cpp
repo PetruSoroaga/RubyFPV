@@ -1489,8 +1489,6 @@ int main(int argc, char *argv[])
    {
       vehicle_launch_audio_capture(g_pCurrentModel);
       g_pProcessorTxAudio->openAudioStream();
-      // To remove
-      g_pProcessorTxAudio->startLocalRecording();
    }
    else
       log_line("Start sequence: Audio is not enabled (has device: %s, enabled: %s).", g_pCurrentModel->audio_params.has_audio_device?"yes":"no", g_pCurrentModel->audio_params.enabled?"yes":"no");
@@ -1691,6 +1689,7 @@ int _main_loop_try_read_camera()
 {
    int iReadSize = 0;
    u8* pVideoData = NULL;
+   bool bDidReadVideoData = false;
    bool bIsEndOfFrame = false;
    u8* pPacket = NULL;
    int iPacketLength = 0;
@@ -1703,7 +1702,7 @@ int _main_loop_try_read_camera()
    g_pProcessStats->uLoopCounter3 = 0;
    g_pProcessStats->uLoopCounter4 = 0;
 
-   // Read multiple times for large I-frames
+   // Read multiple times for large I-frames and for end of frame detection
    int iMaxRepeatCount = 4;
 
    while ( iMaxRepeatCount > 0 )
@@ -1715,6 +1714,7 @@ int _main_loop_try_read_camera()
       iReadSize = 0;
       pVideoData = NULL;
       bIsEndOfFrame = false;
+      bDidReadVideoData = false;
 
       if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       {
@@ -1723,6 +1723,7 @@ int _main_loop_try_read_camera()
          g_pProcessStats->uLoopSubStep = 5;
          if ( iReadSize > 0 )
          {
+            bDidReadVideoData = true;
             int iBuffSize = video_source_csi_get_buffer_size();
             bIsEndOfFrame = (iReadSize < iBuffSize)?true:false;
             // Concatenate SPS,PSP units to the next I/P unit
@@ -1736,26 +1737,33 @@ int _main_loop_try_read_camera()
       
       if ( g_pCurrentModel->isActiveCameraOpenIPC() )
       {
-         g_pProcessStats->uLoopSubStep = 99;
-         pVideoData = video_source_majestic_read(&iReadSize, true);
-         g_pProcessStats->uLoopSubStep = 5;
-         if ( iReadSize > 0 )
+         // Read mulitple times for end of frame backward adjustment
+         for( int k=0; k<4; k++ )
          {
-            bool bSingle = video_source_majestic_last_read_is_single_nal();
-            bool bEnd = video_source_majestic_last_read_is_end_nal();
-            u32 uNALType = video_source_majestic_get_last_nal_type();
-            bIsEndOfFrame = g_pVideoTxBuffers->fillVideoPacketsFromRTSPPacket(pVideoData, iReadSize, bSingle, bEnd, uNALType);
-            g_pProcessStats->uLoopCounter3++;
+            g_pProcessStats->uLoopSubStep = 99;
+            pVideoData = video_source_majestic_read(&iReadSize, true);
+            g_pProcessStats->uLoopSubStep = 5;
+            if ( iReadSize > 0 )
+            {
+               bDidReadVideoData = true;
+               bool bSingle = video_source_majestic_last_read_is_single_nal();
+               bool bEnd = video_source_majestic_last_read_is_end_nal();
+               u32 uNALType = video_source_majestic_get_last_nal_type();
+               bIsEndOfFrame |= g_pVideoTxBuffers->fillVideoPacketsFromRTSPPacket(pVideoData, iReadSize, bSingle, bEnd, uNALType);
+               g_pProcessStats->uLoopCounter3++;
+            }
+            if ( (iReadSize <= 0) || bIsEndOfFrame )
+               break;
          }
          g_pProcessStats->uLoopSubStep = 6;
       }
 
       g_pProcessStats->uLoopSubStep = 7;
 
-      if ( (iReadSize <= 0) || bIsEndOfFrame )
+      if ( (!bDidReadVideoData) || bIsEndOfFrame )
          iMaxRepeatCount = 0;
 
-      if ( (pVideoData != NULL) && (iReadSize > 0) )
+      if ( bDidReadVideoData )
          adaptive_video_on_new_camera_read(bIsEndOfFrame);
 
       g_pProcessStats->uLoopSubStep = 8;
@@ -1770,6 +1778,7 @@ int _main_loop_try_read_camera()
       g_pProcessStats->uLoopSubStep = 9;
 
       // Send audio packets if any
+      if ( g_pVideoTxBuffers->hasPendingPacketsToSend() )
       if ( g_pCurrentModel->audio_params.has_audio_device && g_pCurrentModel->audio_params.enabled )
       if ( NULL != g_pProcessorTxAudio )
          g_pProcessorTxAudio->sendAudioPackets();

@@ -14,6 +14,7 @@ char* str_format_time(u32 miliseconds);
 
 void str_getDataRateDescription(int dataRateBPS, int iHT40, char* szOutput);
 void str_getDataRateDescriptionNoSufix(int dataRateBPS, char* szOutput);
+char* str_format_bitrate_inline(int iBitrateBPS);
 void str_format_bitrate(int bitrate_bps, char* szBuffer);
 void str_format_bitrate_no_sufix(int bitrate_bps, char* szBuffer);
 const char* str_getBandName(u32 band);

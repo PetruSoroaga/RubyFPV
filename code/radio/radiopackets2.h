@@ -145,7 +145,6 @@ typedef struct
 //   u8 controller local radio link id
 //   u8 relay flags for the receiving side (for who receives this ping) // added in v.7.7
 //   u8 relay mode for the receiving side (for who receives this ping) // added in v.7.7
-//   optional: serialized minimized t_packet_data_controller_link_stats - link stats (video and radio)
 
 
 #define PACKET_TYPE_RUBY_PING_CLOCK_REPLY 4
@@ -239,11 +238,12 @@ typedef struct
 
 #define PACKET_TYPE_FIRST_PAIRING_DONE 16
 
-#define PACKET_TYPE_AUDIO_SEGMENT 18
 
+#define PACKET_TYPE_AUDIO_SEGMENT 18
+// Format updated in 10.6, incompatible with older version
 // 4 + N bytes
-// bytes 0..3 BBBP  (B block, higher 3 bytes, P packet index, lower byte)
-// byte 4-N - audio data
+// bytes 0..3 BBBP  (BBB block, higher 3 bytes; P packet index, lower byte)
+// byte 4-N - (CRC32) + audio data
 
 #define PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS 20
 // params after header:
@@ -319,7 +319,7 @@ typedef struct
 {
    u16 uVideoDataLength;
    u8  uFrameAndNALFlags;
-      // bit 0,1  how many packets untill endofframe
+      // bit 0,1  how many packets until we reach the actual end-of-frame
       // bit 2  end of frame
       // bit 3  has P nal
       // bit 4  has I nal
@@ -670,36 +670,6 @@ typedef struct
    u32 tmp_uVideoIntervalsCount;
 } __attribute__((packed)) t_packet_header_vehicle_tx_history;
 
-
-//----------------------------------------------
-// packet_data_controller_links_stats;
-// sent by controller in PACKET_TYPE_RUBY_PING_CLOCK and PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS
-//
-
-// 5 intervals, 80 ms each
-// !!! Should be the same as stats kept by vehicle: VIDEO_LINK_STATS_REFRESH_INTERVAL_MS
-#define CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES 5
-#define CONTROLLER_LINK_STATS_HISTORY_SLICE_INTERVAL_MS 80
-
-typedef struct
-{
-   u8 flagsAndVersion;
-   u32 lastUpdateTime;
-   u8 radio_interfaces_count; // only those present are sent over radio
-   u8 video_streams_count; // only those present are sent over radio
-   u8 radio_interfaces_rx_quality[MAX_RADIO_INTERFACES][CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES]; // 0...100 %, or 255 for no packets received or lost for this time slice
-   u8 radio_streams_rx_quality[MAX_VIDEO_STREAMS][CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES]; // 0...100 %, or 255 for no packets received or lost for this time slice
-   u8 video_streams_blocks_clean[MAX_VIDEO_STREAMS][CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES];
-   u8 video_streams_blocks_reconstructed[MAX_VIDEO_STREAMS][CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES];
-   u8 video_streams_blocks_max_ec_packets_used[MAX_VIDEO_STREAMS][CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES];
-   u8 video_streams_requested_retransmission_packets[MAX_VIDEO_STREAMS][CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES];
-
-   u8 tmp_radio_streams_rx_quality[MAX_VIDEO_STREAMS];
-   u8 tmp_video_streams_blocks_clean[MAX_VIDEO_STREAMS];
-   u8 tmp_video_streams_blocks_reconstructed[MAX_VIDEO_STREAMS];
-   u8 tmp_video_streams_blocks_max_ec_packets_used[MAX_VIDEO_STREAMS];
-   u8 tmp_video_streams_requested_retransmission_packets[MAX_VIDEO_STREAMS];
-} __attribute__((packed)) t_packet_data_controller_link_stats;
 
 #define PACKET_TYPE_RUBY_TELEMETRY_RADIO_RX_HISTORY 48
 // has:

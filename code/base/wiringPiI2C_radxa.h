@@ -5,6 +5,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif 
+
+#if defined (HW_PLATFORM_RADXA_ZERO3)
 int wiringPiI2CSetup(const int devId);
 int wiringPiI2CRead(int fd);
 int wiringPiI2CReadReg8(int fd, int reg);
@@ -14,6 +16,8 @@ int wiringPiI2CWriteReg8(int fd, int reg, int data);
 int wiringPiI2CWriteReg16(int fd, int reg, int data);
 int wiringPiI2CWriteBlockData(int fd, uint8_t reg, uint8_t length, uint8_t *values);
 int wiringPiI2CWriteBlockDataIoctl(int fd,int addr, uint8_t reg, uint8_t length, uint8_t *values);
+#endif
+
 #ifdef __cplusplus
 }  
 #endif 

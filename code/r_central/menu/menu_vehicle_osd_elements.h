@@ -11,6 +11,7 @@ class MenuVehicleOSDElements: public Menu
       virtual ~MenuVehicleOSDElements();
       virtual void valuesToUI();
       virtual void Render();
+      virtual void onShow();
       virtual void onSelectItem();
             
    private:

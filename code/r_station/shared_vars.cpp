@@ -58,7 +58,6 @@ vehicle_runtime_info* g_pSMVehicleRTInfo = NULL;
 
 shared_mem_radio_stats_rx_hist* g_pSM_HistoryRxStats = NULL;
 shared_mem_radio_stats_rx_hist g_SM_HistoryRxStats;
-shared_mem_audio_decode_stats* g_pSM_AudioDecodeStats = NULL;
 
 shared_mem_video_frames_stats g_SM_VideoFramesStatsOutput;
 shared_mem_video_frames_stats* g_pSM_VideoFramesStatsOutput = NULL;
@@ -82,8 +81,6 @@ shared_mem_radio_stats* g_pSM_RadioStats = NULL;
 shared_mem_video_link_graphs* g_pSM_VideoLinkGraphs = NULL;
 shared_mem_process_stats* g_pProcessStats = NULL;
 shared_mem_process_stats* g_pProcessStatsCentral = NULL;
-
-t_packet_data_controller_link_stats g_PD_ControllerLinkStats;
 
 int g_fIPCFromCentral = -1;
 int g_fIPCToCentral = -1;

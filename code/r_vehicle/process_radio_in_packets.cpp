@@ -78,117 +78,6 @@ void _mark_link_from_controller_present()
    }
 }
 
-void _try_decode_controller_links_stats_from_packet(u8* pPacketData, int packetLength)
-{
-   t_packet_header* pPH = (t_packet_header*)pPacketData;
-
-   bool bHasControllerData = false;
-   u8* pData = NULL;
-   //int dataLength = 0;
-
-   if ( ((pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RUBY ) && (pPH->packet_type == PACKET_TYPE_RUBY_PING_CLOCK) )
-   if ( pPH->total_length > sizeof(t_packet_header) + 4*sizeof(u8) )
-   {
-      bHasControllerData = true;
-      pData = pPacketData + sizeof(t_packet_header) + 4*sizeof(u8);
-   }
-   if ( ((pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO ) && (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS) )
-   {
-      pData = pPacketData + sizeof(t_packet_header);
-      u8 countR = *(pData+1);
-      if ( pPH->total_length > sizeof(t_packet_header) + 2*sizeof(u8) + countR * (sizeof(u32) + 2*sizeof(u8)) )
-      {
-         bHasControllerData = true;
-         pData = pPacketData + sizeof(t_packet_header) + 2*sizeof(u8) + countR * (sizeof(u32) + 2*sizeof(u8));
-      }
-   }
-   // To fix
-   /*
-   if ( ((pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO ) && (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2) )
-   {
-      pData = pPacketData + sizeof(t_packet_header);
-      pData += sizeof(u32); // Skip: Retransmission request unique id
-      u8 countR = *(pData+1);
-      if ( pPH->total_length > sizeof(t_packet_header) + sizeof(u32) + 2*sizeof(u8) + countR * (sizeof(u32) + 2*sizeof(u8)) )
-      {
-         bHasControllerData = true;
-         pData = pPacketData + sizeof(t_packet_header) + sizeof(u32) + 2*sizeof(u8) + countR * (sizeof(u32) + 2*sizeof(u8));
-      }
-   }
-   */
-   if ( (! bHasControllerData ) || NULL == pData )
-      return;
-
-// To fix   g_SM_VideoLinkStats.timeLastReceivedControllerLinkInfo = g_TimeNow;
-
-   //u8 flagsAndVersion = *pData;
-   pData++;
-   u32 timestamp = 0;
-   memcpy(&timestamp, pData, sizeof(u32));
-   pData += sizeof(u32);
-
-   if ( g_PD_LastRecvControllerLinksStats.lastUpdateTime == timestamp )
-   {
-      //log_line("Discarded duplicate controller links info.");
-      return;
-   }
-
-   g_PD_LastRecvControllerLinksStats.lastUpdateTime = timestamp;
-   u8 srcSlicesCount = *pData;
-   pData++;
-   g_PD_LastRecvControllerLinksStats.radio_interfaces_count = *pData;
-   pData++;
-   g_PD_LastRecvControllerLinksStats.video_streams_count = *pData;
-   pData++;
-   for( int i=0; i<g_PD_LastRecvControllerLinksStats.radio_interfaces_count; i++ )
-   {
-      memcpy(&(g_PD_LastRecvControllerLinksStats.radio_interfaces_rx_quality[i][0]), pData, srcSlicesCount);
-      pData += srcSlicesCount;
-   }
-   for( int i=0; i<g_PD_LastRecvControllerLinksStats.video_streams_count; i++ )
-   {
-      memcpy(&(g_PD_LastRecvControllerLinksStats.radio_streams_rx_quality[i][0]), pData, srcSlicesCount);
-      pData += srcSlicesCount;
-      memcpy(&(g_PD_LastRecvControllerLinksStats.video_streams_blocks_clean[i][0]), pData, srcSlicesCount);
-      pData += srcSlicesCount;
-      memcpy(&(g_PD_LastRecvControllerLinksStats.video_streams_blocks_reconstructed[i][0]), pData, srcSlicesCount);
-      pData += srcSlicesCount;
-      memcpy(&(g_PD_LastRecvControllerLinksStats.video_streams_blocks_max_ec_packets_used[i][0]), pData, srcSlicesCount);
-      pData += srcSlicesCount;
-      memcpy(&(g_PD_LastRecvControllerLinksStats.video_streams_requested_retransmission_packets[i][0]), pData, srcSlicesCount);
-      pData += srcSlicesCount;
-   }
-
-   // Update dev video links graphs stats using controller received video links info
-
-   u32 receivedTimeInterval = CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES * CONTROLLER_LINK_STATS_HISTORY_SLICE_INTERVAL_MS;
-   int sliceDestIndex = 0;
-
-   for( u32 sampleTimestamp = VIDEO_LINK_STATS_REFRESH_INTERVAL_MS/2; sampleTimestamp <= receivedTimeInterval; sampleTimestamp += VIDEO_LINK_STATS_REFRESH_INTERVAL_MS )
-   {
-      u32 sliceSrcIndex = sampleTimestamp/CONTROLLER_LINK_STATS_HISTORY_SLICE_INTERVAL_MS;
-      if ( sliceSrcIndex >= CONTROLLER_LINK_STATS_HISTORY_MAX_SLICES )
-         break;
-
-      for( int i=0; i<g_PD_LastRecvControllerLinksStats.radio_interfaces_count; i++ )
-         g_SM_VideoLinkGraphs.controller_received_radio_interfaces_rx_quality[i][sliceDestIndex] = g_PD_LastRecvControllerLinksStats.radio_interfaces_rx_quality[i][sliceSrcIndex];
-
-      for( int i=0; i<g_PD_LastRecvControllerLinksStats.video_streams_count; i++ )
-      {
-         g_SM_VideoLinkGraphs.controller_received_radio_streams_rx_quality[i][sliceDestIndex] = g_PD_LastRecvControllerLinksStats.radio_streams_rx_quality[i][sliceSrcIndex];
-         g_SM_VideoLinkGraphs.controller_received_video_streams_blocks_clean[i][sliceDestIndex] = g_PD_LastRecvControllerLinksStats.video_streams_blocks_clean[i][sliceSrcIndex];
-         g_SM_VideoLinkGraphs.controller_received_video_streams_blocks_reconstructed[i][sliceDestIndex] = g_PD_LastRecvControllerLinksStats.video_streams_blocks_reconstructed[i][sliceSrcIndex];
-         g_SM_VideoLinkGraphs.controller_received_video_streams_blocks_max_ec_packets_used[i][sliceDestIndex] = g_PD_LastRecvControllerLinksStats.video_streams_blocks_max_ec_packets_used[i][sliceSrcIndex];
-         g_SM_VideoLinkGraphs.controller_received_video_streams_requested_retransmission_packets[i][sliceDestIndex] = g_PD_LastRecvControllerLinksStats.video_streams_requested_retransmission_packets[i][sliceSrcIndex];
-      }
-      sliceDestIndex++;
-
-      // Update only the last 3 intervals
-      if ( sliceDestIndex > 3 || sliceSrcIndex > 3 )
-         break;
-   }
-}
-
 void _check_update_atheros_datarates(u32 linkIndex, int datarateVideoBPS)
 {
    for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
@@ -381,13 +270,6 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
       return;
    }
 
-   #ifdef FEATURE_VEHICLE_COMPUTES_ADAPTIVE_VIDEO
-   if ( (((uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RUBY ) && (uPacketType == PACKET_TYPE_RUBY_PING_CLOCK)) ||
-        (((uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO ) && (uPacketType == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS)) ||
-        (((uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_VIDEO ) && (uPacketType == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS2)) )
-      _try_decode_controller_links_stats_from_packet(pData, dataLength);
-   #endif
-     
    if ( (0 == uVehicleIdSrc) || (MAX_U32 == uVehicleIdSrc) )
    {
       log_error_and_alarm("Received invalid radio packet: Invalid source vehicle id: %u (vehicle id dest: %u, packet type: %s, %d bytes, %d total bytes, component: %d)",

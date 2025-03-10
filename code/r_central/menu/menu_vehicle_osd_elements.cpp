@@ -571,6 +571,15 @@ void MenuVehicleOSDElements::valuesToUI()
       m_pMenuItems[m_IndexHIDOSD]->setEnabled(false);
 }
 
+void MenuVehicleOSDElements::onShow()
+{
+   int iTemp = m_SelectedIndex;
+   Menu::onShow();
+   valuesToUI();
+   if ( iTemp >= 0 )
+      m_SelectedIndex = iTemp;
+}
+
 void MenuVehicleOSDElements::Render()
 {
    RenderPrepare();

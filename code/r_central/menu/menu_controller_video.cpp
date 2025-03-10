@@ -44,6 +44,7 @@
 #include "../../base/hardware_audio.h"
 
 #include "../process_router_messages.h"
+#include "../pairing.h"
 
 #include <time.h>
 #include <sys/resource.h>
@@ -57,12 +58,32 @@ void* _thread_audio_test_async(void *argument)
 {
    log_line("[BGThreadAudio] Started audio thread test.");
    srand(get_current_timestamp_ms());
+
+   if ( pairing_isStarted() )
+   {
+      log_line("[BGThreadAudio] Waiting for vehicle audio to stop...");
+      char szPIDs[256];
+      hw_execute_bash_command("pidof aplay", szPIDs);
+      removeTrailingNewLines(szPIDs);
+      u32 uTimeStart = get_current_timestamp_ms();
+      while ( (strlen(szPIDs) > 2) && (! s_bStopAudioTest) )
+      {
+         if ( get_current_timestamp_ms() > uTimeStart + 3000 )
+            break;
+         hardware_sleep_ms(50);
+         hw_execute_bash_command("pidof aplay", szPIDs);
+         removeTrailingNewLines(szPIDs);
+      }
+      log_line("[BGThreadAudio] Stopped vehicle audio.");
+   }
+
    while ( ! s_bStopAudioTest )
    {
       int iSample = 1 + (rand()%3);
-      char szComm[256];
-      sprintf(szComm, "aplay -q res/sample%d.wav 2>&1", iSample);
-      hw_execute_bash_command(szComm, NULL);
+      char szFile[MAX_FILE_PATH_SIZE];
+      sprintf(szFile, "res/sample%d.wav", iSample);
+      log_line("[BGThreadAudio] Playing audio file: (%s) ...", szFile);
+      hardware_audio_play_file(szFile);
    }
    log_line("[BGThreadAudio] Ended audio thread test.");
    return NULL;
@@ -159,7 +180,7 @@ MenuControllerVideo::MenuControllerVideo(void)
       m_pItemsSlider[1]->setStep(1);
       m_IndexAudioVolume = addMenuItem(m_pItemsSlider[1]);
    }
-   m_IndexAudioTest = addMenuItem(new MenuItem("Audio Test", "Test local audio output."));
+   m_IndexAudioTest = addMenuItem(new MenuItem("Audio Test", "Test local audio output on your HDMI display/output speakers."));
    m_pMenuItems[m_IndexAudioTest]->showArrow();
 }
 
@@ -468,7 +489,7 @@ void MenuControllerVideo::onSelectItem()
          return;
       }
       pthread_attr_destroy(&attr);
-      MenuConfirmation* pMC = new MenuConfirmation(L("Audio Test"),L("Now you should hear an sample audio."), 5, true);
+      MenuConfirmation* pMC = new MenuConfirmation(L("Audio Test"),L("This tests your HDMI display/output audio speakers. Now you should hear an audio sample."), 5, true);
       pMC->setOkActionText(L("Stop"));
       pMC->addTopLine(L("If you don't hear anything, increase audio volume or check your speakers."));
       add_menu_to_stack(pMC);

@@ -56,10 +56,13 @@ void MenuVehicleAudio::onShow()
    int iTmp = getSelectedMenuItemIndex();
    addItems();
    Menu::onShow();
-   if ( iTmp >= 0 )
-      m_SelectedIndex = iTmp;
-   if ( m_SelectedIndex >= m_ItemsCount )
-      m_SelectedIndex = m_ItemsCount-1;
+   if ( g_pCurrentModel->audio_params.has_audio_device )
+   {
+      if ( iTmp >= 0 )
+         m_SelectedIndex = iTmp;
+      if ( m_SelectedIndex >= m_ItemsCount )
+         m_SelectedIndex = m_ItemsCount-1;
+   }
 }
 
 void MenuVehicleAudio::addItems()
@@ -76,6 +79,12 @@ void MenuVehicleAudio::addItems()
    m_IndexDevPacketLength = -1;
    m_IndexDevDataPackets = -1;
    m_IndexDevECPackets = -1;
+
+   if ( ! g_pCurrentModel->audio_params.has_audio_device )
+   {
+      addMenuItem(new MenuItemText(L("This vehicle doesn't have any audio capture device. Audio can't be used on this vehicle.")));
+      return;
+   }
 
    if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
    {
@@ -108,15 +117,6 @@ void MenuVehicleAudio::addItems()
    m_pItemsSelect[0]->setSelectedIndex(0);
    if ( g_pCurrentModel->audio_params.enabled )
       m_pItemsSelect[0]->setSelectedIndex(1);
-
-   if ( ! g_pCurrentModel->audio_params.has_audio_device )
-   {
-      m_pItemsSelect[0]->setSelectedIndex(0);
-      m_pItemsSelect[0]->setEnabled(false);
-      addMenuItem(new MenuItemText("This vehicle doesn't have any audio capture device. Audio can't be used on this vehicle."));
-      m_SelectedIndex = 0;
-      return;
-   }
 
    m_pItemsSlider[0] = new MenuItemSlider("Volume", "Audio recording volume.", 0,100,5, fSliderWidth);
    m_pItemsSlider[0]->setStep(1);

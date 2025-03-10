@@ -101,6 +101,68 @@ void update_openipc_cpu(Model* pModel)
 }
 
 
+
+void do_update_to_106()
+{
+   log_line("Doing update to 10.6");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_ControllerSettings();
+      ControllerSettings* pCS = get_ControllerSettings();
+      pCS->iDeveloperMode = 0;
+      pCS->iCoresAdjustment = 1;
+      pCS->iPrioritiesAdjustment = 1;
+      pCS->iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
+      pCS->ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
+      pCS->iNiceCentral = DEFAULT_PRIORITY_PROCESS_CENTRAL;
+      pCS->iNiceRXVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_RX;
+      pCS->ioNiceRXVideo = DEFAULT_IO_PRIORITY_VIDEO_RX;
+      pCS->iRadioRxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_RX;
+      pCS->iRadioTxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_TX;
+      save_ControllerSettings();
+      load_Preferences();
+      Preferences* pP = get_Preferences();
+      pP->nLogLevel = 1;
+      save_Preferences();
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   hardware_camera_check_set_oipc_sensor();
+   pModel->resetAudioParams();
+   #endif
+
+   pModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS;
+   pModel->resetOSDStatsFlags();
+
+   if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+   {
+      for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+         pModel->video_link_profiles[i].fps = DEFAULT_VIDEO_FPS_OIPC;
+      for( int i=0; i<MODEL_MAX_CAMERAS; i++ )
+      for( int k=0; k<MODEL_CAMERA_PROFILES-1; k++ )
+            pModel->camera_params[i].profiles[k].shutterspeed = DEFAULT_OIPC_SHUTTERSPEED; //milisec
+   }
+
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_USE_MEDIUM_ADAPTIVE_VIDEO;
+      pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME;
+      pModel->video_link_profiles[i].uProfileFlags = VIDEO_PROFILE_FLAGS_NOISE_AUTO; // auto
+   }
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileFlags = 0; // lowest
+
+   pModel->video_params.user_selected_video_link_profile = VIDEO_PROFILE_HIGH_QUALITY;
+   pModel->osd_params.uFlags &= ~(OSD_BIT_FLAGS_SHOW_TEMPS_F);
+   pModel->osd_params.uFlags |= OSD_BIT_FLAGS_SHOW_FLIGHT_END_STATS;
+
+   log_line("Updated model VID %u (%s) to v10.6", pModel->uVehicleId, pModel->getLongName());
+}
+
 void do_update_to_105()
 {
    log_line("Doing update to 10.5");
@@ -813,11 +875,6 @@ void do_update_to_93()
    if ( pModel->telemetry_params.update_rate > DEFAULT_TELEMETRY_SEND_RATE )
       pModel->telemetry_params.update_rate = DEFAULT_TELEMETRY_SEND_RATE;
 
-
-   // To fix: Remove this when fast FPS decoding works fine on Radxa, for now set fps to 30
-   //for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-   //   pModel->video_link_profiles[i].fps = DEFAULT_VIDEO_FPS;
-
    log_line("Updated model VID %u (%s) to v9.3", pModel->uVehicleId, pModel->getLongName());
 }
 
@@ -1168,6 +1225,8 @@ int main(int argc, char *argv[])
       do_update_to_104();
    if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 5) )
       do_update_to_105();
+   if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 6) )
+      do_update_to_106();
 
 
    saveCurrentModel();

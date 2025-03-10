@@ -117,8 +117,16 @@ void _adaptive_video_send_video_profile_to_vehicle(int iVideoProfile, u32 uVehic
    if ( NULL == pRuntimeInfo )
       return;
 
-   g_SMControllerRTInfo.uFlagsAdaptiveVideo[g_SMControllerRTInfo.iCurrentIndex] |= pRuntimeInfo->uPendingVideoProfileToSetRequestedBy;
+   static u32 s_uDeltaForRequestAdaptive = 10;
+   if ( pRuntimeInfo->uLastTimeSentVideoProfileRequest > g_TimeNow-s_uDeltaForRequestAdaptive )
+      return;
 
+   if ( g_TimeNow - pRuntimeInfo->uLastTimeSentVideoProfileRequest < 100 )
+   if ( s_uDeltaForRequestAdaptive < 100 )
+      s_uDeltaForRequestAdaptive += 10;
+   if ( g_TimeNow - pRuntimeInfo->uLastTimeSentVideoProfileRequest > 500 )
+      s_uDeltaForRequestAdaptive = 10;
+   
    if ( g_TimeNow > g_TimeStart+5000 )
    if ( pRuntimeInfo->uLastTimeRecvDataFromVehicle < g_TimeNow-1000 )
    {
@@ -127,15 +135,11 @@ void _adaptive_video_send_video_profile_to_vehicle(int iVideoProfile, u32 uVehic
       return;
    }
 
-   if ( g_TimeNow > g_TimeStart+5000 )
-   if ( g_TimeNow < pRuntimeInfo->uLastTimeSentVideoProfileRequest+5 )
-   {
-      log_line("[AdaptiveVideo] Skip requesting new video profile from vehicle %u (req id: %u): %d (%s) as we just requested it %u ms ago.",
-         uVehicleId, pRuntimeInfo->uVideoProfileRequestId, iVideoProfile, str_get_video_profile_name(iVideoProfile), g_TimeNow - pRuntimeInfo->uLastTimeSentVideoProfileRequest );
-      return;    
-   }
    pRuntimeInfo->uLastTimeSentVideoProfileRequest = g_TimeNow;
+
+
    pRuntimeInfo->uVideoProfileRequestId++;
+   g_SMControllerRTInfo.uFlagsAdaptiveVideo[g_SMControllerRTInfo.iCurrentIndex] |= pRuntimeInfo->uPendingVideoProfileToSetRequestedBy;
    t_packet_header PH;
    radio_packet_init(&PH, PACKET_COMPONENT_VIDEO, PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL, STREAM_ID_DATA);
    PH.vehicle_id_src = g_uControllerId;
@@ -402,13 +406,9 @@ void adaptive_video_periodic_loop(bool bForceSyncNow)
 
       if ( pRuntimeInfo->uPendingVideoProfileToSet == 0xFF )
          continue;
-
-      // Use last rx time to back off on link lost
-      if ( bForceSyncNow || (g_TimeNow >= pRuntimeInfo->uLastTimeSentVideoProfileRequest+10) )
-      {
-         if ( bForceSyncNow )
-            pRuntimeInfo->uLastTimeSentVideoProfileRequest = g_TimeNow-50;
-         _adaptive_video_send_video_profile_to_vehicle(pRuntimeInfo->uPendingVideoProfileToSet, pRuntimeInfo->uVehicleId);
-      }
+      // We still have a pending unacknowledged video profile change
+      if ( bForceSyncNow )
+         pRuntimeInfo->uLastTimeSentVideoProfileRequest = g_TimeNow-500;
+      _adaptive_video_send_video_profile_to_vehicle(pRuntimeInfo->uPendingVideoProfileToSet, pRuntimeInfo->uVehicleId);
    }
 }

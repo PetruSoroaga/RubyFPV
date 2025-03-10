@@ -1181,11 +1181,13 @@ int hardware_load_driver_rtl8812au()
    if ( access(szFile, R_OK) != -1 )
    {
       hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/88XXau.ko rtw_tx_pwr_idx_override=1 2>&1", NULL);
+      hardware_sleep_ms(50);
       hw_execute_bash_command_raw("modprobe 88XXau rtw_tx_pwr_idx_override=1 2>&1", NULL);
    }
    else
    {
       hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/8812au.ko rtw_tx_pwr_idx_override=1 2>&1", NULL);
+      hardware_sleep_ms(50);
       hw_execute_bash_command_raw("modprobe 8812au rtw_tx_pwr_idx_override=1 2>&1", NULL);
    }
    return 1;
@@ -1215,6 +1217,7 @@ int hardware_load_driver_rtl8812eu()
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
    hw_execute_bash_command("modprobe cfg80211", NULL);
    hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/8812eu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", NULL);
+   hardware_sleep_ms(50);
    hw_execute_bash_command_raw("modprobe 8812eu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", NULL);
    return 1;
    #endif
@@ -1243,6 +1246,7 @@ int hardware_load_driver_rtl8733bu()
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
    hw_execute_bash_command("modprobe cfg80211", NULL);
    hw_execute_bash_command_raw("insmod /lib/modules/$(uname -r)/extra/8733bu.ko rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", NULL);
+   hardware_sleep_ms(50);
    hw_execute_bash_command_raw("modprobe 8733bu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", NULL);
    return 1;
    #endif
@@ -1437,6 +1441,10 @@ int _hardware_try_install_rtl8812au(char* szSrcDriver)
       log_softerror_and_alarm("[HardwareRadio] Failed to insert driver (%s) on platform (%s), error: (%s)", szDriverFullPath, szPlatform, szOutput);
       return 0;
    }
+   int iRes = hw_execute_bash_command_timeout("depmod -a", NULL, 60000);
+   if ( -1 == iRes )
+      log_softerror_and_alarm("Updating drivers database after driver install took too lonk. Abandoning operation.");
+   hardware_sleep_ms(50);
    hw_execute_bash_command_raw("modprobe 88XXau rtw_tx_pwr_idx_override=1 2>&1", szOutput);
    log_line("[HardwareRadio] Modprobe result: [%s]", szOutput);
    if ( strlen(szOutput) > 10 )
@@ -1445,7 +1453,9 @@ int _hardware_try_install_rtl8812au(char* szSrcDriver)
       return 0;
    }
    log_line("[HardwareRadio] Installed driver (%s) on platform (%s)", szDriverFullPath, szPlatform);
-   hw_execute_bash_command("depmod -a", NULL);
+   iRes = hw_execute_bash_command_timeout("depmod -a", NULL, 60000);
+   if ( -1 == iRes )
+      log_softerror_and_alarm("Updating drivers database after driver install took too lonk. Abandoning operation.");
    return 1;
 }
 
@@ -1531,6 +1541,12 @@ int _hardware_try_install_rtl8812eu(char* szSrcDriver)
       log_softerror_and_alarm("[HardwareRadio] Failed to insert driver (%s) on platform (%s), error: (%s)", szDriverFullPath, szPlatform, szOutput);
       return 0;
    }
+
+   int iRes = hw_execute_bash_command_timeout("depmod -a", NULL, 60000);
+   if ( -1 == iRes )
+      log_softerror_and_alarm("Updating drivers database after driver install took too lonk. Abandoning operation.");
+   hardware_sleep_ms(50);
+
    hw_execute_bash_command_raw("modprobe 8812eu rtw_tx_pwr_by_rate=0 rtw_tx_pwr_lmt_enable=0 2>&1", szOutput);
    log_line("[HardwareRadio] Modprobe result: [%s]", szOutput);
    if ( strlen(szOutput) > 10 )
@@ -1539,7 +1555,9 @@ int _hardware_try_install_rtl8812eu(char* szSrcDriver)
       return 0;
    }
    log_line("[HardwareRadio] Installed driver (%s) on platform (%s)", szDriverFullPath, szPlatform);
-   hw_execute_bash_command("depmod -a", NULL);
+   iRes = hw_execute_bash_command_timeout("depmod -a", NULL, 60000);
+   if ( -1 == iRes )
+      log_softerror_and_alarm("Updating drivers database after driver install took too lonk. Abandoning operation.");
    return 1;
 }
 
@@ -1618,11 +1636,12 @@ void hardware_install_drivers(int iEchoToConsole)
       printf("Ruby: Installing drivers for platform: %s ...\n", szPlatform);
       fflush(stdout);
    }
-   #if defined HW_PLATFORM_OPENIPC_CAMERA
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
    log_line("[HardwareRadio] Drivers are already installed on OpenIPC.");
    #else
    char szComm[256];
    hw_execute_bash_command("rmmod 88XXau 2>&1 1>/dev/null", NULL);
+   hw_execute_bash_command("rmmod 88XXau_wfb 2>&1 1>/dev/null", NULL);
    hw_execute_bash_command("rmmod 8812au 2>&1 1>/dev/null", NULL);
    hw_execute_bash_command("rmmod 8812eu 2>&1 1>/dev/null", NULL);
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf /lib/modules/%s/updates/88XXau*", szPlatform);
@@ -1635,7 +1654,18 @@ void hardware_install_drivers(int iEchoToConsole)
    hw_execute_bash_command(szComm, NULL);
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf /lib/modules/%s/kernel/drivers/net/wireless/88XXau*", szPlatform);
    hw_execute_bash_command(szComm, NULL);
-   hw_execute_bash_command("depmod -a", NULL);   
+   if ( iEchoToConsole )
+   {
+      printf("Ruby: Updating drivers database. It might take a while. Please wait...\n");
+      fflush(stdout);
+   }
+   int iRes = hw_execute_bash_command_timeout("depmod -a", NULL, 60000);
+   if ( (-1 == iRes) && iEchoToConsole )
+   {
+      log_softerror_and_alarm("Updating drivers database after cleanup took too lonk. Abandoning operation.");
+      printf("Ruby: Updating drives database took too long. Abandoning operation.\n");
+      fflush(stdout);
+   }
    #endif
 
    if ( 0 == hardware_install_driver_rtl8812au(iEchoToConsole) )
@@ -1700,7 +1730,18 @@ void hardware_install_drivers(int iEchoToConsole)
    hw_execute_bash_command("lsusb", NULL);
    hw_execute_bash_command("lsmod", NULL);
    hw_execute_bash_command("ip link", NULL);
-   hw_execute_bash_command("depmod -a", NULL);
+   if ( iEchoToConsole )
+   {
+      printf("Ruby: Updating drivers database. It might take a while. Please wait...\n");
+      fflush(stdout);
+   }
+   int iRes2 = hw_execute_bash_command_timeout("depmod -a", NULL, 60000);
+   if ( (-1 == iRes2) && iEchoToConsole )
+   {
+      log_softerror_and_alarm("Updating drivers database after cleanup took too lonk. Abandoning operation.");
+      printf("Ruby: Updating drives database took too long. Abandoning operation.\n");
+      fflush(stdout);
+   }
    hw_execute_bash_command("sync", NULL);
 
    #endif

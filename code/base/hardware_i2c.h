@@ -113,7 +113,6 @@ int hardware_i2c_has_external_extenders_buttons();
 // Returns i2c address of the device
 int hardware_i2c_has_external_extenders_rcin();
 int hardware_i2c_has_oled_screen();
-
 #ifdef __cplusplus
 }  
 #endif

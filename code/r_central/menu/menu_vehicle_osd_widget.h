@@ -12,6 +12,7 @@ class MenuVehicleOSDWidget: public Menu
       MenuVehicleOSDWidget(int iWidgetIndex);
       virtual ~MenuVehicleOSDWidget();
       virtual void valuesToUI();
+      virtual void onShow();
       virtual void Render();
       virtual bool periodicLoop();
 

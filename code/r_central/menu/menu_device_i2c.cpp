@@ -242,14 +242,13 @@ void MenuDeviceI2C::valuesToUI()
       m_pItemsSelect[0]->setSelection(4);
    if ( pInfo->nDeviceType == I2C_DEVICE_TYPE_OLED_SCREEN )
       m_pItemsSelect[0]->setSelection(5);
-      
 
    m_pItemsSelect[1]->setSelectedIndex(pInfo->bEnabled?1:0);
 
    if ( ! m_bDeviceHasCustomSettings )
       return;
 
-   if ( pInfo->nDeviceType == I2C_DEVICE_TYPE_INA219 || pInfo->nDeviceType == I2C_DEVICE_TYPE_OLED_SCREEN )
+   if ( (pInfo->nDeviceType == I2C_DEVICE_TYPE_INA219) || (pInfo->nDeviceType == I2C_DEVICE_TYPE_OLED_SCREEN) )
    {
       m_pItemsSelect[2]->setEnabled(true);
       m_pItemsSelect[2]->setSelection( pInfo->uParams[0] );

@@ -315,10 +315,6 @@ bool Model::loadFromFile(const char* filename, bool bLoadStats)
       else
       {
          //log_line("Found model file version: %d.", iVersion);
-         if ( 8 == iVersionMain )
-            bMainFileLoadedOk = loadVersion8(fd);
-         if ( 9 == iVersionMain )
-            bMainFileLoadedOk = loadVersion9(fd);
          if ( 10 == iVersionMain )
             bMainFileLoadedOk = loadVersion10(fd);
          if ( bMainFileLoadedOk )
@@ -369,10 +365,6 @@ bool Model::loadFromFile(const char* filename, bool bLoadStats)
       else
       {
          //log_line("Found model file version: %d.", iVersion);
-         if ( 8 == iVersionBackup )
-            bBackupFileLoadedOk = loadVersion8(fd);
-         if ( 9 == iVersionBackup )
-            bBackupFileLoadedOk = loadVersion9(fd);
          if ( 10 == iVersionBackup )
             bBackupFileLoadedOk = loadVersion10(fd);
          if ( bBackupFileLoadedOk )
@@ -417,1177 +409,6 @@ bool Model::loadFromFile(const char* filename, bool bLoadStats)
 
    return true;
 }
-
-
-bool Model::loadVersion8(FILE* fd)
-{
-   char szBuff[256];
-   int tmp1 = 0, tmp2 = 0, tmp3 = 0, tmp4 = 0, tmp5 = 0, tmp6 = 0, tmp7 = 0;
-   u32 tmp32 = 0;
-   u32 u1 = 0, u2 = 0, u3 = 0, u4 = 0, u5 = 0, u6 = 0, u7 = 0;
-   int vt = 0;
-
-   bool bOk = true;
-
-   if ( 1 != fscanf(fd, "%s", szBuff) )
-      { log_softerror_and_alarm("Load model8: Error on line stamp"); return false; }
-
-   if ( 1 != fscanf(fd, "%*s %d", &iSaveCount) )
-      { log_softerror_and_alarm("Load model8: Error on line save count"); return false; }
-
-   if ( 4 != fscanf(fd, "%*s %u %d %d %u", &sw_version, &uVehicleId, &uControllerId, &hwCapabilities.uBoardType) )
-      { log_softerror_and_alarm("Load model8: Error on line 1"); return false; }
-
-   if ( hardware_is_vehicle() )
-      sw_version = (SYSTEM_SW_VERSION_MAJOR * 256 + SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER<<16);
-
-   if ( 1 != fscanf(fd, "%s", vehicle_name) )
-      { log_softerror_and_alarm("Load model8: Error on line 2"); return false; }
-   if ( vehicle_name[0] == '*' && vehicle_name[1] == 0 )
-      vehicle_name[0] = 0;
-
-   for( int i=0; i<(int)strlen(vehicle_name); i++ )
-      if ( vehicle_name[i] == '_' )
-         vehicle_name[i] = ' ';
-
-   str_sanitize_modelname(vehicle_name);
-
-   if ( 3 != fscanf(fd, "%d %u %d", &rxtx_sync_type, &camera_rc_channels, &processesPriorities.iNiceTelemetry ) )
-      { log_softerror_and_alarm("Load model8: Error on line 3"); return false; }
-
-   if ( 4 != fscanf(fd, "%d %d %u %d", &tmp1, &vt, &m_Stats.uTotalFlightTime, &iGPSCount ) )
-      { log_softerror_and_alarm("Load model8: Error on line 3b"); return false; }
-
-   is_spectator = (bool)tmp1;
-   vehicle_type = vt;
-
-   //----------------------------------------
-   // CPU
-
-   if ( 3 != fscanf(fd, "%*s %d %d %d", &processesPriorities.iNiceVideo, &processesPriorities.iNiceOthers, &processesPriorities.ioNiceVideo) )
-      { log_softerror_and_alarm("Load model8: Error on line 4"); return false; }
-   if ( 3 != fscanf(fd, "%d %d %d", &processesPriorities.iOverVoltage, &processesPriorities.iFreqARM, &processesPriorities.iFreqGPU) )
-      { log_softerror_and_alarm("Load model8: Error on line 5"); }
-   if ( 3 != fscanf(fd, "%d %d %d", &processesPriorities.iNiceRouter, &processesPriorities.ioNiceRouter, &processesPriorities.iNiceRC) )
-      { log_softerror_and_alarm("Load model8: Error on extra line 2b"); }
-
-   //----------------------------------------
-   // Radio
-
-   if ( 1 != fscanf(fd, "%*s %d", &radioInterfacesParams.interfaces_count) )
-      { log_softerror_and_alarm("Load model8: Error on line 6"); return false; }
-
-   for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
-   {
-      char szTmp[256];
-      if ( 3 != fscanf(fd, "%d %d %u", &(radioInterfacesParams.interface_card_model[i]), &(radioInterfacesParams.interface_link_id[i]), &(radioInterfacesParams.interface_current_frequency_khz[i])) )
-         { log_softerror_and_alarm("Load model8: Error on line 7a"); return false; }
-
-      radioInterfacesParams.interface_current_frequency_khz[i] *= 1000;
-      
-      if ( 8 != fscanf(fd, "%u %d %u %d %d %d %s %s", &u4, &tmp2, &tmp32, &tmp5, &tmp6, &tmp7, radioInterfacesParams.interface_szMAC[i], szTmp) )
-         { log_softerror_and_alarm("Load model8: Error on line 7b"); return false; }
-      radioInterfacesParams.interface_capabilities_flags[i] = u4;
-      radioInterfacesParams.interface_supported_bands[i] = (u8)tmp2;
-      radioInterfacesParams.interface_radiotype_and_driver[i] = tmp32;
-      radioInterfacesParams.interface_current_radio_flags[i] = tmp5;
-      radioInterfacesParams.interface_raw_power[i] = tmp6;
-      
-      radioInterfacesParams.interface_szMAC[i][strlen(radioInterfacesParams.interface_szMAC[i])-1] = 0;
-      szTmp[strlen(szTmp)-1] = 0;
-      szTmp[2] = 0;
-      strcpy(radioInterfacesParams.interface_szPort[i], szTmp);      
-   }
-
-   if ( 9 != fscanf(fd, "%d %d %d %d %d %d %d %d %d", &tmp1, &radioInterfacesParams.iAutoVehicleTxPower, &radioInterfacesParams.iAutoControllerTxPower, &radioInterfacesParams.iDummyR3, &radioInterfacesParams.iDummyR4, &radioInterfacesParams.iDummyR5, &radioInterfacesParams.iDummyR6,  &radioInterfacesParams.iDummyR7, &radioInterfacesParams.iDummyR8) )
-      { log_softerror_and_alarm("Load model8: Error on line 8"); return false; }
-   enableDHCP = (bool)tmp1;
-
-   if ( 1 != fscanf(fd, "%*s %d", &radioLinksParams.links_count) )
-      { log_softerror_and_alarm("Load model8: Error on line r0"); return false; }
-
-   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
-   {
-      if ( 5 != fscanf(fd, "%u %u %u %d %d", &(radioLinksParams.link_frequency_khz[i]), &(radioLinksParams.link_capabilities_flags[i]), &(radioLinksParams.link_radio_flags[i]), &(radioLinksParams.link_datarate_video_bps[i]), &(radioLinksParams.link_datarate_data_bps[i])) )
-         { log_softerror_and_alarm("Load model8: Error on line r3"); return false; }
-
-      radioLinksParams.link_frequency_khz[i] *= 1000;
-      radioLinksParams.link_datarate_video_bps[i] *= 1000 * 1000;
-      radioLinksParams.link_datarate_data_bps[i] *= 1000 * 1000;
-      if ( 4 != fscanf(fd, "%d %u %d %d", &tmp1, &(radioLinksParams.uDummy2[i]), &(radioLinksParams.uplink_datarate_video_bps[i]), &(radioLinksParams.uplink_datarate_data_bps[i])) )
-         { log_softerror_and_alarm("Load model8: Error on line r4"); return false; }
-      radioLinksParams.uSerialPacketSize[i] = tmp1;
-      if ( (radioLinksParams.uSerialPacketSize[i] < DEFAULT_RADIO_SERIAL_AIR_MIN_PACKET_SIZE) ||
-           (radioLinksParams.uSerialPacketSize[i] > DEFAULT_RADIO_SERIAL_AIR_MAX_PACKET_SIZE) )
-         radioLinksParams.uSerialPacketSize[i] = DEFAULT_RADIO_SERIAL_AIR_PACKET_SIZE;
-      radioLinksParams.uplink_datarate_video_bps[i] *= 1000 * 1000;
-      radioLinksParams.uplink_datarate_data_bps[i] *= 1000 * 1000;
-   }
-
-   for( unsigned int j=0; j<12; j++ )
-   {
-      if ( 1 != fscanf(fd, "%d", &tmp1) )
-         { log_softerror_and_alarm("Load model8: Error on line radio4 dummy data"); return false; }
-   }
-
-   if ( 4 != fscanf(fd, "%*s %d %d %u %u", &relay_params.isRelayEnabledOnRadioLinkId, &tmp2, &relay_params.uRelayedVehicleId, &relay_params.uRelayCapabilitiesFlags) )
-      { log_softerror_and_alarm("Load model8: Error on line 10"); return false; }
-   relay_params.uCurrentRelayMode = tmp2;
-
-   //----------------------------------------
-   // Telemetry
-
-   if ( 5 != fscanf(fd, "%*s %d %d %d %d %d", &telemetry_params.fc_telemetry_type, &telemetry_params.controller_telemetry_type, &telemetry_params.update_rate, &tmp1, &tmp2) )
-      { log_softerror_and_alarm("Load model8: Error on line 12"); return false; }
-
-   if ( telemetry_params.update_rate > 200 )
-      telemetry_params.update_rate = 200;
-   telemetry_params.bControllerHasOutputTelemetry = (bool) tmp1;
-   telemetry_params.bControllerHasInputTelemetry = (bool) tmp2;
-
-   if ( 4 != fscanf(fd, "%d %u %d %u", &telemetry_params.iVideoBitrateHistoryGraphSampleInterval, &telemetry_params.dummy2, &telemetry_params.dummy3, &telemetry_params.dummy4) )
-      { log_softerror_and_alarm("Load model8: Error on line 13"); return false; }
-
-   if ( 3 != fscanf(fd, "%d %d %d", &telemetry_params.vehicle_mavlink_id, &telemetry_params.controller_mavlink_id, &telemetry_params.flags) )
-      { log_softerror_and_alarm("Load mode8: Error on line 13b"); return false; }
-
-   if ( 2 != fscanf(fd, "%d %u", &telemetry_params.dummy5, &telemetry_params.dummy6) )
-      { telemetry_params.dummy5 = -1; }
-
-   if ( 1 != fscanf(fd, "%d", &tmp1) ) // not used
-      { log_softerror_and_alarm("Load model8: Error on line 13b"); return false; }
-
-   //----------------------------------------
-   // Video
-
-   if ( 4 != fscanf(fd, "%*s %d %d %d %u", &video_params.user_selected_video_link_profile, &video_params.iH264Slices, &tmp2, &video_params.lowestAllowedAdaptiveVideoBitrate) )
-      { log_softerror_and_alarm("Load model8: Error on line 19"); return false; }
-
-   if ( video_params.iH264Slices < 1 || video_params.iH264Slices > 16 )
-   {
-      video_params.iH264Slices = DEFAULT_VIDEO_H264_SLICES;
-      if ( hardware_board_is_openipc(hardware_getOnlyBoardType()) )
-         video_params.iH264Slices = DEFAULT_VIDEO_H264_SLICES_OIPC;
-   }
-   video_params.videoAdjustmentStrength = tmp2;
-   if ( video_params.lowestAllowedAdaptiveVideoBitrate < 250000 )
-      video_params.lowestAllowedAdaptiveVideoBitrate = DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE;
-
-   if ( 1 != fscanf(fd, "%u", &video_params.uMaxAutoKeyframeIntervalMs) )
-      { log_softerror_and_alarm("Load model8: Error on line 20"); return false; }
-   if ( video_params.uMaxAutoKeyframeIntervalMs < 50 || video_params.uMaxAutoKeyframeIntervalMs > DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL )
-       video_params.uMaxAutoKeyframeIntervalMs = DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL;
-
-   if ( 1 != fscanf(fd, "%u", &video_params.uVideoExtraFlags) )
-      { log_softerror_and_alarm("Load model8: Error on line 20c"); return false; }
-   
-   for( unsigned int j=0; j<(sizeof(video_params.dummy)/sizeof(video_params.dummy[0])); j++ )
-   {
-      if ( 1 != fscanf(fd, "%d", &tmp1) )
-         { log_softerror_and_alarm("Load model8: Error on line 27, video params dummy data"); return false; }
-      video_params.dummy[j] = tmp1;
-   }
-
-   if ( bOk && (1 != fscanf(fd, "%*s %d", &tmp7)) )
-      { log_softerror_and_alarm("Load model8: Error: missing count of video link profiles"); bOk = false; tmp7=0; }
-
-   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-      { video_link_profiles[i].uProfileFlags = 0; video_link_profiles[i].uProfileEncodingFlags = 0; }
-
-   if ( tmp7 < 0 || tmp7 > MAX_VIDEO_LINK_PROFILES )
-      tmp7 = MAX_VIDEO_LINK_PROFILES;
-
-   for( int i=0; i<tmp7; i++ )
-   {
-      if ( ! bOk )
-        { log_softerror_and_alarm("Load model8: Error on video link profiles 0"); bOk = false; }
- 
-      if ( bOk && (6 != fscanf(fd, "%u %u %u %d %d %u", &(video_link_profiles[i].uProfileFlags), &(video_link_profiles[i].uProfileEncodingFlags), &(video_link_profiles[i].bitrate_fixed_bps), &(video_link_profiles[i].radio_datarate_video_bps), &(video_link_profiles[i].radio_datarate_data_bps), &(video_link_profiles[i].radio_flags))) )
-         { log_softerror_and_alarm("Load model8: Error on video link profiles 1"); bOk = false; }
-
-      video_link_profiles[i].radio_datarate_video_bps *= 1000 * 1000;
-      video_link_profiles[i].radio_datarate_data_bps *= 1000 * 1000;
-
-      if ( bOk && (2 != fscanf(fd, "%d %d", &(video_link_profiles[i].width), &(video_link_profiles[i].height))) )
-         { log_softerror_and_alarm("Load model8: Error on video link profiles 2"); bOk = false; }
-
-      if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].block_packets), &(video_link_profiles[i].block_fecs), &(video_link_profiles[i].video_data_length), &(video_link_profiles[i].fps), &(video_link_profiles[i].keyframe_ms))) )
-         { log_softerror_and_alarm("Load model8: Error on video link profiles 3"); bOk = false; }
-      
-      if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].h264profile), &(video_link_profiles[i].h264level), &(video_link_profiles[i].h264refresh), &(video_link_profiles[i].h264quantization), &(video_link_profiles[i].iIPQuantizationDelta))) )
-         { log_softerror_and_alarm("Load model8: Error on video link profiles 4"); bOk = false; }
-   }
-
-
-   //----------------------------------------
-   // Camera params
-
-   if ( 2 != fscanf(fd, "%*s %d %d", &iCameraCount, &iCurrentCamera) )
-      { log_softerror_and_alarm("Load model8: Error on line 20"); return false; }
-
-   for( int k=0; k<MODEL_MAX_CAMERAS; k++ )
-   {
-
-      // Camera type:
-      if ( 3 != fscanf(fd, "%*s %d %d %d", &(camera_params[k].iCameraType), &(camera_params[k].iForcedCameraType), &(camera_params[k].iCurrentProfile)) )
-         { log_softerror_and_alarm("Load model8: Error on line camera 2"); return false; }
-
-      //----------------------------------------
-      // Camera sensor name
-
-      char szTmp[1024];
-      if ( bOk && (1 != fscanf(fd, "%*s %s", szTmp)) )
-         { log_softerror_and_alarm("Load model8: Error on line camera name"); camera_params[k].szCameraName[0] = 0; bOk = false; }
-      else
-      {
-         szTmp[MAX_CAMERA_NAME_LENGTH-1] = 0;
-         strcpy(camera_params[k].szCameraName, szTmp);
-         camera_params[k].szCameraName[MAX_CAMERA_NAME_LENGTH-1] = 0;
-
-         if ( camera_params[k].szCameraName[0] == '*' && camera_params[k].szCameraName[1] == 0 )
-            camera_params[k].szCameraName[0] = 0;
-         for( int i=0; i<(int)strlen(camera_params[k].szCameraName); i++ )
-            if ( camera_params[k].szCameraName[i] == '*' )
-               camera_params[k].szCameraName[i] = ' ';
-      }
-
-      for( int i=0; i<MODEL_CAMERA_PROFILES; i++ )
-      {
-         if ( 1 != fscanf(fd, "%*s %d", &camera_params[k].profiles[i].uFlags) )
-            { log_softerror_and_alarm("Load model8: Error on line 21, cam profile %d", i); return false; }
-         if ( 1 != fscanf(fd, "%d", &tmp1) )
-            { log_softerror_and_alarm("Load model8: Error on line 21b, cam profile %d", i); return false; }
-         camera_params[k].profiles[i].flip_image = (bool)tmp1;
-
-         if ( 4 != fscanf(fd, "%d %d %d %d", &tmp1, &tmp2, &tmp3, &tmp4) )
-            { log_softerror_and_alarm("Load model8: Error on line 22, cam profile %d", i); return false; }
-         camera_params[k].profiles[i].brightness = tmp1;
-         camera_params[k].profiles[i].contrast = tmp2;
-         camera_params[k].profiles[i].saturation = tmp3;
-         camera_params[k].profiles[i].sharpness = tmp4;
-
-         if ( 4 != fscanf(fd, "%d %d %d %d", &tmp1, &tmp2, &tmp3, &tmp4) )
-            { log_softerror_and_alarm("Load model8: Error on line 23, cam profile %d", i); return false; }
-         camera_params[k].profiles[i].exposure = tmp1;
-         camera_params[k].profiles[i].whitebalance = tmp2;
-         camera_params[k].profiles[i].metering = tmp3;
-         camera_params[k].profiles[i].drc = tmp4;
-
-         if ( 3 != fscanf(fd, "%f %f %f", &(camera_params[k].profiles[i].analogGain), &(camera_params[k].profiles[i].awbGainB), &(camera_params[k].profiles[i].awbGainR)) )
-            { log_softerror_and_alarm("Load model8: Error on line 24, cam profile %d", i); }
-
-         if ( 2 != fscanf(fd, "%f %f", &(camera_params[k].profiles[i].fovH), &(camera_params[k].profiles[i].fovV)) )
-            { log_softerror_and_alarm("Load model8: Error on line 25, cam profile %d", i); }
-
-         if ( 4 != fscanf(fd, "%d %d %d %d", &tmp1, &tmp2, &tmp3, &tmp4) )
-            { log_softerror_and_alarm("Load model8: Error on line 26, cam profile %d", i); return false; }
-         camera_params[k].profiles[i].vstab = tmp1;
-         camera_params[k].profiles[i].ev = tmp2;
-         camera_params[k].profiles[i].iso = tmp3;
-         camera_params[k].profiles[i].shutterspeed = tmp4;
-
-         if ( 1 != fscanf(fd, "%d", &tmp1) )
-            { log_softerror_and_alarm("Load model8: Error on line 25b, cam profile %d", i); }
-         else
-            camera_params[k].profiles[i].wdr = (u8)tmp1;
-
-         if ( 1 != fscanf(fd, "%d", &tmp1) )
-            { log_softerror_and_alarm("Load model8: Error on line 25c, night mode, cam profile %d", i); camera_params[k].profiles[i].dayNightMode = 0; }
-         else
-            camera_params[k].profiles[i].dayNightMode = (u8)tmp1;
-           
-         if ( 1 != fscanf(fd, "%d", &tmp1) )
-            { log_softerror_and_alarm("Load model8: Error on line 25f, hue, cam profile %d", i); camera_params[k].profiles[i].hue = 0; }
-         else
-            camera_params[k].profiles[i].hue = (u8)tmp1;
-         for( unsigned int j=0; j<(sizeof(camera_params[k].profiles[i].dummyCamP)/sizeof(camera_params[k].profiles[i].dummyCamP[0])); j++ )
-         {
-            if ( 1 != fscanf(fd, "%d", &tmp1) )
-               { log_softerror_and_alarm("Load model8: Error on line 27, cam profile %d", i); return false; }
-            camera_params[k].profiles[i].dummyCamP[j] = tmp1;
-         }
-      }
-
-   }
-
-   //----------------------------------------
-   // Audio Settings
-
-   audio_params.has_audio_device = false;
-   if ( 1 == fscanf(fd, "%*s %d", &tmp1) )
-      audio_params.has_audio_device = (bool)tmp1;
-   else
-      { bOk = false; log_softerror_and_alarm("Load model8: Error on audio line 1"); }
-   if ( 4 == fscanf(fd, "%d %d %d %u", &tmp2, &audio_params.volume, &audio_params.quality, &audio_params.uFlags) )
-   {
-      audio_params.has_audio_device = tmp1;
-      audio_params.enabled = tmp2;
-   }
-   else
-   {
-      bOk = false;
-      log_softerror_and_alarm("Load model8: Error on audio line 2");
-   }
-   
-   if ( 1 != fscanf(fd, "%*s %u", &alarms) )
-      alarms = 0;
-
-   //----------------------------------------
-   // Hardware info
-
-   if ( 4 == fscanf(fd, "%*s %d %d %d %d", &hardwareInterfacesInfo.radio_interface_count, &hardwareInterfacesInfo.i2c_bus_count, &hardwareInterfacesInfo.i2c_device_count, &hardwareInterfacesInfo.serial_port_count) )
-   {
-      if ( hardwareInterfacesInfo.i2c_bus_count < 0 || hardwareInterfacesInfo.i2c_bus_count > MAX_MODEL_I2C_BUSSES )
-         { log_softerror_and_alarm("Load model8: Error on hw info1"); return false; }
-      if ( hardwareInterfacesInfo.i2c_device_count < 0 || hardwareInterfacesInfo.i2c_device_count > MAX_MODEL_I2C_DEVICES )
-         { log_softerror_and_alarm("Load model8: Error on hw info2"); return false; }
-      if ( hardwareInterfacesInfo.serial_port_count < 0 || hardwareInterfacesInfo.serial_port_count > MAX_MODEL_SERIAL_PORTS )
-         { log_softerror_and_alarm("Load model8: Error on hw info3"); return false; }
-
-      for( int i=0; i<hardwareInterfacesInfo.i2c_bus_count; i++ )
-         if ( 1 != fscanf(fd, "%d", &(hardwareInterfacesInfo.i2c_bus_numbers[i])) )
-            { log_softerror_and_alarm("Load model8: Error on hw info4"); return false; }
-
-      for( int i=0; i<hardwareInterfacesInfo.i2c_device_count; i++ )
-         if ( 2 != fscanf(fd, "%d %d", &(hardwareInterfacesInfo.i2c_devices_bus[i]), &(hardwareInterfacesInfo.i2c_devices_address[i])) )
-            { log_softerror_and_alarm("Load model8: Error on hw info5"); return false; }
-
-      for( int i=0; i<hardwareInterfacesInfo.serial_port_count; i++ )
-         if ( 2 != fscanf(fd, "%u %s", &(hardwareInterfacesInfo.serial_port_supported_and_usage[i]), &(hardwareInterfacesInfo.serial_port_names[i][0])) )
-            { log_softerror_and_alarm("Load model8: Error on hw info6"); return false; }
-   }
-   else
-   {
-      hardwareInterfacesInfo.radio_interface_count = 0;
-      hardwareInterfacesInfo.i2c_bus_count = 0;
-      hardwareInterfacesInfo.i2c_device_count = 0;
-      hardwareInterfacesInfo.serial_port_count = 0;
-      bOk = false;
-   }
-
-   //----------------------------------------
-   // OSD
-
-   if ( 5 != fscanf(fd, "%*s %d %d %f %d %d", &osd_params.iCurrentOSDLayout, &tmp1, &osd_params.voltage_alarm, &tmp2, &tmp3) )
-      { log_softerror_and_alarm("Load model8: Error on line 29"); return false; }
-   osd_params.voltage_alarm_enabled = (bool)tmp1;
-   osd_params.altitude_relative = (bool)tmp2;
-   osd_params.show_gps_position = (bool)tmp3;
-
-   if ( 5 != fscanf(fd, "%d %d %d %d %d", &osd_params.battery_show_per_cell,  &osd_params.battery_cell_count, &osd_params.battery_capacity_percent_alarm, &tmp1, &osd_params.home_arrow_rotate) )
-      { log_softerror_and_alarm("Load model8: Error on line 30"); return false; }
-   osd_params.invert_home_arrow = (bool)tmp1;
-
-   if ( 7 != fscanf(fd, "%d %d %d %d %d %d %d", &tmp1, &tmp2, &tmp3, &tmp4, &tmp5, &tmp6, &osd_params.ahi_warning_angle) )
-      { log_softerror_and_alarm("Load model8: Error on line 31"); return false; }
-
-   osd_params.show_overload_alarm = (bool)tmp1;
-   osd_params.show_stats_rx_detailed = (bool)tmp2;
-   osd_params.show_stats_decode = (bool)tmp3;
-   osd_params.show_stats_rc = (bool)tmp4;
-   osd_params.show_full_stats = (bool)tmp5;
-   osd_params.show_instruments = (bool)tmp6;
-   if ( osd_params.ahi_warning_angle < 0 ) osd_params.ahi_warning_angle = 0;
-   if ( osd_params.ahi_warning_angle > 80 ) osd_params.ahi_warning_angle = 80;
-
-   for( int i=0; i<5; i++ )
-      if ( 4 != fscanf(fd, "%u %u %u %u", &(osd_params.osd_flags[i]), &(osd_params.osd_flags2[i]), &(osd_params.instruments_flags[i]), &(osd_params.osd_preferences[i])) )
-         { bOk = false; log_softerror_and_alarm("Load model8: Error on osd params os flags line 2"); }
-
-   //----------------------------------------
-   // RC
-
-   if ( 4 != fscanf(fd, "%*s %d %d %d %d", &tmp1, &tmp2, &rc_params.receiver_type, &rc_params.rc_frames_per_second ) )
-      { log_softerror_and_alarm("Load model8: Error on line 34"); return false; }
-   rc_params.rc_enabled = tmp1;
-   rc_params.dummy1 = tmp2;
-
-   if ( rc_params.receiver_type >= RECEIVER_TYPE_LAST || rc_params.receiver_type < 0 )
-      rc_params.receiver_type = RECEIVER_TYPE_BUILDIN;
-   if ( rc_params.rc_frames_per_second < 2 || rc_params.rc_frames_per_second > 200 )
-      rc_params.rc_frames_per_second = DEFAULT_RC_FRAMES_PER_SECOND;
-
-   if ( 1 != fscanf(fd, "%d", &rc_params.inputType) )
-      { log_softerror_and_alarm("Load model8: Error on line 35"); return false; }
-
-   if ( 4 != fscanf(fd, "%d %ld %d %ld", &rc_params.inputSerialPort, &rc_params.inputSerialPortSpeed, &rc_params.outputSerialPort, &rc_params.outputSerialPortSpeed ) )
-      { log_softerror_and_alarm("Load model8: Error on line 36"); return false; }
-   
-   for( int i=0; i<MAX_RC_CHANNELS; i++ )
-   {
-      if ( 7 != fscanf(fd, "%u %u %u %u %u %u %u", &u1, &u2, &u3, &u4, &u5, &u6, &u7) )
-         { log_softerror_and_alarm("Load model8: Error on line 38"); return false; }
-      rc_params.rcChAssignment[i] = u1;
-      rc_params.rcChMid[i] = u2;
-      rc_params.rcChMin[i] = u3;
-      rc_params.rcChMax[i] = u4;
-      rc_params.rcChFailSafe[i] = u5;
-      rc_params.rcChExpo[i] = u6;
-      rc_params.rcChFlags[i] = u7;
-   }
-   
-   if ( 3 != fscanf(fd, "%d %u %u", &rc_params.rc_failsafe_timeout_ms, &rc_params.failsafeFlags, &rc_params.channelsCount ) )
-      { log_softerror_and_alarm("Load model8: Error on line 37a"); return false; }
-   if ( 1 != fscanf(fd, "%u", &rc_params.hid_id ) )
-      { log_softerror_and_alarm("Load model8: Error on line 37b"); return false; }
-
-   if ( 1 != fscanf(fd, "%u", &rc_params.flags ) )
-      { log_softerror_and_alarm("Load model8: Error on line 37c"); return false; }
-
-   if ( 1 != fscanf(fd, "%u", &rc_params.rcChAssignmentThrotleReverse ) )
-      { log_softerror_and_alarm("Load model8: Error on line 37d"); return false; }
-
-   if ( 1 != fscanf(fd, "%d", &rc_params.iRCTranslationType ) )
-      { log_softerror_and_alarm("Load model8: Error on line 37e"); return false; }
-
-   for( unsigned int i=0; i<(sizeof(rc_params.rcDummy)/sizeof(rc_params.rcDummy[0])); i++ )
-      if ( 1 != fscanf(fd, "%u", &(rc_params.rcDummy[i])) )
-         { log_softerror_and_alarm("Load model8: Error on line 37"); return false; }
-
-   if ( rc_params.rc_failsafe_timeout_ms < 50 || rc_params.rc_failsafe_timeout_ms > 5000 )
-      rc_params.rc_failsafe_timeout_ms = DEFAULT_RC_FAILSAFE_TIME;
-
-   //----------------------------------------
-   // Misc
-
-   if ( 2 != fscanf(fd, "%*s %u %u", &uDummyM1, &uDeveloperFlags) )
-      { log_softerror_and_alarm("Load model8: Error on line 39"); uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8); }
-
-   if ( 1 != fscanf(fd, "%u", &enc_flags) )
-   {
-      enc_flags = MODEL_ENC_FLAGS_NONE;
-      log_softerror_and_alarm("Load model8: Error on line extra 3");
-   }
-
-   if ( bOk && (1 != fscanf(fd, "%*s %u", &m_Stats.uTotalFlights)) )
-   {
-      log_softerror_and_alarm("Load model8: error on stats1");
-      m_Stats.uTotalFlights = 0;
-      bOk = false;
-   }
-   if ( bOk && (4 != fscanf(fd, "%u %u %u %u", &m_Stats.uCurrentOnTime, &m_Stats.uCurrentFlightTime, &m_Stats.uCurrentFlightDistance, &m_Stats.uCurrentFlightTotalCurrent)) )
-   {
-      log_softerror_and_alarm("Load model8: missing extra data 1");
-      m_Stats.uCurrentOnTime = 0; m_Stats.uCurrentFlightTime = 0; m_Stats.uCurrentFlightDistance = 0;
-      bOk = false;
-   }
-   if ( bOk && (5 != fscanf(fd, "%u %u %u %u %u", &m_Stats.uCurrentTotalCurrent, &m_Stats.uCurrentMaxAltitude, &m_Stats.uCurrentMaxDistance, &m_Stats.uCurrentMaxCurrent, &m_Stats.uCurrentMinVoltage)) )
-   {
-      log_softerror_and_alarm("Load model8: missing extra data 2");
-      m_Stats.uCurrentTotalCurrent = 0;
-      m_Stats.uCurrentMaxAltitude = 0;
-      m_Stats.uCurrentMaxDistance = 0;
-      m_Stats.uCurrentMaxCurrent = 0;
-      m_Stats.uCurrentMinVoltage = 100000;
-      bOk = false;
-   }
-
-   if ( bOk && (3 != fscanf(fd, "%u %u %u", &m_Stats.uTotalOnTime, &m_Stats.uTotalFlightTime, &m_Stats.uTotalFlightDistance)) )
-   {
-      log_softerror_and_alarm("Load model8: missing extra data 3");
-      m_Stats.uTotalOnTime = 0; m_Stats.uTotalFlightTime = 0; m_Stats.uTotalFlightDistance = 0;
-      bOk = false;
-   }
-   if ( bOk && (5 != fscanf(fd, "%u %u %u %u %u", &m_Stats.uTotalTotalCurrent, &m_Stats.uTotalMaxAltitude, &m_Stats.uTotalMaxDistance, &m_Stats.uTotalMaxCurrent, &m_Stats.uTotalMinVoltage)) )
-   {
-      log_softerror_and_alarm("Load model8: missing extra data 4");
-      m_Stats.uTotalTotalCurrent = 0;
-      m_Stats.uTotalMaxAltitude = 0;
-      m_Stats.uTotalMaxDistance = 0;
-      m_Stats.uTotalMaxCurrent = 0;
-      m_Stats.uTotalMinVoltage = 100000;
-      bOk = false;
-   }
-
-
-   //----------------------------------------
-   // Functions & Triggers
-
-   if ( bOk && (3 != fscanf(fd, "%*s %d %d %d", &tmp1, &tmp2, &tmp3 )) )
-      { log_softerror_and_alarm("Load model8: Error on line func_1"); bOk = false; tmp1 = 0; tmp2 = 0; tmp3 = 0; }
-
-   functions_params.bEnableRCTriggerFreqSwitchLink1 = (bool)tmp1;
-   functions_params.bEnableRCTriggerFreqSwitchLink2 = (bool)tmp2;
-   functions_params.bEnableRCTriggerFreqSwitchLink3 = (bool)tmp3;
-
-
-   if ( bOk && (3 != fscanf(fd, "%d %d %d", &functions_params.iRCTriggerChannelFreqSwitchLink1, &functions_params.iRCTriggerChannelFreqSwitchLink2, &functions_params.iRCTriggerChannelFreqSwitchLink3 )) )
-      { log_softerror_and_alarm("Load model8: Error on line func_2"); bOk = false; functions_params.iRCTriggerChannelFreqSwitchLink1 = -1; functions_params.iRCTriggerChannelFreqSwitchLink2 = -1; functions_params.iRCTriggerChannelFreqSwitchLink3 = -1; }
-
-   if ( bOk && (3 != fscanf(fd, "%d %d %d", &tmp1, &tmp2, &tmp3 )) )
-      { log_softerror_and_alarm("Load model8: Error on line func_3"); bOk = false; }
-
-   functions_params.bRCTriggerFreqSwitchLink1_is3Position = (bool)tmp1;
-   functions_params.bRCTriggerFreqSwitchLink2_is3Position = (bool)tmp2;
-   functions_params.bRCTriggerFreqSwitchLink3_is3Position = (bool)tmp3;
-
-   for( int i=0; i<3; i++ )
-   {
-      if ( bOk && (6 != fscanf(fd, "%u %u %u %u %u %u", &functions_params.uChannels433FreqSwitch[i], &functions_params.uChannels868FreqSwitch[i], &functions_params.uChannels23FreqSwitch[i], &functions_params.uChannels24FreqSwitch[i], &functions_params.uChannels25FreqSwitch[i], &functions_params.uChannels58FreqSwitch[i])) )
-         { log_softerror_and_alarm("Load model8: Error on line func_ch"); bOk = false; }
-   }
-
-   for( unsigned int i=0; i<(sizeof(functions_params.dummy)/sizeof(functions_params.dummy[0])); i++ )
-      if ( bOk && (1 != fscanf(fd, "%u", &(functions_params.dummy[i]))) )
-         { log_softerror_and_alarm("Load model8: Error on line funct_d"); bOk = false; }
-
-   //----------------------------------------------------
-   // Start of extra params, might be zero when loading older versions.
-
-   if ( bOk && (1 != fscanf(fd, "%u", &uModelFlags )) )
-      { log_softerror_and_alarm("Load model8: Error on line extra 1"); uModelFlags = 0; }
-
-
-   if ( bOk )
-   {
-      for( int i=0; i<hardwareInterfacesInfo.serial_port_count; i++ )
-         if ( 1 != fscanf(fd, "%d", &(hardwareInterfacesInfo.serial_port_speed[i])) )
-         {
-            for( int k=0; k<hardwareInterfacesInfo.serial_port_count; k++ )
-               hardwareInterfacesInfo.serial_port_speed[k] = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
-            break;
-         }
-   }
-
-   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
-      if ( 1 != fscanf(fd, "%u", &(osd_params.osd_flags3[i])) )
-         { osd_params.osd_flags3[i] = 0; }
-
-   if ( bOk && (1 != fscanf(fd, "%u", &relay_params.uRelayFrequencyKhz)) )
-      relay_params.uRelayFrequencyKhz = 0;
-   relay_params.uRelayFrequencyKhz *= 1000;
-
-   if ( 1 != fscanf(fd, "%d", &tmp1) )
-      alarms_params.uAlarmMotorCurrentThreshold = (1<<7) & 30;
-   else
-      alarms_params.uAlarmMotorCurrentThreshold = tmp1;
-
-   if ( bOk && (1 != fscanf(fd, "%d", &radioInterfacesParams.iDummyR9)) )
-   {
-      radioInterfacesParams.iDummyR9 = 0;
-   }
-
-   if ( bOk && (1 != fscanf(fd, "%u", &osd_params.uFlags)) )
-   {
-      log_softerror_and_alarm("Failed to read OSD uFlags from model config file.");
-      osd_params.uFlags = 0;
-      bOk = false;
-   }
-
-   //--------------------------------------------------
-   // End reading file;
-   //----------------------------------------
-
-   // Validate settings;
-
-   if ( processesPriorities.iNiceRC < -18 || processesPriorities.iNiceRC > 5 )
-      processesPriorities.iNiceRC = DEFAULT_PRIORITY_PROCESS_RC;
-   if ( processesPriorities.iNiceRouter < -18 || processesPriorities.iNiceRouter > 5 )
-      processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
-   if ( processesPriorities.ioNiceRouter < -7 || processesPriorities.ioNiceRouter > 7 )
-      processesPriorities.ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
-
-   if ( telemetry_params.vehicle_mavlink_id <= 0 || telemetry_params.vehicle_mavlink_id > 255 )
-      telemetry_params.vehicle_mavlink_id = DEFAULT_MAVLINK_SYS_ID_VEHICLE;
-   if ( telemetry_params.controller_mavlink_id <= 0 || telemetry_params.controller_mavlink_id > 255 )
-      telemetry_params.controller_mavlink_id = DEFAULT_MAVLINK_SYS_ID_CONTROLLER;
-   if ( telemetry_params.flags == 0 )
-      telemetry_params.flags = TELEMETRY_FLAGS_RXTX | TELEMETRY_FLAGS_REQUEST_DATA_STREAMS | TELEMETRY_FLAGS_SPECTATOR_ENABLE;
-   if ( rxtx_sync_type < 0 || rxtx_sync_type >= RXTX_SYNC_TYPE_LAST )
-      rxtx_sync_type = RXTX_SYNC_TYPE_BASIC;
-
-   /*
-   log_line("---------------------------------------");
-   log_line("Loaded radio links %d:", radioLinksParams.links_count);
-   for( int i=0; i<radioLinksParams.links_count; i++ )
-   {
-      char szBuffR[128];
-      str_get_radio_frame_flags_description(radioLinksParams.link_radio_flags[i], szBuffR);
-      log_line("Radio link %d frame flags: [%s]", i+1, szBuffR);
-   }
-   log_line("Loaded radio interfaces %d:", radioInterfacesParams.interfaces_count);
-   for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
-   {
-      char szBuffR[128];
-      str_get_radio_frame_flags_description(radioInterfacesParams.interface_current_radio_flags[i], szBuffR);
-      log_line("Radio interface %d frame flags: [%s]", i+1, szBuffR);
-   }
-   */
-   return true;
-}
-
-
-bool Model::loadVersion9(FILE* fd)
-{
-   char szBuff[256];
-   int tmp1 = 0, tmp2 = 0, tmp3 = 0, tmp4 = 0, tmp5 = 0, tmp6 = 0, tmp7 = 0;
-   u32 tmp32 = 0;
-   u32 u1 = 0, u2 = 0, u3 = 0, u4 = 0, u5 = 0, u6 = 0, u7 = 0;
-   int vt = 0;
-
-   bool bOk = true;
-
-   if ( 1 != fscanf(fd, "%s", szBuff) )
-      { log_softerror_and_alarm("Load model8: Error on line stamp"); return false; }
-
-   if ( 1 != fscanf(fd, "%*s %d", &iSaveCount) )
-      { log_softerror_and_alarm("Load model8: Error on line save count"); return false; }
-
-   if ( 4 != fscanf(fd, "%*s %u %d %d %u", &sw_version, &uVehicleId, &uControllerId, &hwCapabilities.uBoardType) )
-      { log_softerror_and_alarm("Load model8: Error on line 1"); return false; }
-
-   if ( hardware_is_vehicle() )
-      sw_version = (SYSTEM_SW_VERSION_MAJOR * 256 + SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER<<16);
-
-   if ( bOk && (1 != fscanf(fd, "%u", &uModelFlags )) )
-      { log_softerror_and_alarm("Load model8: Error on line 2a"); uModelFlags = 0; return false; }
-
-
-   if ( 1 != fscanf(fd, "%s", vehicle_name) )
-      { log_softerror_and_alarm("Load model8: Error on line 2"); return false; }
-   if ( vehicle_name[0] == '*' && vehicle_name[1] == 0 )
-      vehicle_name[0] = 0;
-
-   for( int i=0; i<(int)strlen(vehicle_name); i++ )
-      if ( vehicle_name[i] == '_' )
-         vehicle_name[i] = ' ';
-
-   str_sanitize_modelname(vehicle_name);
-
-   if ( 3 != fscanf(fd, "%d %u %d", &rxtx_sync_type, &camera_rc_channels, &processesPriorities.iNiceTelemetry ) )
-      { log_softerror_and_alarm("Load model8: Error on line 3"); return false; }
-
-   if ( 4 != fscanf(fd, "%d %d %u %d", &tmp1, &vt, &m_Stats.uTotalFlightTime, &iGPSCount ) )
-      { log_softerror_and_alarm("Load model8: Error on line 3b"); return false; }
-
-   is_spectator = (bool)tmp1;
-   vehicle_type = vt;
-
-   //----------------------------------------
-   // CPU
-
-   if ( 3 != fscanf(fd, "%*s %d %d %d", &processesPriorities.iNiceVideo, &processesPriorities.iNiceOthers, &processesPriorities.ioNiceVideo) )
-      { log_softerror_and_alarm("Load model8: Error on line 4"); return false; }
-   if ( 3 != fscanf(fd, "%d %d %d", &processesPriorities.iOverVoltage, &processesPriorities.iFreqARM, &processesPriorities.iFreqGPU) )
-      { log_softerror_and_alarm("Load model8: Error on line 5"); }
-   if ( 3 != fscanf(fd, "%d %d %d", &processesPriorities.iNiceRouter, &processesPriorities.ioNiceRouter, &processesPriorities.iNiceRC) )
-      { log_softerror_and_alarm("Load model8: Error on extra line 2b"); }
-
-   //----------------------------------------
-   // Radio
-
-   if ( 1 != fscanf(fd, "%*s %d", &radioInterfacesParams.interfaces_count) )
-      { log_softerror_and_alarm("Load model8: Error on line 6"); return false; }
-
-   for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
-   {
-      char szTmp[256];
-      if ( 3 != fscanf(fd, "%d %d %u", &(radioInterfacesParams.interface_card_model[i]), &(radioInterfacesParams.interface_link_id[i]), &(radioInterfacesParams.interface_current_frequency_khz[i])) )
-         { log_softerror_and_alarm("Load model8: Error on line 7a"); return false; }
-
-      if ( 8 != fscanf(fd, "%u %d %u %d %d %d %s %s", &u4, &tmp2, &tmp32, &tmp5, &tmp6, &tmp7, radioInterfacesParams.interface_szMAC[i], szTmp) )
-         { log_softerror_and_alarm("Load model8: Error on line 7b"); return false; }
-      radioInterfacesParams.interface_capabilities_flags[i] = u4;
-      radioInterfacesParams.interface_supported_bands[i] = (u8)tmp2;
-      radioInterfacesParams.interface_radiotype_and_driver[i] = tmp32;
-      radioInterfacesParams.interface_current_radio_flags[i] = tmp5;
-      radioInterfacesParams.interface_raw_power[i] = tmp6;
-      radioInterfacesParams.interface_szMAC[i][strlen(radioInterfacesParams.interface_szMAC[i])-1] = 0;
-      szTmp[strlen(szTmp)-1] = 0;
-      szTmp[2] = 0;
-      strcpy(radioInterfacesParams.interface_szPort[i], szTmp);      
-   }
-
-   if ( 9 != fscanf(fd, "%d %d %d %d %d %d %d %d %d", &tmp1, &radioInterfacesParams.iAutoVehicleTxPower, &radioInterfacesParams.iAutoControllerTxPower, &radioInterfacesParams.iDummyR3, &radioInterfacesParams.iDummyR4, &radioInterfacesParams.iDummyR5, &radioInterfacesParams.iDummyR6,  &radioInterfacesParams.iDummyR7, &radioInterfacesParams.iDummyR8) )
-      { log_softerror_and_alarm("Load model8: Error on line 8"); return false; }
-   enableDHCP = (bool)tmp1;
-
-   if ( 1 != fscanf(fd, "%d", &radioInterfacesParams.iDummyR9) )
-   {
-      radioInterfacesParams.iDummyR9 = 0;
-   }
-
-   if ( 1 != fscanf(fd, "%*s %d", &radioLinksParams.links_count) )
-      { log_softerror_and_alarm("Load model8: Error on line r0"); return false; }
-
-   for( int i=0; i<radioLinksParams.links_count; i++ )
-   {
-      if ( 5 != fscanf(fd, "%u %u %u %d %d", &(radioLinksParams.link_frequency_khz[i]), &(radioLinksParams.link_capabilities_flags[i]), &(radioLinksParams.link_radio_flags[i]), &(radioLinksParams.link_datarate_video_bps[i]), &(radioLinksParams.link_datarate_data_bps[i])) )
-         { log_softerror_and_alarm("Load model8: Error on line r3"); return false; }
-
-      if ( 4 != fscanf(fd, "%d %u %d %d", &tmp1, &(radioLinksParams.uDummy2[i]), &(radioLinksParams.uplink_datarate_video_bps[i]), &(radioLinksParams.uplink_datarate_data_bps[i])) )
-         { log_softerror_and_alarm("Load model8: Error on line r4"); return false; }
-      radioLinksParams.uSerialPacketSize[i] = tmp1;
-      if ( (radioLinksParams.uSerialPacketSize[i] < DEFAULT_RADIO_SERIAL_AIR_MIN_PACKET_SIZE) ||
-           (radioLinksParams.uSerialPacketSize[i] > DEFAULT_RADIO_SERIAL_AIR_MAX_PACKET_SIZE) )
-         radioLinksParams.uSerialPacketSize[i] = DEFAULT_RADIO_SERIAL_AIR_PACKET_SIZE;
-   }
-
-   for( unsigned int j=0; j<12; j++ )
-   {
-      if ( 1 != fscanf(fd, "%d", &tmp1) )
-         { log_softerror_and_alarm("Load model8: Error on line radio4 dummy data"); return false; }
-   }
-
-   //-------------------------------
-   // Relay params
-
-   if ( 5 != fscanf(fd, "%*s %d %u %d %u %u", &relay_params.isRelayEnabledOnRadioLinkId, &(relay_params.uRelayFrequencyKhz), &tmp2, &relay_params.uRelayedVehicleId, &relay_params.uRelayCapabilitiesFlags) )
-      { log_softerror_and_alarm("Load model8: Error on line 10"); return false; }
-   relay_params.uCurrentRelayMode = tmp2;
-
-   //----------------------------------------
-   // Telemetry
-
-   if ( 5 != fscanf(fd, "%*s %d %d %d %d %d", &telemetry_params.fc_telemetry_type, &telemetry_params.controller_telemetry_type, &telemetry_params.update_rate, &tmp1, &tmp2) )
-      { log_softerror_and_alarm("Load model8: Error on line 12"); return false; }
-
-   if ( telemetry_params.update_rate > 200 )
-      telemetry_params.update_rate = 200;
-   telemetry_params.bControllerHasOutputTelemetry = (bool) tmp1;
-   telemetry_params.bControllerHasInputTelemetry = (bool) tmp2;
-
-   if ( 4 != fscanf(fd, "%d %u %d %u", &telemetry_params.iVideoBitrateHistoryGraphSampleInterval, &telemetry_params.dummy2, &telemetry_params.dummy3, &telemetry_params.dummy4) )
-      { log_softerror_and_alarm("Load model8: Error on line 13"); return false; }
-
-   if ( 3 != fscanf(fd, "%d %d %d", &telemetry_params.vehicle_mavlink_id, &telemetry_params.controller_mavlink_id, &telemetry_params.flags) )
-      { log_softerror_and_alarm("Load mode8: Error on line 13b"); return false; }
-
-   if ( 2 != fscanf(fd, "%d %u", &telemetry_params.dummy5, &telemetry_params.dummy6) )
-      { telemetry_params.dummy5 = -1; }
-
-   if ( 1 != fscanf(fd, "%d", &tmp1) ) // not used
-      { log_softerror_and_alarm("Load model8: Error on line 13b"); return false; }
-
-   //----------------------------------------
-   // Video
-
-   if ( 4 != fscanf(fd, "%*s %d %d %d %u", &video_params.user_selected_video_link_profile, &video_params.iH264Slices, &tmp2, &video_params.lowestAllowedAdaptiveVideoBitrate) )
-      { log_softerror_and_alarm("Load model8: Error on line 19"); return false; }
-
-   if ( video_params.iH264Slices < 1 || video_params.iH264Slices > 16 )
-   {
-      video_params.iH264Slices = DEFAULT_VIDEO_H264_SLICES;
-      if ( hardware_board_is_openipc(hardware_getOnlyBoardType()) )
-         video_params.iH264Slices = DEFAULT_VIDEO_H264_SLICES_OIPC;
-   }
-   video_params.videoAdjustmentStrength = tmp2;
-   if ( video_params.lowestAllowedAdaptiveVideoBitrate < 250000 )
-      video_params.lowestAllowedAdaptiveVideoBitrate = DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE;
-
-   if ( 1 != fscanf(fd, "%u", &video_params.uMaxAutoKeyframeIntervalMs) )
-      { log_softerror_and_alarm("Load model8: Error on line 20"); return false; }
-   if ( video_params.uMaxAutoKeyframeIntervalMs < 50 || video_params.uMaxAutoKeyframeIntervalMs > DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL )
-       video_params.uMaxAutoKeyframeIntervalMs = DEFAULT_VIDEO_MAX_AUTO_KEYFRAME_INTERVAL;
-
-   if ( 1 != fscanf(fd, "%u", &video_params.uVideoExtraFlags) )
-      { log_softerror_and_alarm("Load model8: Error on line 20c"); return false; }
-   
-   for( unsigned int j=0; j<(sizeof(video_params.dummy)/sizeof(video_params.dummy[0])); j++ )
-   {
-      if ( 1 != fscanf(fd, "%d", &tmp1) )
-         { log_softerror_and_alarm("Load model8: Error on line 27, video params dummy data"); return false; }
-      video_params.dummy[j] = tmp1;
-   }
-
-   if ( bOk && (1 != fscanf(fd, "%*s %d", &tmp7)) )
-      { log_softerror_and_alarm("Load model8: Error: missing count of video link profiles"); bOk = false; tmp7=0; }
-
-   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
-      { video_link_profiles[i].uProfileFlags = 0; video_link_profiles[i].uProfileEncodingFlags = 0; }
-
-   if ( tmp7 < 0 || tmp7 > MAX_VIDEO_LINK_PROFILES )
-      tmp7 = MAX_VIDEO_LINK_PROFILES;
-
-   for( int i=0; i<tmp7; i++ )
-   {
-      if ( ! bOk )
-        { log_softerror_and_alarm("Load model8: Error on video link profiles 0"); bOk = false; }
- 
-      if ( bOk && (6 != fscanf(fd, "%u %u %u %d %d %u", &(video_link_profiles[i].uProfileFlags), &(video_link_profiles[i].uProfileEncodingFlags), &(video_link_profiles[i].bitrate_fixed_bps), &(video_link_profiles[i].radio_datarate_video_bps), &(video_link_profiles[i].radio_datarate_data_bps), &(video_link_profiles[i].radio_flags))) )
-         { log_softerror_and_alarm("Load model8: Error on video link profiles 1"); bOk = false; }
-
-      if ( bOk && (2 != fscanf(fd, "%d %d", &(video_link_profiles[i].width), &(video_link_profiles[i].height))) )
-         { log_softerror_and_alarm("Load model8: Error on video link profiles 2"); bOk = false; }
-
-      if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].block_packets), &(video_link_profiles[i].block_fecs), &(video_link_profiles[i].video_data_length), &(video_link_profiles[i].fps), &(video_link_profiles[i].keyframe_ms))) )
-         { log_softerror_and_alarm("Load model8: Error on video link profiles 3"); bOk = false; }
-      
-      if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].h264profile), &(video_link_profiles[i].h264level), &(video_link_profiles[i].h264refresh), &(video_link_profiles[i].h264quantization), &(video_link_profiles[i].iIPQuantizationDelta))) )
-         { log_softerror_and_alarm("Load model8: Error on video link profiles 4"); bOk = false; }
-   }
-
-
-   //----------------------------------------
-   // Camera params
-
-   if ( 2 != fscanf(fd, "%*s %d %d", &iCameraCount, &iCurrentCamera) )
-      { log_softerror_and_alarm("Load model8: Error on line 20"); return false; }
-
-   for( int k=0; k<MODEL_MAX_CAMERAS; k++ )
-   {
-
-      // Camera type:
-      if ( 3 != fscanf(fd, "%*s %d %d %d", &(camera_params[k].iCameraType), &(camera_params[k].iForcedCameraType), &(camera_params[k].iCurrentProfile)) )
-         { log_softerror_and_alarm("Load model8: Error on line camera 2"); return false; }
-
-      //----------------------------------------
-      // Camera sensor name
-
-      char szTmp[1024];
-      if ( bOk && (1 != fscanf(fd, "%*s %s", szTmp)) )
-         { log_softerror_and_alarm("Load model8: Error on line camera name"); camera_params[k].szCameraName[0] = 0; bOk = false; }
-      else
-      {
-         szTmp[MAX_CAMERA_NAME_LENGTH-1] = 0;
-         strcpy(camera_params[k].szCameraName, szTmp);
-         camera_params[k].szCameraName[MAX_CAMERA_NAME_LENGTH-1] = 0;
-
-         if ( camera_params[k].szCameraName[0] == '*' && camera_params[k].szCameraName[1] == 0 )
-            camera_params[k].szCameraName[0] = 0;
-         for( int i=0; i<(int)strlen(camera_params[k].szCameraName); i++ )
-            if ( camera_params[k].szCameraName[i] == '*' )
-               camera_params[k].szCameraName[i] = ' ';
-      }
-
-      for( int i=0; i<MODEL_CAMERA_PROFILES; i++ )
-      {
-         if ( 1 != fscanf(fd, "%*s %d", &camera_params[k].profiles[i].uFlags) )
-            { log_softerror_and_alarm("Load model8: Error on line 21, cam profile %d", i); return false; }
-         if ( 1 != fscanf(fd, "%d", &tmp1) )
-            { log_softerror_and_alarm("Load model8: Error on line 21b, cam profile %d", i); return false; }
-         camera_params[k].profiles[i].flip_image = (bool)tmp1;
-
-         if ( 4 != fscanf(fd, "%d %d %d %d", &tmp1, &tmp2, &tmp3, &tmp4) )
-            { log_softerror_and_alarm("Load model8: Error on line 22, cam profile %d", i); return false; }
-         camera_params[k].profiles[i].brightness = tmp1;
-         camera_params[k].profiles[i].contrast = tmp2;
-         camera_params[k].profiles[i].saturation = tmp3;
-         camera_params[k].profiles[i].sharpness = tmp4;
-
-         if ( 4 != fscanf(fd, "%d %d %d %d", &tmp1, &tmp2, &tmp3, &tmp4) )
-            { log_softerror_and_alarm("Load model8: Error on line 23, cam profile %d", i); return false; }
-         camera_params[k].profiles[i].exposure = tmp1;
-         camera_params[k].profiles[i].whitebalance = tmp2;
-         camera_params[k].profiles[i].metering = tmp3;
-         camera_params[k].profiles[i].drc = tmp4;
-
-         if ( 3 != fscanf(fd, "%f %f %f", &(camera_params[k].profiles[i].analogGain), &(camera_params[k].profiles[i].awbGainB), &(camera_params[k].profiles[i].awbGainR)) )
-            { log_softerror_and_alarm("Load model8: Error on line 24, cam profile %d", i); }
-
-         if ( 2 != fscanf(fd, "%f %f", &(camera_params[k].profiles[i].fovH), &(camera_params[k].profiles[i].fovV)) )
-            { log_softerror_and_alarm("Load model8: Error on line 25, cam profile %d", i); }
-
-         if ( 4 != fscanf(fd, "%d %d %d %d", &tmp1, &tmp2, &tmp3, &tmp4) )
-            { log_softerror_and_alarm("Load model8: Error on line 26, cam profile %d", i); return false; }
-         camera_params[k].profiles[i].vstab = tmp1;
-         camera_params[k].profiles[i].ev = tmp2;
-         camera_params[k].profiles[i].iso = tmp3;
-         camera_params[k].profiles[i].shutterspeed = tmp4;
-
-         if ( 1 != fscanf(fd, "%d", &tmp1) )
-            { log_softerror_and_alarm("Load model8: Error on line 25b, cam profile %d", i); }
-         else
-            camera_params[k].profiles[i].wdr = (u8)tmp1;
-
-         if ( 1 != fscanf(fd, "%d", &tmp1) )
-            { log_softerror_and_alarm("Load model8: Error on line 25c, night mode, cam profile %d", i); camera_params[k].profiles[i].dayNightMode = 0; }
-         else
-            camera_params[k].profiles[i].dayNightMode = (u8)tmp1;
-           
-         if ( 1 != fscanf(fd, "%d", &tmp1) )
-            { log_softerror_and_alarm("Load model8: Error on line 25f, hue, cam profile %d", i); camera_params[k].profiles[i].hue = 0; }
-         else
-            camera_params[k].profiles[i].hue = (u8)tmp1;
-
-         for( unsigned int j=0; j<(sizeof(camera_params[k].profiles[i].dummyCamP)/sizeof(camera_params[k].profiles[i].dummyCamP[0])); j++ )
-         {
-            if ( 1 != fscanf(fd, "%d", &tmp1) )
-               { log_softerror_and_alarm("Load model8: Error on line 27, cam profile %d", i); return false; }
-            camera_params[k].profiles[i].dummyCamP[j] = tmp1;
-         }
-      }
-
-   }
-
-   //----------------------------------------
-   // Audio Settings
-
-   audio_params.has_audio_device = false;
-   if ( 1 == fscanf(fd, "%*s %d", &tmp1) )
-      audio_params.has_audio_device = (bool)tmp1;
-   else
-      { bOk = false; log_softerror_and_alarm("Load model8: Error on audio line 1"); }
-   if ( 4 == fscanf(fd, "%d %d %d %u", &tmp2, &audio_params.volume, &audio_params.quality, &audio_params.uFlags) )
-   {
-      audio_params.has_audio_device = tmp1;
-      audio_params.enabled = tmp2;
-   }
-   else
-   {
-      bOk = false;
-      log_softerror_and_alarm("Load model8: Error on audio line 2");
-   }
-   
-   if ( 1 != fscanf(fd, "%*s %u", &alarms) )
-      alarms = 0;
-
-   //----------------------------------------
-   // Hardware info
-
-   if ( 4 == fscanf(fd, "%*s %d %d %d %d", &hardwareInterfacesInfo.radio_interface_count, &hardwareInterfacesInfo.i2c_bus_count, &hardwareInterfacesInfo.i2c_device_count, &hardwareInterfacesInfo.serial_port_count) )
-   {
-      if ( hardwareInterfacesInfo.i2c_bus_count < 0 || hardwareInterfacesInfo.i2c_bus_count > MAX_MODEL_I2C_BUSSES )
-         { log_softerror_and_alarm("Load model8: Error on hw info1"); return false; }
-      if ( hardwareInterfacesInfo.i2c_device_count < 0 || hardwareInterfacesInfo.i2c_device_count > MAX_MODEL_I2C_DEVICES )
-         { log_softerror_and_alarm("Load model8: Error on hw info2"); return false; }
-      if ( hardwareInterfacesInfo.serial_port_count < 0 || hardwareInterfacesInfo.serial_port_count > MAX_MODEL_SERIAL_PORTS )
-         { log_softerror_and_alarm("Load model8: Error on hw info3"); return false; }
-
-      for( int i=0; i<hardwareInterfacesInfo.i2c_bus_count; i++ )
-         if ( 1 != fscanf(fd, "%d", &(hardwareInterfacesInfo.i2c_bus_numbers[i])) )
-            { log_softerror_and_alarm("Load model8: Error on hw info4"); return false; }
-
-      for( int i=0; i<hardwareInterfacesInfo.i2c_device_count; i++ )
-         if ( 2 != fscanf(fd, "%d %d", &(hardwareInterfacesInfo.i2c_devices_bus[i]), &(hardwareInterfacesInfo.i2c_devices_address[i])) )
-            { log_softerror_and_alarm("Load model8: Error on hw info5"); return false; }
-
-      for( int i=0; i<hardwareInterfacesInfo.serial_port_count; i++ )
-         if ( 3 != fscanf(fd, "%d %u %s", &(hardwareInterfacesInfo.serial_port_speed[i]), &(hardwareInterfacesInfo.serial_port_supported_and_usage[i]), &(hardwareInterfacesInfo.serial_port_names[i][0])) )
-            { log_softerror_and_alarm("Load model8: Error on hw info6"); return false; }
-   }
-   else
-   {
-      hardwareInterfacesInfo.radio_interface_count = 0;
-      hardwareInterfacesInfo.i2c_bus_count = 0;
-      hardwareInterfacesInfo.i2c_device_count = 0;
-      hardwareInterfacesInfo.serial_port_count = 0;
-      bOk = false;
-   }
-
-   //----------------------------------------
-   // OSD
-
-   if ( 5 != fscanf(fd, "%*s %d %d %f %d %d", &osd_params.iCurrentOSDLayout, &tmp1, &osd_params.voltage_alarm, &tmp2, &tmp3) )
-      { log_softerror_and_alarm("Load model8: Error on line 29"); return false; }
-   osd_params.voltage_alarm_enabled = (bool)tmp1;
-   osd_params.altitude_relative = (bool)tmp2;
-   osd_params.show_gps_position = (bool)tmp3;
-
-   if ( 5 != fscanf(fd, "%d %d %d %d %d", &osd_params.battery_show_per_cell,  &osd_params.battery_cell_count, &osd_params.battery_capacity_percent_alarm, &tmp1, &osd_params.home_arrow_rotate) )
-      { log_softerror_and_alarm("Load model8: Error on line 30"); return false; }
-   osd_params.invert_home_arrow = (bool)tmp1;
-
-   if ( 7 != fscanf(fd, "%d %d %d %d %d %d %d", &tmp1, &tmp2, &tmp3, &tmp4, &tmp5, &tmp6, &osd_params.ahi_warning_angle) )
-      { log_softerror_and_alarm("Load model8: Error on line 31"); return false; }
-
-   osd_params.show_overload_alarm = (bool)tmp1;
-   osd_params.show_stats_rx_detailed = (bool)tmp2;
-   osd_params.show_stats_decode = (bool)tmp3;
-   osd_params.show_stats_rc = (bool)tmp4;
-   osd_params.show_full_stats = (bool)tmp5;
-   osd_params.show_instruments = (bool)tmp6;
-   if ( osd_params.ahi_warning_angle < 0 ) osd_params.ahi_warning_angle = 0;
-   if ( osd_params.ahi_warning_angle > 80 ) osd_params.ahi_warning_angle = 80;
-
-   for( int i=0; i<5; i++ )
-      if ( 5 != fscanf(fd, "%u %u %u %u %u", &(osd_params.osd_flags[i]), &(osd_params.osd_flags2[i]), &(osd_params.osd_flags3[i]), &(osd_params.instruments_flags[i]), &(osd_params.osd_preferences[i])) )
-         { bOk = false; log_softerror_and_alarm("Load model8: Error on osd params os flags line 2"); }
-
-   //----------------------------------------
-   // RC
-
-   if ( 4 != fscanf(fd, "%*s %d %d %d %d", &tmp1, &tmp2, &rc_params.receiver_type, &rc_params.rc_frames_per_second ) )
-      { log_softerror_and_alarm("Load model8: Error on line 34"); return false; }
-   rc_params.rc_enabled = tmp1;
-   rc_params.dummy1 = tmp2;
-
-   if ( rc_params.receiver_type >= RECEIVER_TYPE_LAST || rc_params.receiver_type < 0 )
-      rc_params.receiver_type = RECEIVER_TYPE_BUILDIN;
-   if ( rc_params.rc_frames_per_second < 2 || rc_params.rc_frames_per_second > 200 )
-      rc_params.rc_frames_per_second = DEFAULT_RC_FRAMES_PER_SECOND;
-
-   if ( 1 != fscanf(fd, "%d", &rc_params.inputType) )
-      { log_softerror_and_alarm("Load model8: Error on line 35"); return false; }
-
-   if ( 4 != fscanf(fd, "%d %ld %d %ld", &rc_params.inputSerialPort, &rc_params.inputSerialPortSpeed, &rc_params.outputSerialPort, &rc_params.outputSerialPortSpeed ) )
-      { log_softerror_and_alarm("Load model8: Error on line 36"); return false; }
-   
-   for( int i=0; i<MAX_RC_CHANNELS; i++ )
-   {
-      if ( 7 != fscanf(fd, "%u %u %u %u %u %u %u", &u1, &u2, &u3, &u4, &u5, &u6, &u7) )
-         { log_softerror_and_alarm("Load model8: Error on line 38"); return false; }
-      rc_params.rcChAssignment[i] = u1;
-      rc_params.rcChMid[i] = u2;
-      rc_params.rcChMin[i] = u3;
-      rc_params.rcChMax[i] = u4;
-      rc_params.rcChFailSafe[i] = u5;
-      rc_params.rcChExpo[i] = u6;
-      rc_params.rcChFlags[i] = u7;
-   }
-   
-   if ( 3 != fscanf(fd, "%d %u %u", &rc_params.rc_failsafe_timeout_ms, &rc_params.failsafeFlags, &rc_params.channelsCount ) )
-      { log_softerror_and_alarm("Load model8: Error on line 37a"); return false; }
-   if ( 1 != fscanf(fd, "%u", &rc_params.hid_id ) )
-      { log_softerror_and_alarm("Load model8: Error on line 37b"); return false; }
-
-   if ( 1 != fscanf(fd, "%u", &rc_params.flags ) )
-      { log_softerror_and_alarm("Load model8: Error on line 37c"); return false; }
-
-   if ( 1 != fscanf(fd, "%u", &rc_params.rcChAssignmentThrotleReverse ) )
-      { log_softerror_and_alarm("Load model8: Error on line 37d"); return false; }
-
-   if ( 1 != fscanf(fd, "%d", &rc_params.iRCTranslationType ) )
-      { log_softerror_and_alarm("Load model9: Error on line 37e"); return false; }
-
-   for( unsigned int i=0; i<(sizeof(rc_params.rcDummy)/sizeof(rc_params.rcDummy[0])); i++ )
-      if ( 1 != fscanf(fd, "%u", &(rc_params.rcDummy[i])) )
-         { log_softerror_and_alarm("Load model9: Error on line 37"); return false; }
-
-   if ( rc_params.rc_failsafe_timeout_ms < 50 || rc_params.rc_failsafe_timeout_ms > 5000 )
-      rc_params.rc_failsafe_timeout_ms = DEFAULT_RC_FAILSAFE_TIME;
-
-   //----------------------------------------
-   // Misc
-
-   if ( 2 != fscanf(fd, "%*s %u %u", &uDummyM1, &uDeveloperFlags) )
-      { log_softerror_and_alarm("Load model8: Error on line 39"); uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8); }
-   
-   if ( 1 != fscanf(fd, "%u", &enc_flags) )
-   {
-      enc_flags = MODEL_ENC_FLAGS_NONE;
-      log_softerror_and_alarm("Load model8: Error on line extra 3");
-   }
-
-   if ( bOk && (1 != fscanf(fd, "%*s %u", &m_Stats.uTotalFlights)) )
-   {
-      log_softerror_and_alarm("Load model8: error on stats1");
-      m_Stats.uTotalFlights = 0;
-      bOk = false;
-   }
-   if ( bOk && (4 != fscanf(fd, "%u %u %u %u", &m_Stats.uCurrentOnTime, &m_Stats.uCurrentFlightTime, &m_Stats.uCurrentFlightDistance, &m_Stats.uCurrentFlightTotalCurrent)) )
-   {
-      log_softerror_and_alarm("Load model8: missing extra data 1");
-      m_Stats.uCurrentOnTime = 0; m_Stats.uCurrentFlightTime = 0; m_Stats.uCurrentFlightDistance = 0;
-      bOk = false;
-   }
-   if ( bOk && (5 != fscanf(fd, "%u %u %u %u %u", &m_Stats.uCurrentTotalCurrent, &m_Stats.uCurrentMaxAltitude, &m_Stats.uCurrentMaxDistance, &m_Stats.uCurrentMaxCurrent, &m_Stats.uCurrentMinVoltage)) )
-   {
-      log_softerror_and_alarm("Load model8: missing extra data 2");
-      m_Stats.uCurrentTotalCurrent = 0;
-      m_Stats.uCurrentMaxAltitude = 0;
-      m_Stats.uCurrentMaxDistance = 0;
-      m_Stats.uCurrentMaxCurrent = 0;
-      m_Stats.uCurrentMinVoltage = 100000;
-      bOk = false;
-   }
-
-   if ( bOk && (3 != fscanf(fd, "%u %u %u", &m_Stats.uTotalOnTime, &m_Stats.uTotalFlightTime, &m_Stats.uTotalFlightDistance)) )
-   {
-      log_softerror_and_alarm("Load model8: missing extra data 3");
-      m_Stats.uTotalOnTime = 0; m_Stats.uTotalFlightTime = 0; m_Stats.uTotalFlightDistance = 0;
-      bOk = false;
-   }
-   if ( bOk && (5 != fscanf(fd, "%u %u %u %u %u", &m_Stats.uTotalTotalCurrent, &m_Stats.uTotalMaxAltitude, &m_Stats.uTotalMaxDistance, &m_Stats.uTotalMaxCurrent, &m_Stats.uTotalMinVoltage)) )
-   {
-      log_softerror_and_alarm("Load model8: missing extra data 4");
-      m_Stats.uTotalTotalCurrent = 0;
-      m_Stats.uTotalMaxAltitude = 0;
-      m_Stats.uTotalMaxDistance = 0;
-      m_Stats.uTotalMaxCurrent = 0;
-      m_Stats.uTotalMinVoltage = 100000;
-      bOk = false;
-   }
-
-
-   //----------------------------------------
-   // Functions & Triggers
-
-   if ( bOk && (3 != fscanf(fd, "%*s %d %d %d", &tmp1, &tmp2, &tmp3 )) )
-      { log_softerror_and_alarm("Load model8: Error on line func_1"); bOk = false; tmp1 = 0; tmp2 = 0; tmp3 = 0; }
-
-   functions_params.bEnableRCTriggerFreqSwitchLink1 = (bool)tmp1;
-   functions_params.bEnableRCTriggerFreqSwitchLink2 = (bool)tmp2;
-   functions_params.bEnableRCTriggerFreqSwitchLink3 = (bool)tmp3;
-
-
-   if ( bOk && (3 != fscanf(fd, "%d %d %d", &functions_params.iRCTriggerChannelFreqSwitchLink1, &functions_params.iRCTriggerChannelFreqSwitchLink2, &functions_params.iRCTriggerChannelFreqSwitchLink3 )) )
-      { log_softerror_and_alarm("Load model8: Error on line func_2"); bOk = false; functions_params.iRCTriggerChannelFreqSwitchLink1 = -1; functions_params.iRCTriggerChannelFreqSwitchLink2 = -1; functions_params.iRCTriggerChannelFreqSwitchLink3 = -1; }
-
-   if ( bOk && (3 != fscanf(fd, "%d %d %d", &tmp1, &tmp2, &tmp3 )) )
-      { log_softerror_and_alarm("Load model8: Error on line func_3"); bOk = false; }
-
-   functions_params.bRCTriggerFreqSwitchLink1_is3Position = (bool)tmp1;
-   functions_params.bRCTriggerFreqSwitchLink2_is3Position = (bool)tmp2;
-   functions_params.bRCTriggerFreqSwitchLink3_is3Position = (bool)tmp3;
-
-   for( int i=0; i<3; i++ )
-   {
-      if ( bOk && (6 != fscanf(fd, "%u %u %u %u %u %u", &functions_params.uChannels433FreqSwitch[i], &functions_params.uChannels868FreqSwitch[i], &functions_params.uChannels23FreqSwitch[i], &functions_params.uChannels24FreqSwitch[i], &functions_params.uChannels25FreqSwitch[i], &functions_params.uChannels58FreqSwitch[i])) )
-         { log_softerror_and_alarm("Load model8: Error on line func_ch"); bOk = false; }
-   }
-
-   for( unsigned int i=0; i<(sizeof(functions_params.dummy)/sizeof(functions_params.dummy[0])); i++ )
-      if ( bOk && (1 != fscanf(fd, "%u", &(functions_params.dummy[i]))) )
-         { log_softerror_and_alarm("Load model8: Error on line funct_d"); bOk = false; }
-
-   //----------------------------------------------------
-   // Start of extra params, might be zero when loading older versions.
-
-   if ( 1 != fscanf(fd, "%d", &tmp1) )
-      alarms_params.uAlarmMotorCurrentThreshold = (1<<7) & 30;
-   else
-      alarms_params.uAlarmMotorCurrentThreshold = tmp1;
-
-   if ( bOk && (1 != fscanf(fd, "%u", &osd_params.uFlags)) )
-   {
-      log_softerror_and_alarm("Failed to read OSD uFlags from model config file.");
-      osd_params.uFlags = 0;
-      bOk = false;
-   }
-
-   //--------------------------------------------------
-   // End reading file;
-   //----------------------------------------
-
-   // Validate settings;
-
-   if ( processesPriorities.iNiceRC < -18 || processesPriorities.iNiceRC > 5 )
-      processesPriorities.iNiceRC = DEFAULT_PRIORITY_PROCESS_RC;
-   if ( processesPriorities.iNiceRouter < -18 || processesPriorities.iNiceRouter > 5 )
-      processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
-   if ( processesPriorities.ioNiceRouter < -7 || processesPriorities.ioNiceRouter > 7 )
-      processesPriorities.ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
-
-   if ( telemetry_params.vehicle_mavlink_id <= 0 || telemetry_params.vehicle_mavlink_id > 255 )
-      telemetry_params.vehicle_mavlink_id = DEFAULT_MAVLINK_SYS_ID_VEHICLE;
-   if ( telemetry_params.controller_mavlink_id <= 0 || telemetry_params.controller_mavlink_id > 255 )
-      telemetry_params.controller_mavlink_id = DEFAULT_MAVLINK_SYS_ID_CONTROLLER;
-   if ( telemetry_params.flags == 0 )
-      telemetry_params.flags = TELEMETRY_FLAGS_RXTX | TELEMETRY_FLAGS_REQUEST_DATA_STREAMS | TELEMETRY_FLAGS_SPECTATOR_ENABLE;
-   if ( rxtx_sync_type < 0 || rxtx_sync_type >= RXTX_SYNC_TYPE_LAST )
-      rxtx_sync_type = RXTX_SYNC_TYPE_BASIC;
-
-   /*
-   log_line("---------------------------------------");
-   log_line("Loaded radio links %d:", radioLinksParams.links_count);
-   for( int i=0; i<radioLinksParams.links_count; i++ )
-   {
-      char szBuffR[128];
-      str_get_radio_frame_flags_description(radioLinksParams.link_radio_flags[i], szBuffR);
-      log_line("Radio link %d frame flags: [%s]", i+1, szBuffR);
-   }
-   log_line("Loaded radio interfaces %d:", radioInterfacesParams.interfaces_count);
-   for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
-   {
-      char szBuffR[128];
-      str_get_radio_frame_flags_description(radioInterfacesParams.interface_current_radio_flags[i], szBuffR);
-      log_line("Radio interface %d frame flags: [%s]", i+1, szBuffR);
-   }
-   */
-   return true;
-}
-
 
 
 bool Model::loadVersion10(FILE* fd)
@@ -4342,44 +3163,75 @@ void Model::resetRelayParamsToDefaults(type_relay_parameters* pRelayParams)
 }
 
 
-void Model::resetOSDFlags()
+void Model::resetOSDFlags(int iScreen)
 {
-   memset(&osd_params, 0, sizeof(osd_params));
+   if ( iScreen == -1 )
+   {
+      memset(&osd_params, 0, sizeof(osd_params));
 
-   osd_params.iCurrentOSDLayout = osdLayout1;
-   osd_params.voltage_alarm_enabled = true;
-   osd_params.voltage_alarm = 3.2;
-   osd_params.battery_show_per_cell = 1;
-   osd_params.battery_cell_count = 0;
-   osd_params.battery_capacity_percent_alarm = 0;
-   osd_params.altitude_relative = true;
-   osd_params.show_overload_alarm = true;
-   osd_params.show_stats_rx_detailed = true;
-   osd_params.show_stats_decode = true;
-   osd_params.show_stats_rc = false;
-   osd_params.show_full_stats = false;
-   osd_params.invert_home_arrow = false;
-   osd_params.home_arrow_rotate = 0;
-   osd_params.show_instruments = false;
-   osd_params.ahi_warning_angle = 45;
-   osd_params.show_gps_position = false;
-   
-   osd_params.uFlags = OSD_BIT_FLAGS_SHOW_FLIGHT_END_STATS;
-   
-   osd_params.osd_flags[0] = 0; // horizontal layout for stats panels;
-   osd_params.osd_flags[1] = OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_BATTERY;
-   osd_params.osd_flags[2] = OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_BATTERY | OSD_FLAG_SHOW_HOME | OSD_FLAG_SHOW_VIDEO_MODE | OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE | OSD_FLAG_SHOW_RADIO_INTERFACES_INFO;
-   osd_params.osd_flags[3] = 0;
-   osd_params.osd_flags[4] = 0;
-   osd_params.osd_flags2[0] = OSD_FLAG2_LAYOUT_ENABLED | OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_SHOW_STATS_RADIO_INTERFACES | OSD_FLAG2_SHOW_RC_RSSI;
-   osd_params.osd_flags2[1] =                            OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_RELATIVE_ALTITUDE | OSD_FLAG2_SHOW_RC_RSSI;
-   osd_params.osd_flags2[2] =                            OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_RELATIVE_ALTITUDE | OSD_FLAG2_SHOW_RC_RSSI;
-   osd_params.osd_flags2[3] = OSD_FLAG2_LAYOUT_ENABLED | OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_SHOW_RC_RSSI;
-   osd_params.osd_flags2[4] =                            OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_SHOW_RC_RSSI;
-
+      osd_params.iCurrentOSDLayout = osdLayout1;
+      osd_params.voltage_alarm_enabled = true;
+      osd_params.voltage_alarm = 3.2;
+      osd_params.battery_show_per_cell = 1;
+      osd_params.battery_cell_count = 0;
+      osd_params.battery_capacity_percent_alarm = 0;
+      osd_params.altitude_relative = true;
+      osd_params.show_overload_alarm = true;
+      osd_params.show_stats_rx_detailed = true;
+      osd_params.show_stats_decode = true;
+      osd_params.show_stats_rc = false;
+      osd_params.show_full_stats = false;
+      osd_params.invert_home_arrow = false;
+      osd_params.home_arrow_rotate = 0;
+      osd_params.show_instruments = false;
+      osd_params.ahi_warning_angle = 45;
+      osd_params.show_gps_position = false;
+      
+      osd_params.uFlags = OSD_BIT_FLAGS_SHOW_FLIGHT_END_STATS;
+   }
 
    for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
    {
+      if ( (iScreen != -1) && (iScreen != i) )
+         continue;
+      osd_params.osd_flags[i] = 0;
+      osd_params.osd_flags2[i] = 0;
+      osd_params.osd_flags3[i] = 0;
+      osd_params.instruments_flags[i] = 0;
+      osd_params.osd_preferences[i] = 0;
+
+   }
+
+   if ( (iScreen = -1) || (iScreen == 0) )
+   {
+      osd_params.osd_flags[0] = 0; // horizontal layout for stats panels;
+      osd_params.osd_flags2[0] = OSD_FLAG2_LAYOUT_ENABLED | OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY | OSD_FLAG2_SHOW_RC_RSSI;
+   }
+   if ( (iScreen = -1) || (iScreen == 1) )
+   {
+      osd_params.osd_flags[1] = OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_BATTERY;
+      osd_params.osd_flags2[1] = OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY | OSD_FLAG2_RELATIVE_ALTITUDE | OSD_FLAG2_SHOW_RC_RSSI;
+   }
+   if ( (iScreen = -1) || (iScreen == 2) )
+   {
+      osd_params.osd_flags[2] = OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_BATTERY | OSD_FLAG_SHOW_HOME | OSD_FLAG_SHOW_VIDEO_MODE | OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE | OSD_FLAG_SHOW_RADIO_INTERFACES_INFO;
+      osd_params.osd_flags2[2] = OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY | OSD_FLAG2_RELATIVE_ALTITUDE | OSD_FLAG2_SHOW_RC_RSSI;
+   }
+   if ( (iScreen = -1) || (iScreen == 3) )
+   {
+      osd_params.osd_flags[3] = 0;
+      osd_params.osd_flags2[3] = OSD_FLAG2_LAYOUT_ENABLED | OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_SHOW_RC_RSSI;
+   }
+   if ( (iScreen = -1) || (iScreen == 4) )
+   {
+      osd_params.osd_flags[4] = 0;
+      osd_params.osd_flags2[4] = OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_SHOW_RC_RSSI;
+   }
+
+   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   {
+      if ( (iScreen != -1) && (iScreen != i) )
+         continue;
       osd_params.osd_flags[i] |= OSD_FLAG_SHOW_BATTERY | OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_HOME;
       osd_params.osd_flags[i] |= OSD_FLAG_SHOW_GPS_INFO | OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
       if ( i < 3 )
@@ -4390,39 +3242,55 @@ void Model::resetOSDFlags()
       osd_params.osd_flags[i] |= OSD_FLAG_SHOW_RADIO_INTERFACES_INFO;
       osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS | OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS;
       osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_GROUND_SPEED;
-      osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_MINIMAL_VIDEO_DECODE_STATS | OSD_FLAG2_SHOW_MINIMAL_RADIO_INTERFACES_STATS;
       osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
-      osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_BGBARS;
+      if ( i >= 3 )
+         osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_BGBARS;
       //osd_params.osd_flags2[i] |= OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST;
 
       //osd_params.osd_flags3[i] = OSD_FLAG3_SHOW_GRID_DIAGONAL | OSD_FLAG3_SHOW_GRID_SQUARES;
-      osd_params.osd_flags3[i] = OSD_FLAG3_SHOW_GRID_THIRDS_SMALL;
+      if ( i >= 3 )
+         osd_params.osd_flags3[i] = OSD_FLAG3_SHOW_GRID_THIRDS_SMALL;
       osd_params.osd_flags3[i] |= OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS;
       osd_params.osd_flags3[i] |= OSD_FLAG3_RENDER_MSP_OSD;
       osd_params.osd_preferences[i] = ((u32)2) | (((u32)2)<<8) | (((u32)2)<<16) | (((u32)1)<<20) | OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM;
-      osd_params.osd_preferences[i] |= OSD_PREFERENCES_BIT_FLAG_ARANGE_STATS_WINDOWS_RIGHT;
    }
 
-   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
-      osd_params.instruments_flags[i] = 0;
    //osd_params.instruments_flags[0] = INSTRUMENTS_FLAG_SHOW_ALL_OSD_PLUGINS_MASK;
 
-   osd_params.osd_flags[1] = OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_BATTERY;
-   osd_params.osd_flags[1] |= OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE;
-   osd_params.osd_flags[1] |= OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
-   osd_params.osd_flags[1] |= OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS;
-   osd_params.osd_flags2[1] = OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_RELATIVE_ALTITUDE;
-   osd_params.osd_flags2[1] |= OSD_FLAG2_SHOW_GROUND_SPEED;
-   //osd_params.osd_flags2[1] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
+   if ( (iScreen = -1) || (iScreen == 1) )
+   {
+      osd_params.osd_flags[1] = OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_BATTERY;
+      osd_params.osd_flags[1] |= OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE;
+      osd_params.osd_flags[1] |= OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
+      osd_params.osd_flags[1] |= OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS;
+      osd_params.osd_flags2[1] = OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY | OSD_FLAG2_RELATIVE_ALTITUDE;
+      osd_params.osd_flags2[1] |= OSD_FLAG2_SHOW_GROUND_SPEED;
+      //osd_params.osd_flags2[1] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
+   }
 
-   osd_params.osd_flags[2] |= OSD_FLAG_SHOW_BATTERY | OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_HOME;
-   osd_params.osd_flags[2] |= OSD_FLAG_SHOW_GPS_INFO | OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
-   osd_params.osd_flags[2] |= OSD_FLAG_SHOW_VIDEO_MODE | OSD_FLAG_SHOW_VIDEO_MBPS;
-   osd_params.osd_flags[2] |= OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS;
-   osd_params.osd_flags2[2] = OSD_FLAG2_SHOW_BGBARS | OSD_FLAG2_RELATIVE_ALTITUDE | OSD_FLAG2_SHOW_RC_RSSI;
-   osd_params.osd_flags2[2] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS;
-   osd_params.osd_flags2[2] |= OSD_FLAG2_SHOW_GROUND_SPEED;
-   //osd_params.osd_flags2[2] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
+   if ( (iScreen = -1) || (iScreen == 2) )
+   {
+      osd_params.osd_flags[2] |= OSD_FLAG_SHOW_BATTERY | OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_ALTITUDE | OSD_FLAG_SHOW_HOME;
+      osd_params.osd_flags[2] |= OSD_FLAG_SHOW_GPS_INFO | OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
+      osd_params.osd_flags[2] |= OSD_FLAG_SHOW_VIDEO_MODE | OSD_FLAG_SHOW_VIDEO_MBPS;
+      osd_params.osd_flags[2] |= OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS;
+      osd_params.osd_flags2[2] = OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY | OSD_FLAG2_RELATIVE_ALTITUDE | OSD_FLAG2_SHOW_RC_RSSI;
+      osd_params.osd_flags2[2] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS;
+      osd_params.osd_flags2[2] |= OSD_FLAG2_SHOW_GROUND_SPEED;
+      //osd_params.osd_flags2[2] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
+   }
+   resetOSDStatsFlags();
+}
+
+void Model::resetOSDStatsFlags(int iScreen)
+{
+   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   {
+      if ( (iScreen != -1) && (iScreen != i) )
+         continue;
+      osd_params.osd_flags2[i] |= OSD_FLAG2_SHOW_STATS_VIDEO | OSD_FLAG2_SHOW_MINIMAL_VIDEO_DECODE_STATS;// | OSD_FLAG2_SHOW_MINIMAL_RADIO_INTERFACES_STATS;
+      osd_params.osd_preferences[i] |= OSD_PREFERENCES_BIT_FLAG_ARANGE_STATS_WINDOWS_RIGHT;
+   }
 }
 
 void Model::resetTelemetryParams()
@@ -4570,7 +3438,7 @@ void Model::resetCameraProfileToDefaults(camera_profile_parameters_t* pCamParams
    pCamParams->exposure = 3; // sports   2; //backlight
    pCamParams->shutterspeed = 0; // auto
    if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
-     pCamParams->shutterspeed = 8; //milisec
+     pCamParams->shutterspeed = DEFAULT_OIPC_SHUTTERSPEED; //milisec
 
    pCamParams->whitebalance = 1; //auto
    pCamParams->metering = 2; //backlight

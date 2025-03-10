@@ -7,6 +7,9 @@
 #include "base.h"
 #include "wiringPiI2C_radxa.h"
 
+
+#if defined (HW_PLATFORM_RADXA_ZERO3)
+
 // Initialize I2C device (compatible with wiringPiI2CSetup)
 int wiringPiI2CSetup(const int devId)
 {
@@ -16,17 +19,17 @@ int wiringPiI2CSetup(const int devId)
     int fd = open(filename, O_RDWR);
     if (fd < 0)
     {
-        log_error_and_alarm("Failed to open I2C device, bus number: %d", bus_id);
+        log_error_and_alarm("[GPIO] Failed to open I2C device, bus number: %d", bus_id);
         return -1;
     }
 
     if (ioctl(fd, 0x0703, devId) < 0)
     {
-        log_error_and_alarm("Can't set I2c slave address,bus number %d,address %d", bus_id, devId);
+        log_error_and_alarm("[GPIO] Can't set I2c slave address,bus number %d, address %d", bus_id, devId);
         close(fd);
         return -1;
     }
-    log_line("Opened I2C device at address 0x%02X,fd %d", devId, fd);
+    log_line("[GPIO] Opened I2C device at address 0x%02X, fd=%d", devId, fd);
     return fd;
 }
 
@@ -62,6 +65,9 @@ int wiringPiI2CWriteReg16(int fd, int reg, int data)
 
 int wiringPiI2CWriteBlockData(int fd, uint8_t reg, uint8_t length, uint8_t *values)
 {
+    if ( (NULL == values) || (0 == length) || (fd < 0) )
+       return -1;
+
     //Beacuse of the hardware limitation,write 32 bytes every time
     uint8_t max_length = 32;
     int ret = -1;
@@ -96,8 +102,14 @@ int wiringPiI2CWriteBlockData(int fd, uint8_t reg, uint8_t length, uint8_t *valu
 
 int wiringPiI2CWriteBlockDataIoctl(int fd, int addr, uint8_t reg, uint8_t length, uint8_t *values)
 {
+    if ( (NULL == values) || (0 == length) || (fd < 0) )
+       return -1;
+
     struct i2c_msg msg[2];
     uint8_t *buffer = malloc(length + 1);
+    if ( NULL == buffer )
+       return -1;
+ 
     buffer[0] = reg;
     memcpy(buffer + 1, values, length);
 
@@ -114,3 +126,5 @@ int wiringPiI2CWriteBlockDataIoctl(int fd, int addr, uint8_t reg, uint8_t length
     free(buffer);
     return ret;
 }
+
+#endif

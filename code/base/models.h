@@ -90,7 +90,7 @@ typedef struct
 {
    u32 uProfileFlags;
       // VIDEO_PROFILE_FLAGS_* constants
-      // bit 0-1: 3d noise: 0,1, auto (2)
+      // bit 0-1: 3d noise: 0,1, or 2 (auto)
 
    u32 uProfileEncodingFlags; // same as radio video packet uProfileEncodingFlags
    // VIDEO_PROFILE_ENCODING_FLAG_* constants
@@ -601,7 +601,8 @@ class Model
       void resetAudioParams();
       void resetHWCapabilities();
       void resetRadioLinksParams();
-      void resetOSDFlags();
+      void resetOSDFlags(int iScreen = -1);
+      void resetOSDStatsFlags(int iScreen = -1);
       void resetTelemetryParams();
       void resetRCParams();
       void resetVideoParamsToDefaults();
@@ -692,8 +693,6 @@ class Model
       int iSaveCount;
 
       void generateUID();
-      bool loadVersion8(FILE* fd);
-      bool loadVersion9(FILE* fd); // from 7.4
       bool loadVersion10(FILE* fd); // from 7.6
       bool saveVersion10(FILE* fd, bool isOnController); // from 7.6
 };

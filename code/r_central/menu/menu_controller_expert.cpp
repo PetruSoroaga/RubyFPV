@@ -169,7 +169,8 @@ MenuControllerExpert::MenuControllerExpert(void)
 
 
    m_IndexVersions = addMenuItem(new MenuItem("Modules versions", "Get all modules versions."));
-   m_IndexReboot = addMenuItem(new MenuItem("Restart", "Restarts the controller."));   
+   m_IndexResetPriorities = addMenuItem(new MenuItem("Reset Priorities", "Resets all controller priorities."));
+   m_IndexReboot = addMenuItem(new MenuItem("Restart", "Restarts the controller."));
 }
 
 void MenuControllerExpert::valuesToUI()
@@ -768,6 +769,23 @@ void MenuControllerExpert::onSelectItem()
       m_iDefaultVoltage = pcs->iOverVoltage;
       valuesToUI();
       bUpdatedConfig = true;
+   }
+
+   if ( m_IndexResetPriorities == m_SelectedIndex )
+   {
+      pcs->iCoresAdjustment = 1;
+      pcs->iPrioritiesAdjustment = 1;
+      pcs->iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER;
+      pcs->ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
+      pcs->iNiceCentral = DEFAULT_PRIORITY_PROCESS_CENTRAL;
+      pcs->iNiceRXVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_RX;
+      pcs->ioNiceRXVideo = DEFAULT_IO_PRIORITY_VIDEO_RX;
+      pcs->iRadioRxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_RX;
+      pcs->iRadioTxThreadPriority = DEFAULT_PRIORITY_THREAD_RADIO_TX;
+      save_ControllerSettings();
+      valuesToUI();
+      addMessage("Controller processes priorities have been reset.");
+      return;
    }
 
    if ( m_IndexVersions == m_SelectedIndex )

@@ -10,6 +10,7 @@ class MenuVehicleOSDInstruments: public Menu
       MenuVehicleOSDInstruments();
       virtual ~MenuVehicleOSDInstruments();
       virtual void Render();
+      virtual void onShow();
       virtual void onSelectItem();
       virtual void onItemValueChanged(int itemIndex);
       virtual void valuesToUI();

@@ -962,9 +962,9 @@ float osd_show_gps_pos(float xPos, float yPos, float fScale)
       return 0.0;
    char szBuff[32];
    if ( g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_LEFT_RIGHT )
-      sprintf(szBuff, "Lon:%.6f", g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].fHomeLastLon);
+      sprintf(szBuff, "Lon: %.6f", g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].fHomeLastLon);
    else
-      sprintf(szBuff, "Lat:%.6f", g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].fHomeLastLat);
+      sprintf(szBuff, "Lat: %.6f,", g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].fHomeLastLat);
    if ( NULL != g_pCurrentModel && ((g_pCurrentModel->osd_params.osd_flags[osd_get_current_layout_index()]) & OSD_FLAG_SCRAMBLE_GPS) )
    {
       int index = 0;
@@ -986,7 +986,7 @@ float osd_show_gps_pos(float xPos, float yPos, float fScale)
    else
       xPos += w + osd_getSpacingH()*0.7;
 
-   sprintf(szBuff, "Lon:%.6f", g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].fHomeLastLon);
+   sprintf(szBuff, "Lon: %.6f", g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].fHomeLastLon);
    if ( NULL != g_pCurrentModel && ((g_pCurrentModel->osd_params.osd_flags[osd_get_current_layout_index()]) & OSD_FLAG_SCRAMBLE_GPS) )
    {
       int index = 0;
@@ -1211,7 +1211,7 @@ void osd_show_recording(bool bShowWhenStopped, float xPos, float yPos)
 
 void render_bars()
 {
-   if ( ! (g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_BACKGROUND_BARS) )
+   if ( ! (g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_BGBARS) )
       return;
 
    float fGlobalAlpha = g_pRenderEngine->setGlobalAlfa(1.0);

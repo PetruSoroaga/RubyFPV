@@ -17,9 +17,9 @@ float osd_render_stats_video_stream_keyframe_info(float xPos, float yPos);
 float osd_render_stats_telemetry_get_height(float scale);
 float osd_render_stats_telemetry(float xPos, float yPos, float scale);
 
-float osd_render_stats_audio_decode_get_height(float scale);
-float osd_render_stats_audio_decode_get_width(float scale);
-float osd_render_stats_audio_decode(float xPos, float yPos, float scale);
+float osd_render_stats_audio_decode_get_height();
+float osd_render_stats_audio_decode_get_width();
+float osd_render_stats_audio_decode(float xPos, float yPos);
 
 float osd_render_stats_rc_get_height(float scale);
 float osd_render_stats_rc(float xPos, float yPos, float scale);

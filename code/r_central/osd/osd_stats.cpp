@@ -1808,22 +1808,23 @@ float osd_render_stats_telemetry(float xPos, float yPos, float scale)
 }
 
 
-float osd_render_stats_audio_decode_get_height(float scale)
+float osd_render_stats_audio_decode_get_height()
 {
-   float height_text = g_pRenderEngine->textHeight(s_idFontStats)*scale;
-   float height = 2.0 *s_fOSDStatsMargin*scale*1.1 + 0.7*height_text*s_OSDStatsLineSpacing;
-   
-   if ( (NULL != osd_get_current_data_source_vehicle_model()) && osd_get_current_data_source_vehicle_model()->audio_params.has_audio_device && osd_get_current_data_source_vehicle_model()->audio_params.enabled )
+   float height_text = g_pRenderEngine->textHeight(s_idFontStats);
+   float height = 2.0 *s_fOSDStatsMargin*1.1 + 0.7*height_text*s_OSDStatsLineSpacing;
+   float hGraph = 3.0*height_text;
+
+   height += height_text;
+   Model* pModel = osd_get_current_data_source_vehicle_model();
+   if ( (NULL != pModel) && pModel->isAudioCapableAndEnabled() )
    {
-      if ( NULL == g_pSM_AudioDecodeStats )
-         return height + height_text;
+      height += hGraph;
+      height += height_text*s_OSDStatsLineSpacing;
    }
-   else
-      return height + height_text;
    return height;
 }
 
-float osd_render_stats_audio_decode_get_width(float scale)
+float osd_render_stats_audio_decode_get_width()
 {
    if ( g_fOSDStatsForcePanelWidth > 0.01 )
       return g_fOSDStatsForcePanelWidth;
@@ -1832,20 +1833,27 @@ float osd_render_stats_audio_decode_get_width(float scale)
    return width;
 }
 
-float osd_render_stats_audio_decode(float xPos, float yPos, float scale)
+float osd_render_stats_audio_decode(float xPos, float yPos)
 {
-   float height_text = g_pRenderEngine->textHeight(s_idFontStats)*scale;
+   float height_text = g_pRenderEngine->textHeight(s_idFontStats);
+   float height_text_small = g_pRenderEngine->textHeight(s_idFontStatsSmall);
+   float hGraph = 3.0*height_text;
+   float wPixel = g_pRenderEngine->getPixelWidth();
 
-   float width = osd_render_stats_audio_decode_get_width(scale);
-   float height = osd_render_stats_audio_decode_get_height(scale);
+   float width = osd_render_stats_audio_decode_get_width();
+   float height = osd_render_stats_audio_decode_get_height();
 
    osd_set_colors_background_fill(g_fOSDStatsBgTransparency);
    g_pRenderEngine->drawRoundRect(xPos, yPos, width, height, 1.5*POPUP_ROUND_MARGIN);
    osd_set_colors();
 
-   xPos += s_fOSDStatsMargin*scale/g_pRenderEngine->getAspectRatio();
-   yPos += s_fOSDStatsMargin*scale*0.7;
-   width -= 2*s_fOSDStatsMargin*scale/g_pRenderEngine->getAspectRatio();
+   xPos += s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio();
+   yPos += s_fOSDStatsMargin*0.7;
+   width -= 2*s_fOSDStatsMargin/g_pRenderEngine->getAspectRatio();
+   float widthMax = width;
+   float rightMargin = xPos + width;
+   float dxGraph = 0.01;
+   float fWidthGraph = widthMax - dxGraph;
 
    g_pRenderEngine->drawText(xPos, yPos, s_idFontStats, "Audio Decode Stats");
    
@@ -1853,12 +1861,164 @@ float osd_render_stats_audio_decode(float xPos, float yPos, float scale)
 
    osd_set_colors();
 
-   if ( NULL == g_pSM_AudioDecodeStats )
+   Model* pActiveModel = osd_get_current_data_source_vehicle_model();
+   u32 uActiveVehicleId = osd_get_current_data_source_vehicle_id();
+   if ( (NULL == pActiveModel) || (! pActiveModel->isAudioCapableAndEnabled()) )
    {
-      g_pRenderEngine->drawText(xPos, y, s_idFontStats, "No Data");
+      g_pRenderEngine->drawText(xPos, y, s_idFontStats, "Audio is not enabled.");
       return height;
    }
 
+   char szBuff[128];
+   strcpy(szBuff, "N/A");
+   for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+   {
+      if ( g_SM_RadioStats.radio_streams[i][STREAM_ID_AUDIO].uVehicleId == pActiveModel->uVehicleId )
+      {
+         sprintf(szBuff, "%u kbps", (g_SM_RadioStats.radio_streams[i][STREAM_ID_AUDIO].rxBytesPerSec*8)/1000);
+         break;
+      }
+   }
+   _osd_stats_draw_line(xPos, rightMargin, y, s_idFontStatsSmall, L("Audio:"), szBuff);
+   y += height_text*s_OSDStatsLineSpacing;
+
+   ControllerSettings* pCS = get_ControllerSettings();
+   int iGraphIntervals = 1;
+   int iRTValuesPerGraphInterval = 1;
+   if ( (pCS->nGraphVideoRefreshInterval > 0) && (g_SMControllerRTInfo.uUpdateIntervalMs > 0) )
+   {
+      iGraphIntervals = (SYSTEM_RT_INFO_INTERVALS * g_SMControllerRTInfo.uUpdateIntervalMs) / pCS->nGraphVideoRefreshInterval;
+      iRTValuesPerGraphInterval = pCS->nGraphVideoRefreshInterval / g_SMControllerRTInfo.uUpdateIntervalMs;
+   }
+   int iRTStartIndex = g_SMControllerRTInfo.iCurrentIndex - (g_SMControllerRTInfo.iCurrentIndex % iRTValuesPerGraphInterval) - 1;
+   if ( iRTStartIndex < 0 )
+      iRTStartIndex = SYSTEM_RT_INFO_INTERVALS-1;
+   int iRTTotalUsedIntervals = iGraphIntervals * iRTValuesPerGraphInterval;
+
+   int maxGraphValue = 4;
+   int iRTIndex = iRTStartIndex;
+   for(int i=0; i<iGraphIntervals; i++ )
+   {
+      float fSumPackets = 0.0;
+      for(int k=0; k<iRTValuesPerGraphInterval; k++)
+      {
+         fSumPackets += g_SMControllerRTInfo.uOutputedAudioPackets[iRTIndex];
+         fSumPackets += g_SMControllerRTInfo.uOutputedAudioPacketsCorrected[iRTIndex];
+         iRTIndex--;
+         if ( iRTIndex < 0 )
+            iRTIndex = SYSTEM_RT_INFO_INTERVALS-1;
+      }
+      if ( fSumPackets > maxGraphValue )
+         maxGraphValue = fSumPackets;
+   }
+
+   sprintf(szBuff,"%.1f sec, %d ms/bar", (float)iGraphIntervals * (float)pCS->nGraphVideoRefreshInterval / 1000.0, pCS->nGraphVideoRefreshInterval);
+   g_pRenderEngine->drawTextLeft(xPos+widthMax, y-height_text_small*0.2, s_idFontStatsSmall, szBuff);
+   y += height_text_small*1.0;
+
+
+   sprintf(szBuff, "%d", maxGraphValue);
+   g_pRenderEngine->drawText(xPos, y-height_text_small*0.5, s_idFontStatsSmall, szBuff);
+   g_pRenderEngine->drawText(xPos, y+hGraph-height_text_small*0.5, s_idFontStatsSmall, "0");
+
+   double pc[4];
+   memcpy(pc, get_Color_OSDText(), 4*sizeof(double));
+   g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
+   g_pRenderEngine->setStroke(pc[0], pc[1], pc[2], s_fOSDStatsGraphLinesAlpha);
+   g_pRenderEngine->setFill(pc[0], pc[1], pc[2], s_fOSDStatsGraphLinesAlpha);
+   g_pRenderEngine->drawLine(xPos+dxGraph, y, xPos + dxGraph + widthMax, y);         
+   g_pRenderEngine->setStroke(pc[0], pc[1], pc[2], s_fOSDStatsGraphBottomLinesAlpha);
+   g_pRenderEngine->setFill(pc[0], pc[1], pc[2], s_fOSDStatsGraphBottomLinesAlpha);
+   g_pRenderEngine->drawLine(xPos+dxGraph, y+hGraph, xPos + dxGraph + fWidthGraph, y+hGraph);
+   float midLine = hGraph/2.0;
+   for( float i=0; i<=fWidthGraph-2.0*wPixel; i+= 5*wPixel )
+      g_pRenderEngine->drawLine(xPos+dxGraph+i, y+midLine, xPos + dxGraph + i + 2.0*wPixel, y+midLine);         
+
+   double colorECUsed[4] = {0,150,0, 1.0};
+   double colorECMaxUsed[4] = {220,250,20, 1.0};
+   double colorReqRetransmissions[4] = {100,100,255, 1.0};
+   double colorRetransmitted[4] = {40,20,255,1.0};
+   double colorDropped[4] = {255,50,50,1.0};
+
+   g_pRenderEngine->setStrokeSize(0);
+
+   float yBottomGraph = y + hGraph;// - 1.0/g_pRenderEngine->getScreenHeight();
+
+   float widthBar = fWidthGraph / iGraphIntervals;
+   float fWidthBarRect = widthBar-wPixel;
+   if ( fWidthBarRect < 2.0 * wPixel )
+      fWidthBarRect = widthBar;
+
+   float xBarSt = xPos + widthMax - g_pRenderEngine->getPixelWidth();
+   float xBarMid = xBarSt + widthBar*0.5;
+   float xBarEnd = xBarSt + widthBar - g_pRenderEngine->getPixelWidth();
+
+   controller_runtime_info_vehicle* pRTInfoActiveVehicle = controller_rt_info_get_vehicle_info(&g_SMControllerRTInfo, uActiveVehicleId);
+
+   iRTIndex = iRTStartIndex;
+   for( int i=0; i<iGraphIntervals; i++ )
+   {
+      float fSumPackets = 0.0;
+      float fSumECUsed = 0.0;
+      float fSumDropped = 0.0;
+      float hBar = 0.0;
+      
+      for(int k=0; k<iRTValuesPerGraphInterval; k++)
+      {
+         fSumPackets += g_SMControllerRTInfo.uOutputedAudioPackets[iRTIndex];
+         fSumECUsed += g_SMControllerRTInfo.uOutputedAudioPacketsCorrected[iRTIndex];
+         fSumDropped += g_SMControllerRTInfo.uOutputedAudioPacketsSkipped[iRTIndex];
+         iRTIndex--;
+         if ( iRTIndex < 0 )
+            iRTIndex = SYSTEM_RT_INFO_INTERVALS-1;
+      }
+
+      xBarSt -= widthBar;
+      xBarEnd -= widthBar;
+
+      float percentTotal = (float)(fSumPackets)/(float)(maxGraphValue);
+      if ( percentTotal > 1.0 )
+         percentTotal = 1.0;
+      float percentDropped = (float)(fSumDropped)/(float)(maxGraphValue);
+      if ( percentDropped > 1.0 )
+         percentDropped = 1.0;
+      if ( percentTotal > 0.001 )
+      {
+         hBar = (hGraph-widthBar)*percentTotal;
+
+         // Clean packets
+         if ( fSumECUsed < 1.0 )
+         {
+            g_pRenderEngine->setFill(pc[0], pc[1], pc[2], s_fOSDStatsGraphLinesAlpha*0.9);
+            g_pRenderEngine->drawRect(xBarSt, yBottomGraph - hBar, fWidthBarRect, hBar);
+         }
+         // EC packets
+         else
+         {
+            float fPercentEC = fSumECUsed / fSumPackets;
+            if ( fPercentEC < .25 )
+               fPercentEC = .25;
+            if ( hBar < 0.5 * hGraph )
+            if ( fPercentEC < 0.4 )
+               fPercentEC = 0.4;
+            g_pRenderEngine->setFill(pc[0], pc[1], pc[2], s_fOSDStatsGraphLinesAlpha*0.9);
+            g_pRenderEngine->drawRect(xBarSt, yBottomGraph - hBar, fWidthBarRect, hBar * (1.0 - fPercentEC));
+            //g_pRenderEngine->setFill(colorRetransmitted[0], colorRetransmitted[1], colorRetransmitted[2], colorRetransmitted[3]);
+            g_pRenderEngine->setFill(colorECUsed[0], colorECUsed[1], colorECUsed[2], colorECUsed[3]);
+            g_pRenderEngine->drawRect(xBarSt, yBottomGraph - hBar * fPercentEC, fWidthBarRect, hBar * fPercentEC);
+         }
+      }
+      if ( percentDropped > 0.0001 )
+      {
+         if ( percentDropped < 0.3 )
+            percentDropped = 0.3;
+         hBar = (hGraph-widthBar)*percentDropped;
+         g_pRenderEngine->setFill(colorDropped[0], colorDropped[1], colorDropped[2], colorDropped[3]);
+         g_pRenderEngine->drawRect(xBarSt, yBottomGraph - hBar, fWidthBarRect, hBar);
+      }
+   }
+   osd_set_colors();
+   y += hGraph;
    return height;
 }
 
@@ -3495,8 +3655,8 @@ void _osd_render_stats_panels_horizontal()
 
    if ( s_bDebugStatsShowAll || (g_pCurrentModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_SHOW_AUDIO_DECODE_STATS) )
    {
-      osd_render_stats_audio_decode(xStats, yStats-osd_render_stats_audio_decode_get_height(fStatsSize), fStatsSize);
-      xStats -= osd_render_stats_audio_decode_get_width(fStatsSize) + xSpacing;
+      osd_render_stats_audio_decode(xStats, yStats-osd_render_stats_audio_decode_get_height());
+      xStats -= osd_render_stats_audio_decode_get_width() + xSpacing;
    }
 
    if ( s_bDebugStatsShowAll || (g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_STATS_RC) )
@@ -3680,17 +3840,17 @@ void _osd_render_stats_panels_vertical()
 
    if ( s_bDebugStatsShowAll || (g_pCurrentModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_SHOW_AUDIO_DECODE_STATS) )
    {
-      if ( yStats + osd_render_stats_audio_decode_get_height(fStatsSize) > yMax )
+      if ( yStats + osd_render_stats_audio_decode_get_height() > yMax )
       {
          yStats = yMin;
          xStats -= fMaxColumnWidth + fSpacingH;
          fMaxColumnWidth = 0.0;
       }  
-      osd_render_stats_audio_decode(xStats-osd_render_stats_audio_decode_get_width(fStatsSize), yStats, fStatsSize);
-      yStats += osd_render_stats_audio_decode_get_height(fStatsSize);
+      osd_render_stats_audio_decode(xStats-osd_render_stats_audio_decode_get_width(), yStats);
+      yStats += osd_render_stats_audio_decode_get_height();
       yStats += fSpacingV;
-      if ( fMaxColumnWidth < osd_render_stats_audio_decode_get_width(fStatsSize) )
-         fMaxColumnWidth = osd_render_stats_audio_decode_get_width(fStatsSize);
+      if ( fMaxColumnWidth < osd_render_stats_audio_decode_get_width() )
+         fMaxColumnWidth = osd_render_stats_audio_decode_get_width();
    }
 
    if ( s_bDebugStatsShowAll || (g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_STATS_RC) )
@@ -4226,8 +4386,8 @@ void osd_render_stats_panels()
    if ( s_bDebugStatsShowAll || (pModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_SHOW_AUDIO_DECODE_STATS) )
    {
       s_iOSDStatsBoundingBoxesIds[s_iCountOSDStatsBoundingBoxes] = 16;
-      s_iOSDStatsBoundingBoxesW[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_audio_decode_get_width(1.0);
-      s_iOSDStatsBoundingBoxesH[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_audio_decode_get_height(1.0);
+      s_iOSDStatsBoundingBoxesW[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_audio_decode_get_width();
+      s_iOSDStatsBoundingBoxesH[s_iCountOSDStatsBoundingBoxes] = osd_render_stats_audio_decode_get_height();
       s_iCountOSDStatsBoundingBoxes++;
    }
 
@@ -4369,7 +4529,7 @@ void osd_render_stats_panels()
          osd_render_stats_telemetry(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], 1.0);
 
       if ( s_iOSDStatsBoundingBoxesIds[i] == 16 )
-         osd_render_stats_audio_decode(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], 1.0);
+         osd_render_stats_audio_decode(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i]);
 
       if ( s_iOSDStatsBoundingBoxesIds[i] == 10 )
          osd_render_stats_rc(s_iOSDStatsBoundingBoxesX[i], s_iOSDStatsBoundingBoxesY[i], 1.0);

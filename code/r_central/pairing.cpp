@@ -457,10 +457,6 @@ void _pairing_close_shared_mem()
    shared_mem_router_vehicles_runtime_info_close(g_pSM_RouterVehiclesRuntimeInfo);
    g_pSM_RouterVehiclesRuntimeInfo = NULL;
 
-   shared_mem_controller_audio_decode_stats_close(g_pSM_AudioDecodeStats);
-   g_pSM_AudioDecodeStats = NULL;
-
-
    shared_mem_radio_stats_rx_hist_close(g_pSM_HistoryRxStats);
    g_pSM_HistoryRxStats = NULL;
 

@@ -51,29 +51,29 @@ void do_first_boot_pre_initialization()
    log_line("---------------------------------------");
    log_line("Do first time boot preinitialization...");
 
-   hardware_install_drivers(1);
-
    #if defined HW_PLATFORM_RASPBERRY
-   printf("\nRuby doing first time ever initialization on Raspberry. Please wait...\n");
+   printf("\nRuby: Doing first time ever initialization on Raspberry. Please wait...\n");
    fflush(stdout);
 
    hw_execute_bash_command("sync", NULL);
+   hardware_install_drivers(1);
    
-   printf("\nRuby done doing first time ever initialization on Raspberry.\n");
+   printf("\nRuby: Done doing first time ever initialization on Raspberry.\n");
    fflush(stdout);
    #endif
 
    #if defined HW_PLATFORM_RADXA_ZERO3
 
-   printf("\nRuby doing first time ever initialization on Radxa. Please wait...\n");
+   printf("\nRuby: Doing first time ever initialization on Radxa. Please wait...\n");
    fflush(stdout);
+   hardware_install_drivers(1);
    hw_execute_bash_command_raw("echo 'performance' | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
 
    hw_execute_bash_command_silent("mkdir -p /tmp/ruby/", NULL);
    log_init_local_only("RubyStartFirst");
    //log_enable_stdout();
    log_add_file("/tmp/ruby/log_first_radxa.log");
-   hw_execute_bash_command("echo \"\nRuby doing first time ever initialization on Radxa...\n\" > /tmp/ruby/log_first_radxa.log", NULL);
+   hw_execute_bash_command("echo \"\nRuby: Doing first time ever initialization on Radxa...\n\" > /tmp/ruby/log_first_radxa.log", NULL);
 
    char szComm[256];
    sprintf(szComm, "mkdir -p %s", FOLDER_CONFIG);
@@ -83,13 +83,14 @@ void do_first_boot_pre_initialization()
    
    hw_execute_bash_command("sync", NULL);
    
-   printf("\nRuby done doing first time ever initialization on Radxa.\n");
+   printf("\nRuby: Done doing first time ever initialization on Radxa.\n");
    fflush(stdout);
-   hw_execute_bash_command("echo \"\nRuby done doing first time ever initialization on Radxa.\n\" > /tmp/ruby/log_first_radxa.log", NULL);
+   hw_execute_bash_command("echo \"\nRuby: Done doing first time ever initialization on Radxa.\n\" > /tmp/ruby/log_first_radxa.log", NULL);
 
    #endif
 
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   hardware_install_drivers(1);
    hardware_camera_check_set_oipc_sensor();
    hardware_set_default_sigmastar_cpu_freq();
    #endif

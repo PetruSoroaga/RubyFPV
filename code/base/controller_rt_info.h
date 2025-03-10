@@ -85,6 +85,10 @@ typedef struct
    u8 uOutputedVideoPacketsMaxECUsed[SYSTEM_RT_INFO_INTERVALS];
    u8 uOutputedVideoPacketsSkippedBlocks[SYSTEM_RT_INFO_INTERVALS];
 
+   u8 uOutputedAudioPackets[SYSTEM_RT_INFO_INTERVALS];
+   u8 uOutputedAudioPacketsCorrected[SYSTEM_RT_INFO_INTERVALS];
+   u8 uOutputedAudioPacketsSkipped[SYSTEM_RT_INFO_INTERVALS];
+
    controller_runtime_info_radio_interface_rx_signal radioInterfacesDbm[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
    u8 uDbmChangeSpeed[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
    u8 uRadioLinkQuality[SYSTEM_RT_INFO_INTERVALS];

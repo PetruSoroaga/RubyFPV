@@ -356,7 +356,7 @@ void _rx_video_output_check_start_streamer()
 static void * _thread_rx_video_output_streamer_watchdog(void *argument)
 {
    log_line("[VideoOutputThread] Starting worker thread for video streamer output watchdog");
-   bool bMustRestartStreamer = false;
+
    sem_t* pSemaphore = sem_open(SEMAPHORE_RESTART_VIDEO_STREAMER, O_CREAT, S_IWUSR | S_IRUSR, 0);
    if ( NULL == pSemaphore )
    {
@@ -650,8 +650,20 @@ void rx_video_output_init()
       log_line("[VideoOutput] Created semaphore for signaling video streamer worker thread.");
    s_bRxVideoOutputStreamerThreadMustStop = false;
    s_bRxVideoOutputStreamerMustReinitialize = false;
-   if ( 0 != pthread_create(&s_pThreadRxVideoOutputStreamer, NULL, &_thread_rx_video_output_streamer_watchdog, NULL) )
+
+   pthread_attr_t attr;
+   struct sched_param params;
+
+   pthread_attr_init(&attr);
+   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+   pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+   pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
+   params.sched_priority = 0;
+   pthread_attr_setschedparam(&attr, &params);
+
+   if ( 0 != pthread_create(&s_pThreadRxVideoOutputStreamer, &attr, &_thread_rx_video_output_streamer_watchdog, NULL) )
       log_error_and_alarm("[VideoOutput] Failed to create thread for video streamer output check");
+   pthread_attr_destroy(&attr);
 
    rx_video_recording_init();
 
@@ -1127,6 +1139,7 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
             uVehicleId, s_iRxVideoForwardLastWidth, s_iRxVideoForwardLastHeight, width, height);
          s_iRxVideoForwardLastWidth = width;
          s_iRxVideoForwardLastHeight = height;
+         rx_video_recording_stop();
          rx_video_output_signal_restart_streamer();
          log_line("[VideoOutput] Signaled restart of streamer");
          return;
@@ -1137,6 +1150,7 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
          log_line("[VideoOutput] Video stream codec changed at VID %u (From %d to %d). Signal reload of the video streamer.",
             uVehicleId, s_uCurrentReceivedVideoStreamType, uVideoStreamType);
          s_uCurrentReceivedVideoStreamType = uVideoStreamType;
+         rx_video_recording_stop();
          rx_video_output_signal_restart_streamer();
          log_line("[VideoOutput] Signaled restart of streamer");
          return;
@@ -1261,16 +1275,6 @@ void _rx_video_output_watchdog_mpp_player()
 
    if ( (s_uTimeLastOutputDataToLocalVideoPlayer < g_TimeNow-200) || (g_TimeNow < s_uTimeStartLocalVideoPlayer + 2000) )
       return;
-/*
-   log_line("DBG last SM output: %u ms ago, last player input parse: %u ms ago, last player output: %u ms ago, cnt: %u, %u, %u",
-      g_TimeNow - s_uTimeLastOutputDataToLocalVideoPlayer, 
-      g_TimeNow - s_pSMProcessStatsMPPPlayer->lastIPCIncomingTime,
-      g_TimeNow - s_pSMProcessStatsMPPPlayer->lastIPCOutgoingTime,
-      s_pSMProcessStatsMPPPlayer->uLoopCounter2, s_pSMProcessStatsMPPPlayer->uLoopCounter3, s_pSMProcessStatsMPPPlayer->uLoopCounter4);
-*/
-   //log_line("DBG last active time: %u, last ipc in time: %u, counters: %u, %u, %u",
-   //   s_pSMProcessStatsMPPPlayer->lastActiveTime, s_pSMProcessStatsMPPPlayer->lastIPCIncomingTime,
-   //   s_pSMProcessStatsMPPPlayer->uLoopCounter2, s_pSMProcessStatsMPPPlayer->uLoopCounter3, s_pSMProcessStatsMPPPlayer->uLoopCounter4);
 }
 
 void rx_video_output_periodic_loop()
