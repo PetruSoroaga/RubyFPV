@@ -930,7 +930,7 @@ int r_start_vehicle(int argc, char *argv[])
 
       if ( bMustRestart )
       {
-         log_error_and_alarm("Restarting processes...");
+         log_error_and_alarm("Stop and restart processes...");
          iRestartCount++;
 
          vehicle_stop_tx_router();
@@ -955,6 +955,13 @@ int r_start_vehicle(int argc, char *argv[])
          log_line("----------------------------------------------");
          log_line("Stopped all processes");
          log_line("----------------------------------------------");
+
+         if ( hw_process_exists("sysupgrade") )
+         {
+            log_softerror_and_alarm("Sysupgrade is in progress. Do not restart Ruby processes.");
+            s_bQuit = true;
+            break;
+         }
 
          hardware_sleep_ms(200);
          log_line("Launching processes...");

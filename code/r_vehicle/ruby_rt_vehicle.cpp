@@ -2010,6 +2010,12 @@ void _main_loop()
          if ( video_source_majestic_periodic_checks() )
          {
             log_line("Router is marked for restart. Quit it.");
+            if ( hw_process_exists("sysupgrade") )
+            {
+               log_softerror_and_alarm("Sysupgrade is in progress. Don't do anything else. Just quit.");
+               g_bQuit = true;
+               return;
+            }
             if ( packets_queue_has_packets(&g_QueueRadioPacketsOut) )
                process_and_send_packets();
             log_line("Done sending pending radio packets. Quit now.");

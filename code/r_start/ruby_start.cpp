@@ -1409,6 +1409,23 @@ void _step_enumerate_radios()
    fflush(stdout);
 }
 
+void _step_initialize_check_vehicle()
+{
+   log_line("Doing initialization checks on vehicle...");
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   log_line("Check OpenIPC presence of sysupgrade stop script...");
+   if ( access("/etc/rc.local.stop", R_OK) == -1 )
+   {
+      hw_execute_bash_command("echo \"/usr/sbin/ruby_stop.sh\" > /etc/rc.local.stop", NULL);
+      hw_execute_bash_command("chmod 755 /etc/rc.local.stop", NULL);
+   }
+   if ( access("/etc/rc.local.stop", X_OK) == -1 )
+   {
+      hw_execute_bash_command("chmod 755 /etc/rc.local.stop", NULL);
+   }
+   #endif
+   log_line("Done doing initialization checks on vehicle.");
+}
 
 void handle_sigint(int sig) 
 { 
@@ -1595,6 +1612,8 @@ int main(int argc, char *argv[])
 
    if ( s_isVehicle )
    {
+      _step_initialize_check_vehicle();
+
       int c = 0;
       for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
       {

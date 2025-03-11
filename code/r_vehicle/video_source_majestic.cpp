@@ -883,6 +883,11 @@ bool video_source_majestic_periodic_checks()
       s_bIsRestartingMajestic = true;
       s_iCountMajestigProcessNotRunningChecks++;
 
+      if ( hw_process_exists("sysupgrade") )
+      {
+         log_softerror_and_alarm("Sysupgrade is in progress. Don't do anything else. Just quit.");
+         return true;
+      }
       send_alarm_to_controller(ALARM_ID_VIDEO_CAPTURE_MALFUNCTION,0,0, 5);
 
       // Restart did not worked. Do hard restart 

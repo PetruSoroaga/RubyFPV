@@ -2,13 +2,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include <linux/i2c-dev.h>
-#include <i2c/smbus.h>
 #include "base.h"
 #include "wiringPiI2C_radxa.h"
 
 
 #if defined (HW_PLATFORM_RADXA_ZERO3)
+#include <linux/i2c-dev.h>
+#include <i2c/smbus.h>
 
 // Initialize I2C device (compatible with wiringPiI2CSetup)
 int wiringPiI2CSetup(const int devId)
