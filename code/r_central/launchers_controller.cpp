@@ -271,20 +271,19 @@ void controller_stop_i2c()
 bool _controller_wait_for_stop_process(const char* szProcName)
 {
    char szComm[1024];
-   char szPids[1024];
+   char szPIDs[1024];
 
    if ( NULL == szProcName || 0 == szProcName[0] )
       return false;
-
-   sprintf(szComm, "pidof %s", szProcName);
 
    int retryCount = 40;
    while ( retryCount > 0 )
    {
       hardware_sleep_ms(10);
-      szPids[0] = 0;
-      hw_execute_bash_command(szComm, szPids);
-      if ( 0 == szPids[0] || strlen(szPids) < 2 )
+      szPIDs[0] = 0;
+      hw_process_get_pids(szProcName, szPIDs);
+      removeTrailingNewLines(szPIDs);
+      if ( (0 == szPIDs[0]) || (strlen(szPIDs) < 2) )
       {
          log_line("Process %s has finished and exited.", szProcName);
          return true;

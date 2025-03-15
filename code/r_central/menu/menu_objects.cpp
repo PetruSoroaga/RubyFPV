@@ -46,6 +46,7 @@
 #include "../process_router_messages.h"
 #include "../render_commands.h"
 #include "../keyboard.h"
+#include "../link_watch.h"
 #include "../../base/tx_powers.h"
 
 #define MENU_ALFA_WHEN_IN_BG 0.5
@@ -90,6 +91,7 @@ Menu::Menu(int id, const char* title, const char* subTitle)
    m_bIsSelectingInsideColumn = false;
    m_bFullWidthSelection = false;
    m_bFirstShow = true;
+   m_bDisableBackAction = false;
    m_ItemsCount = 0;
    m_SelectedIndex = 0;
    m_Height = 0.0;
@@ -155,6 +157,7 @@ Menu::Menu(int id, const char* title, const char* subTitle)
    m_fAnimationStartXPos = m_xPos;
    m_fAnimationTargetXPos = -10.0;
    m_RenderXPos = -10.0;
+   m_iLoopCounter = 0;
 }
 
 Menu::~Menu()
@@ -429,6 +432,22 @@ u32 Menu::getOnReturnFromChildTime()
    return m_uOnChildCloseTime;
 }
 
+float Menu::getMenuFontHeight()
+{
+   return g_pRenderEngine->textHeight(g_idFontMenu);
+}
+
+bool Menu::isEditingItem()
+{
+   for( int i=0; i<m_ItemsCount; i++ )
+   {
+      if ( NULL != m_pMenuItems[i] )
+      if ( m_pMenuItems[i]->isEditing() )
+         return true;
+   }
+   return false;
+}
+
 void Menu::addExtraHeightAtStart(float fExtraH)
 {
    m_fExtraHeightStart = fExtraH;
@@ -439,6 +458,21 @@ void Menu::addExtraHeightAtEnd(float fExtraH)
    m_fExtraHeightEnd = fExtraH;
 }
 
+void Menu::disableBackAction()
+{
+   m_bDisableBackAction = true;
+}
+
+void Menu::enableBackAction()
+{
+   m_bDisableBackAction = false; 
+}
+
+
+bool Menu::hasDisabledBackAction()
+{
+   return m_bDisableBackAction;
+} 
 
 float Menu::getRenderWidth()
 {
@@ -494,12 +528,14 @@ void Menu::onShow()
    }
    if ( m_SelectedIndex >= m_ItemsCount )
       m_SelectedIndex = -1;
+   log_line("[Menu] onShow: set selected item index to: %d (out of %d items)", m_SelectedIndex, m_ItemsCount);
    onFocusedItemChanged();
    m_bInvalidated = true;
 }
 
 bool Menu::periodicLoop()
 {
+   m_iLoopCounter++;
    return false;
 }
 
@@ -921,6 +957,8 @@ float Menu::RenderFrameAndTitle()
       yPos += m_RenderSubtitleHeight;
    }
 
+   // Render top lines
+   
    yPos = m_RenderYPos + m_RenderHeaderHeight + m_sfMenuPaddingY;
    yPos += m_fExtraHeightStart;
    for (int i=0; i<m_TopLinesCount; i++)
@@ -1415,6 +1453,7 @@ int Menu::onBack()
       return 1;
    }
 
+   if ( ! m_bDisableBackAction )
    if ( ! m_bIsModal )
       menu_stack_pop(0);
    return 0;
@@ -2309,9 +2348,12 @@ bool Menu::uploadSoftware()
       }
    }
 
-   render_commands_set_progress_percent(-1, true);
-   render_commands_set_custom_status(NULL);
-
+   log_line("Finished software upload part, status: %d", s_uOTAStatus);
+   if ( (s_uOTAStatus != OTA_UPDATE_STATUS_COMPLETED) || bProcessingFailed )
+   {
+      render_commands_set_progress_percent(-1, true);
+      render_commands_set_custom_status(NULL);
+   }
    if ( bProcessingFailed )
    {
       ruby_resume_watchdog();
@@ -2325,23 +2367,65 @@ bool Menu::uploadSoftware()
    g_nSucceededOTAUpdates++;
    g_bDidAnUpdate = true;
    
+   log_line("Upload software: wait for vehicle to reboot...");
+   render_commands_set_custom_status("Waiting vehicle to reboot");
    if ( NULL != g_pCurrentModel )
    {
-      for( int i=0; i<4; i++ )
+      u32 uTimeLastRender = g_TimeNow = get_current_timestamp_ms();
+      while ( s_uTimeLastOTACounterChanged > g_TimeNow - 2000 )
       {
-         hardware_sleep_ms(500);
+         g_TimeNow = get_current_timestamp_ms();
+         try_read_messages_from_router(50);
          ruby_signal_alive();
+         if ( g_TimeNow > (uTimeLastRender+100) )
+         {
+            uTimeLastRender = g_TimeNow;
+            g_pRenderEngine->startFrame();
+            popups_render();
+            render_commands();
+            popups_render_topmost();
+            g_pRenderEngine->endFrame();
+         }
       }
+      log_line("No more OTA messages from vehicle. Now wait for vehicle reboot...");
+      u32 uTimeStartWait = g_TimeNow = get_current_timestamp_ms();
+      while ( link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
+      {
+         g_TimeNow = get_current_timestamp_ms();
+         if ( g_TimeNow > uTimeStartWait + 10000 )
+         {
+            log_softerror_and_alarm("Failed to wait for vehicle to go offline after %u ms. Proceed with finishing upload.", g_TimeNow - uTimeStartWait);
+            break;
+         }
+         try_read_messages_from_router(50);
+         ruby_signal_alive();
+         if ( g_TimeNow > (uTimeLastRender+100) )
+         {
+            uTimeLastRender = g_TimeNow;
+            g_pRenderEngine->startFrame();
+            popups_render();
+            render_commands();
+            popups_render_topmost();
+            g_pRenderEngine->endFrame();
+         }
+      }
+      log_line("Finishing upload: Mark vehicle to sync settings.");
       g_pCurrentModel->b_mustSyncFromVehicle = true;
       g_pCurrentModel->sw_version = (SYSTEM_SW_VERSION_MAJOR*256+SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER << 16);
       g_bSyncModelSettingsOnLinkRecover = true;
       saveControllerModel(g_pCurrentModel);
    }
+   log_line("Upload software: Finished waiting for vehicle to go offline.");
 
+   render_commands_set_progress_percent(-1, true);
+   render_commands_set_custom_status(NULL);
+
+   g_bAskedForNegociateRadioLink = false;
    g_bUpdateInProgress = false;
    send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_UPDATE_STOPED,0);
    ruby_resume_watchdog();
 
+   log_line("Finished software upload procedure.");
    return true;
 }
 

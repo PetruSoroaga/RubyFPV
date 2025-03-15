@@ -146,6 +146,8 @@ void MenuVehicleManagement::onReturnFromChild(int iChildMenuId, int returnValue)
    // Upload software
    if ( (1 == returnValue) && ( (2 == iChildMenuId/1000) || (4 == iChildMenuId/1000)) )
    {
+      onEventPairingDiscardAllUIActions();
+
       if ( uploadSoftware() )
       {
          char szComm[256];
@@ -157,14 +159,13 @@ void MenuVehicleManagement::onReturnFromChild(int iChildMenuId, int returnValue)
          g_pCurrentModel->sw_version = (SYSTEM_SW_VERSION_MAJOR*256+SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER << 16);
          saveControllerModel(g_pCurrentModel);
 
-         //Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+3*1000,"Upload Succeeded",NULL);
-         //pm->addTopLine("Your vehicle was updated. It will reboot now.");
          char szTextW[256];
          sprintf(szTextW, "Your %s was updated. It will reboot now.", g_pCurrentModel->getVehicleTypeString());
-         Menu* pm = new MenuConfirmation("Upload Succeeded", szTextW, 3, true);
+         MenuConfirmation* pm = new MenuConfirmation("Upload Succeeded", szTextW, 3, true);
          pm->m_xPos = 0.4; pm->m_yPos = 0.4;
          pm->m_Width = 0.36;
          pm->m_bDisableStacking = true;
+         pm->setTimeoutMs(6000);
 
          if ( 0 < strlen(szOutput) )
          {

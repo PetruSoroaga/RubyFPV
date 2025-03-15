@@ -134,7 +134,11 @@ void hardware_enumerate_i2c_busses()
 
 #ifdef HW_CAPABILITY_I2C
    char szBuff[256];
-   for( int i=0; i<4; i++ )
+   int iEnumerateCount = 4;
+   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   iEnumerateCount = 6;
+   #endif
+   for( int i=0; i<iEnumerateCount; i++ )
    {
       snprintf(szBuff, 255, "/dev/i2c-%d", i);
       if( access( szBuff, R_OK ) != -1 )
@@ -150,6 +154,7 @@ void hardware_enumerate_i2c_busses()
          s_iHardwareI2CBusCount++;
       }
    }
+   #if defined (HW_PLATFORM_RASPBERRY)
    for( int i=10; i<14; i++ )
    {
       snprintf(szBuff, 255, "/dev/i2c-%d", i);
@@ -182,6 +187,7 @@ void hardware_enumerate_i2c_busses()
          s_iHardwareI2CBusCount++;
       }
    }
+   #endif
 #else
    log_line("[Hardware] I2C is disabled in code.");
 #endif
@@ -203,7 +209,7 @@ void hardware_enumerate_i2c_busses()
          int addrStart = k*16;
          int addrEnd = k*16+15;
          if ( k == 0 )
-            addrStart = 3;
+            addrStart = 8;
          if ( k == 7 )
             addrEnd = (7*16)+7;
 
@@ -323,7 +329,7 @@ void hardware_recheck_i2c_cameras()
          log_line("[Hardware]: Searching for camera device on bus %d at address: 0x%02X", s_HardwareI2CBusInfo[i].nBusNumber, addrStart);
 
          sprintf( szBuff, "i2cdetect -y %d 0x%02X 0x%02X | tr '\n' ' ' | sed -e 's/[^0-9a-fA-F]/ /g' -e 's/^ *//g' -e 's/ *$//g' | tr -s ' ' | sed $'s/ /\\\n/g'", s_HardwareI2CBusInfo[i].nBusNumber, addrStart, addrEnd);
-         hw_execute_bash_command_raw_silent(szBuff, szOutput);
+         hw_execute_bash_command_raw(szBuff, szOutput);
 
          if ( 0 == szOutput[0] )
             continue;

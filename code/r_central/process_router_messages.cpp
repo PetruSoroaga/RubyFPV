@@ -1241,7 +1241,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
             bool bShowAlarm = true;
             t_structure_vehicle_info* pRuntimeInfo = _get_runtime_info_for_packet(pPacketBuffer);
             if ( (NULL != pRuntimeInfo) && (NULL != pRuntimeInfo->pModel) )
-            if ( ! (pRuntimeInfo->pModel->osd_params.osd_preferences[pRuntimeInfo->pModel->osd_params.iCurrentOSDLayout] & OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM) )
+            if ( ! (pRuntimeInfo->pModel->osd_params.osd_preferences[pRuntimeInfo->pModel->osd_params.iCurrentOSDScreen] & OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM) )
                bShowAlarm = false;
 
             if ( bShowAlarm )
@@ -1437,9 +1437,9 @@ int try_read_messages_from_router(u32 uMaxMiliseconds)
          else
              _process_received_message_from_router(pResult);
 
-         if ( iCountMessagesProcessed > 15 )
+         if ( iCountMessagesProcessed > MAX_ROUTER_MESSAGES/3 )
          {
-            log_softerror_and_alarm("Processing too many messages from router.");
+            log_softerror_and_alarm("Processing too many messages from router (%d messages)", iCountMessagesProcessed);
             return iCountMessagesProcessed;
          }
       }

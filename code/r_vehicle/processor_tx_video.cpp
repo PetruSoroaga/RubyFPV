@@ -678,7 +678,7 @@ void _send_packet(int bufferIndex, int packetIndex, bool isRetransmitted, bool i
    if ( (! isRetransmitted) && (! isDuplicationPacket) )
    if ( packetIndex < s_BlocksTxBuffers[bufferIndex].block_packets )
    if ( NULL != g_pCurrentModel )
-   if ( (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO) ||
+   if ( (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG_SHOW_STATS_VIDEO_KEYFRAMES_INFO) ||
         (g_iDebugShowKeyFramesAfterRelaySwitch > 0) )
    {
       u8* pVideoData = pPacketData + sizeof(t_packet_header) + sizeof(t_packet_header_video_full_77);

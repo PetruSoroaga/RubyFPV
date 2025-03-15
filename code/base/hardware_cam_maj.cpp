@@ -202,10 +202,10 @@ bool hardware_camera_maj_start_capture_program(bool bEnableLog)
       if ( s_iPIDMajestic != 0 )
          return true;
 
-      hw_execute_bash_command_raw("ps -aef | grep majestic | grep -v \"grep\"", szOutput);
+      hw_execute_bash_command_raw("ps -ae | grep majestic | grep -v \"grep\"", szOutput);
       log_line("[HwCamMajestic] Found majestic PID(s): (%s)", szOutput);
       removeTrailingNewLines(szOutput);
-      hw_execute_bash_command_raw("ps -aef | grep ruby_rt_vehicle | grep -v \"grep\"", szOutput);
+      hw_execute_bash_command_raw("ps -ae | grep ruby_rt_vehicle | grep -v \"grep\"", szOutput);
       removeTrailingNewLines(szOutput);
       log_line("[HwCamMajestic] Found ruby PID(s): (%s)", szOutput);
       hardware_sleep_ms(500);
@@ -224,8 +224,7 @@ bool _hardware_camera_maj_signal_stop_capture_program(int iSignal)
    log_line("[HwCamMajestic] Result of stop majestic using killall: (%s)", szOutput);
    hardware_sleep_ms(100);
 
-   hw_execute_bash_command_raw("pidof majestic", szOutput);
-   removeTrailingNewLines(szOutput);
+   hw_process_get_pids("majestic", szOutput);
    log_line("[HwCamMajestic] Majestic PID after killall command: (%s)", szOutput);
    if ( strlen(szOutput) < 2 )
    {
@@ -236,8 +235,7 @@ bool _hardware_camera_maj_signal_stop_capture_program(int iSignal)
 
    hw_execute_bash_command_raw("killall -1 majestic", NULL);
    hardware_sleep_ms(10);
-   hw_execute_bash_command_raw("pidof majestic", szOutput);
-   removeTrailingNewLines(szOutput);
+   hw_process_get_pids("majestic", szOutput);
    log_line("[HwCamMajestic] Majestic PID after killall command: (%s)", szOutput);
    if ( strlen(szOutput) < 2 )
    {
@@ -248,8 +246,7 @@ bool _hardware_camera_maj_signal_stop_capture_program(int iSignal)
    hw_kill_process("majestic", iSignal);
    hardware_sleep_ms(10);
  
-   hw_execute_bash_command_raw("pidof majestic", szOutput);
-   removeTrailingNewLines(szOutput);
+   hw_process_get_pids("majestic", szOutput);
    log_line("[HwCamMajestic] Majestic PID after stop command: (%s)", szOutput);
    if ( strlen(szOutput) > 2 )
       return false;
@@ -277,18 +274,16 @@ bool hardware_camera_maj_stop_capture_program()
 
    char szPID[256];
    szPID[0] = 0;
-   hw_execute_bash_command_raw("pidof majestic", szPID);
-   removeTrailingNewLines(szPID);
+   hw_process_get_pids("majestic", szPID);
    log_line("[HwCamMajestic] Stopping majestic: PID after try signaling to stop: (%s)", szPID);
    int iRetry = 15;
-   while ( (iRetry > 0) && (0 < strlen(szPID)) )
+   while ( (iRetry > 0) && (strlen(szPID) > 1) )
    {
       iRetry--;
       hardware_sleep_ms(50);
       hw_execute_bash_command_raw("killall -1 majestic", NULL);
       hardware_sleep_ms(100);
-      hw_execute_bash_command_raw("pidof majestic", szPID);
-      removeTrailingNewLines(szPID);
+      hw_process_get_pids("majestic", szPID);
    }
 
    log_line("[HwCamMajestic] Init: stopping majestic (2): PID after force try stop: (%s)", szPID);
@@ -300,8 +295,7 @@ bool hardware_camera_maj_stop_capture_program()
    }
 
    hw_kill_process("majestic", -9);
-   hw_execute_bash_command_raw("pidof majestic", szPID);
-
+   hw_process_get_pids("majestic", szPID);
    s_iPIDMajestic = atoi(szPID);
    if ( strlen(szPID) < 2 )
    {

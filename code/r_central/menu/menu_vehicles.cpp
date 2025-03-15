@@ -57,6 +57,7 @@ MenuVehicles::MenuVehicles(void)
 
    m_bDisableStacking = true;
    m_bDisableBackgroundAlpha = true;
+   m_bShowSpectator = true;
 }
 
 void MenuVehicles::onShow()
@@ -70,6 +71,7 @@ void MenuVehicles::onShow()
    removeAllTopLines();
    removeAllItems();
 
+   log_line("[Menu] MenuVehicles: %d controller vehicles, %d spectator vehicles", getControllerModelsCount(), getControllerModelsSpectatorCount());
    log_line("[Menu] MenuVehicles: Last selected vehicle index: %d", m_iLastSelectedVehicle);
    m_IndexSelectedVehicle = -1;
 
@@ -77,7 +79,10 @@ void MenuVehicles::onShow()
    bool bCurrentVehicleFound = false;
    int iItemIndexToSelect = -1;
 
-   if ( m_iLastSelectedVehicle == getControllerModelsCount() )
+   int iCountVehicles = getControllerModelsCount();
+   if ( m_bShowSpectator )
+      iCountVehicles += getControllerModelsSpectatorCount();
+   if ( m_iLastSelectedVehicle == iCountVehicles )
       m_iLastSelectedVehicle--;
      
    for( int i=0; i<getControllerModelsCount(); i++ )
@@ -109,6 +114,7 @@ void MenuVehicles::onShow()
       MenuItemVehicle* pItem = new MenuItemVehicle(szBuff);
       pItem->setVehicleIndex(i, false);
       int iIndexItem = addMenuItem( pItem );
+
       if ( (NULL != g_pCurrentModel) && (!g_pCurrentModel->is_spectator) )
       if ( (g_uActiveControllerModelVID == p->uVehicleId) && (g_pCurrentModel->uVehicleId == p->uVehicleId) )
       {
@@ -126,9 +132,57 @@ void MenuVehicles::onShow()
       }
    }
 
+   if ( m_bShowSpectator )
+   for( int i=0; i<getControllerModelsSpectatorCount(); i++ )
+   {
+      Model *p = getSpectatorModel(i);
+      log_line("[Menu] MenuVehicles: Iterating spectator vehicles: id: %u", p->uVehicleId);
+      char szBuff[256];
+      if ( 1 == p->radioLinksParams.links_count )
+         sprintf(szBuff, "%s, %s", p->getLongName(), str_format_frequency(p->radioLinksParams.link_frequency_khz[0]));
+      else if ( 2 == p->radioLinksParams.links_count )
+      {
+         char szFreq1[64];
+         char szFreq2[64];
+         strcpy(szFreq1, str_format_frequency(p->radioLinksParams.link_frequency_khz[0]));
+         strcpy(szFreq2, str_format_frequency(p->radioLinksParams.link_frequency_khz[1]));
+         sprintf(szBuff, "%s, %s/%s", p->getLongName(), szFreq1, szFreq2);
+      }
+      else
+      {
+         char szFreq1[64];
+         char szFreq2[64];
+         char szFreq3[64];
+         strcpy(szFreq1, str_format_frequency(p->radioLinksParams.link_frequency_khz[0]));
+         strcpy(szFreq2, str_format_frequency(p->radioLinksParams.link_frequency_khz[1]));
+         strcpy(szFreq3, str_format_frequency(p->radioLinksParams.link_frequency_khz[2]));
+         sprintf(szBuff, "%s, %s/%s/%s", p->getLongName(), szFreq1, szFreq2, szFreq3);
+      }
+      strcat(szBuff, L(" (Spectator)"));
+      MenuItemVehicle* pItem = new MenuItemVehicle(szBuff);
+      pItem->setVehicleIndex(i, true);
+      int iIndexItem = addMenuItem( pItem );
+
+      if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->is_spectator) )
+      if ( (g_uActiveControllerModelVID == p->uVehicleId) && (g_pCurrentModel->uVehicleId == p->uVehicleId) )
+      {
+         log_line("[Menu] MenuVehicles: Found current spectator vehicle in the list at position %d. Added as menu item index %d.", i, iIndexItem);
+         bCurrentVehicleFound = true;
+         if ( -1 == m_iLastSelectedVehicle )
+            m_iLastSelectedVehicle = i + getControllerModelsCount();
+      }
+
+      if ( -1 != m_iLastSelectedVehicle )
+      if ( (i + getControllerModelsCount()) == m_iLastSelectedVehicle )
+      {
+         log_line("[MenuVehicles] Set selected menu item index to %d, for spectator vehicle index %d", iIndexItem, i);
+         iItemIndexToSelect = iIndexItem;
+      }
+   }
+
    if ( ! bCurrentVehicleFound )
       log_softerror_and_alarm("[Menu] MenuVehicles: Current vehicle not found in the vehicles list!");
-   if ( 0 == getControllerModelsCount() )
+   if ( 0 == iCountVehicles )
    {
       removeAllTopLines();
       addTopLine(s_szVehicleNone1);
@@ -139,7 +193,7 @@ void MenuVehicles::onShow()
    addSeparator();
    m_IndexImport = addMenuItem(new MenuItem("Import Vehicle", "Imports a new vehicle from a model file on a USB stick."));
    m_IndexDeleteAll = -1;
-   if ( getControllerModelsCount() > 0 )
+   if ( iCountVehicles > 0 )
       m_IndexDeleteAll = addMenuItem(new MenuItem("Delete All Vehicles", "Deletes all models stored in memory."));
 
    Menu::onShow();
@@ -152,6 +206,8 @@ void MenuVehicles::onShow()
 void MenuVehicles::onReturnFromChild(int iChildMenuId, int returnValue)
 {
    Menu::onReturnFromChild(iChildMenuId, returnValue);
+
+   // Delete all
    if ( (1 == returnValue) && (1 == iChildMenuId/1000) )
    {
       render_all(get_current_timestamp_ms(), true, false);
@@ -165,17 +221,41 @@ void MenuVehicles::onReturnFromChild(int iChildMenuId, int returnValue)
 
       for( int i=0; i<getControllerModelsCount(); i++ )
       {
-         Model *p = getModelAtIndex(i);
-         pModels[i] = p;
-         deletePluginModelSettings(p->uVehicleId);
+         pModels[i] = getModelAtIndex(i);
+         if ( NULL == pModels[i] )
+            continue;
+         deletePluginModelSettings(pModels[i]->uVehicleId);
       }
       save_PluginsSettings();
 
       for( int i=0; i<iModelsCount; i++ )
       {
-         deleteModel(pModels[i]);
+         if ( NULL != pModels[i] )
+            deleteModel(pModels[i]);
          log_line("[Menu] Deleted model %d of %d", i+1, iModelsCount);
       }
+
+      if ( m_bShowSpectator )
+      {
+         iModelsCount = getControllerModelsSpectatorCount();
+         
+         for( int i=0; i<getControllerModelsSpectatorCount(); i++ )
+         {
+            pModels[i] = getSpectatorModel(i);
+            if ( NULL == pModels[i] )
+               continue;
+            deletePluginModelSettings(pModels[i]->uVehicleId);
+         }
+         save_PluginsSettings();
+
+         for( int i=0; i<iModelsCount; i++ )
+         {
+            if ( NULL != pModels[i] )
+               deleteModel(pModels[i]);
+            log_line("[Menu] Deleted model %d of %d", i+1, iModelsCount);
+         }
+      }
+
       menu_invalidate_all();
       menu_refresh_all_menus();
       menu_update_ui_all_menus();
@@ -197,22 +277,31 @@ void MenuVehicles::Render()
 
    bool bBlendingEnabled = g_pRenderEngine->isRectBlendingEnabled();
 
+   int iCountVehicles = getControllerModelsCount();
+   if ( m_bShowSpectator )
+      iCountVehicles += getControllerModelsSpectatorCount();
+
    for( int i=0; i<m_ItemsCount; i++ )
    {
       float y0 = y;
       y += RenderItem(i,y);
-      if ( i >= getControllerModelsCount() )
+      if ( i >= iCountVehicles )
          continue;
 
-      Model *pModel = getModelAtIndex(i);
+      Model *pModel = NULL;
+      if ( i < getControllerModelsCount() )
+         pModel = getModelAtIndex(i);
+      else
+         pModel = getSpectatorModel(i-getControllerModelsCount());
       if ( NULL == pModel )
          continue;
       if ( vehicle_is_favorite(pModel->uVehicleId) )
       {
+         float xFav = m_RenderXPos + getUsableWidth() - m_pMenuItems[i]->m_fMarginX - 2.0*fFavoriteWidth;
          if ( (NULL != g_pCurrentModel) && (pModel->uVehicleId == g_pCurrentModel->uVehicleId) )
-            g_pRenderEngine->drawIcon(m_xPos + m_RenderWidth - m_sfMenuPaddingX - fFavoriteWidth, y0-dy+0.6*height_text, fFavoriteWidth, fFavoriteHeight, g_idIconFavorite);
+            g_pRenderEngine->drawIcon(xFav, y0-dy+0.6*height_text, fFavoriteWidth, fFavoriteHeight, g_idIconFavorite);
          else
-            g_pRenderEngine->drawIcon(m_xPos + m_RenderWidth - m_sfMenuPaddingX - fFavoriteWidth, y0-dy, fFavoriteWidth, fFavoriteHeight, g_idIconFavorite);
+            g_pRenderEngine->drawIcon(xFav, y0-dy, fFavoriteWidth, fFavoriteHeight, g_idIconFavorite);
       }
    }
    g_pRenderEngine->setRectBlendingEnabled(bBlendingEnabled);
@@ -271,13 +360,23 @@ void MenuVehicles::onSelectItem()
       add_menu_to_stack(new MenuConfirmation("Confirmation",szBuff, 1));
       return;
    }
-   if ( 0 == getControllerModelsCount() )
+
+   int iCountVehicles = getControllerModelsCount();
+   if ( m_bShowSpectator )
+      iCountVehicles += getControllerModelsSpectatorCount();
+
+   if ( 0 == iCountVehicles )
    {
       menu_stack_pop(0);
       return;
    }
 
-   Model *pModel = getModelAtIndex(m_SelectedIndex);
+   Model *pModel = NULL;
+   if ( m_SelectedIndex < getControllerModelsCount() )
+      pModel = getModelAtIndex(m_SelectedIndex);
+   else
+      pModel = getSpectatorModel(m_SelectedIndex-getControllerModelsCount());
+
    if ( NULL == pModel )
    {
       log_softerror_and_alarm("[Menu] MenuVehicles: NULL model for vehicle: %s.", m_pMenuItems[m_SelectedIndex]->getTitle());
@@ -290,6 +389,12 @@ void MenuVehicles::onSelectItem()
    
    MenuVehicleSelector* pMenu = new MenuVehicleSelector();
    pMenu->m_IndexSelectedVehicle = m_SelectedIndex;
+   pMenu->m_bSpectatorMode = false;
+   if ( m_SelectedIndex >= getControllerModelsCount() )
+   {
+      pMenu->m_bSpectatorMode = true;
+      pMenu->m_IndexSelectedVehicle = m_SelectedIndex - getControllerModelsCount();
+   }
    pMenu->m_yPos = m_pMenuItems[m_SelectedIndex]->getItemRenderYPos() - g_pRenderEngine->textHeight(g_idFontMenu);
    add_menu_to_stack(pMenu);
 }

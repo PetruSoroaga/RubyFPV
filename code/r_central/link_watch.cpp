@@ -764,13 +764,13 @@ int link_watch_loop_processes()
             failureCountMax = 8;
          if ( (int)s_CountProcessRouterFailures > failureCountMax )
          {
-            log_error_and_alarm("Router process has failed. Current router PIDS: [%s].", hw_process_get_pid("ruby_rt_station"));
+            log_error_and_alarm("Router process has failed. Current router PIDS: [%s].", hw_process_get_pids_inline("ruby_rt_station"));
             warnings_add(0, "Controller router process is malfunctioning! Restarting it.", g_idIconCPU, get_Color_IconError());
             bNeedsRestart = true;
          }
          if ( (int)s_CountProcessTelemetryFailures > failureCountMax )
          {
-            log_softerror_and_alarm("Telemetry process has failed. Current router PIDS: [%s].", hw_process_get_pid("ruby_rx_telemetry"));
+            log_softerror_and_alarm("Telemetry process has failed. Current router PIDS: [%s].", hw_process_get_pids_inline("ruby_rx_telemetry"));
             warnings_add(0, "Controller telemetry process is malfunctioning! Restarting it.", g_idIconCPU, get_Color_IconError());
             bNeedsRestart = true;
          }
@@ -820,20 +820,20 @@ int link_watch_loop_processes()
          {
             log_line("Will restart processes.");
             menu_discard_all();
-            char szPids[1024];
-            szPids[0] = 0;
-            hw_execute_bash_command("pidof ruby_rx_telemetry", szPids);
-            removeTrailingNewLines(szPids);
-            if ( strlen(szPids) > 2 )
-               log_line("Process ruby_rx_telemetry is still present, pid: %s.", szPids);
+            char szPIDs[1024];
+            szPIDs[0] = 0;
+            hw_process_get_pids("ruby_rx_telemetry", szPIDs);
+            removeTrailingNewLines(szPIDs);
+            if ( strlen(szPIDs) > 2 )
+               log_line("Process ruby_rx_telemetry is still present, pid: %s.", szPIDs);
             else
                log_line("Process ruby_rx_telemetry is not present, has crashed.");
 
-            szPids[0] = 0;
-            hw_execute_bash_command("pidof ruby_rt_station", szPids);
-            removeTrailingNewLines(szPids);
-            if ( strlen(szPids) > 2 )
-               log_line("Process ruby_rt_station is still present, pid: %s.", szPids);
+            szPIDs[0] = 0;
+            hw_process_get_pids("ruby_rt_station", szPIDs);
+            removeTrailingNewLines(szPIDs);
+            if ( strlen(szPIDs) > 2 )
+               log_line("Process ruby_rt_station is still present, pid: %s.", szPIDs);
             else
                log_line("Process ruby_rt_station is not present, has crashed.");
 
@@ -842,19 +842,19 @@ int link_watch_loop_processes()
             else
                log_line("Router SM process stats is invalid.");
             #if defined HW_PLATFORM_RASPBERRY
-            szPids[0] = 0;
-            hw_execute_bash_command("pidof ruby_player_p", szPids);
-            removeTrailingNewLines(szPids);
-            if ( strlen(szPids) > 2 )
-               log_line("Video player (pipe) is still present, pid: %s.", szPids);
+            szPIDs[0] = 0;
+            hw_process_get_pids("ruby_player_p", szPIDs);
+            removeTrailingNewLines(szPIDs);
+            if ( strlen(szPIDs) > 2 )
+               log_line("Video player (pipe) is still present, pid: %s.", szPIDs);
             else
                log_line("Video player (pipe) is not present, has crashed.");
 
-            szPids[0] = 0;
-            hw_execute_bash_command("pidof ruby_player_s", szPids);
-            removeTrailingNewLines(szPids);
-            if ( strlen(szPids) > 2 )
-               log_line("Video player (sm) is still present, pid: %s.", szPids);
+            szPIDs[0] = 0;
+            hw_process_get_pids("ruby_player_s", szPIDs);
+            removeTrailingNewLines(szPIDs);
+            if ( strlen(szPIDs) > 2 )
+               log_line("Video player (sm) is still present, pid: %s.", szPIDs);
             else
                log_line("Video player (sm) is not present, has crashed.");
 
@@ -1016,11 +1016,11 @@ void link_watch_loop_recording()
 
    if ( g_bVideoProcessing )
    {
-      char szPids[1024];
+      char szPIDs[1024];
       bool procRunning = false;
-      hw_execute_bash_command_silent("pidof ruby_video_proc", szPids);
-      removeTrailingNewLines(szPids);
-      if ( strlen(szPids) > 2 )
+      hw_process_get_pids("ruby_video_proc", szPIDs);
+      removeTrailingNewLines(szPIDs);
+      if ( strlen(szPIDs) > 2 )
          procRunning = true;
       if ( ! procRunning )
       {

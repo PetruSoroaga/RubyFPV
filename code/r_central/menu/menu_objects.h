@@ -111,6 +111,7 @@
 #define MENU_ID_ABOUT 123
 #define MENU_ID_CONTROLLER_RADIO 124
 #define MENU_ID_CONFIRMATION_VIDEO_RATE 125
+#define MENU_ID_VEHICLE_SIMPLE_SETUP 126
 
 
 #define MAX_MENU_ITEMS 150
@@ -188,10 +189,16 @@ class Menu
      u32 getOnShowTime();
      u32 getOnChildAddTime();
      u32 getOnReturnFromChildTime();
+     float getMenuFontHeight();
+     bool isEditingItem();
 
      void addExtraHeightAtStart(float fExtraH);
      void addExtraHeightAtEnd(float fExtraH);
 
+     void disableBackAction();
+     void enableBackAction();
+     bool hasDisabledBackAction();
+     
      virtual bool periodicLoop();
      virtual float RenderFrameAndTitle();
      virtual float RenderFrameAndTitleSticky();
@@ -298,6 +305,7 @@ class Menu
      bool  m_bEnableScrolling;
      bool  m_bHasScrolling;
      int   m_iIndexFirstVisibleItem;
+     bool  m_bDisableBackAction;
 
      u32 m_uIconId;
      float m_fIconSize;
@@ -312,4 +320,5 @@ class Menu
      u32 m_uAnimationTotalDuration;
      float m_fAnimationTargetXPos;
      float m_fAnimationStartXPos;
+     int m_iLoopCounter;
 };

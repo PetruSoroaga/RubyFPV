@@ -164,7 +164,7 @@ void MenuVehicleOSDPlugin::valuesToUI()
       return;
 
    int iModelIndex = getPluginModelSettingsIndex(pPlugin, g_pCurrentModel);
-   int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+   int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
 
    m_nPluginSettingsCount = osd_plugin_get_settings_count(m_nPluginIndex);
    if ( m_nPluginSettingsCount > MAX_PLUGIN_SETTINGS )
@@ -243,7 +243,7 @@ void MenuVehicleOSDPlugin::onMinusAction()
    if ( NULL == pPluginSettings )
       return;
 
-   int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+   int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
    int iModelIndex = getPluginModelSettingsIndex(pPluginSettings, g_pCurrentModel);
 
    if ( m_bIsMovingH )
@@ -280,7 +280,7 @@ void MenuVehicleOSDPlugin::onPlusAction()
    if ( NULL == pPluginSettings )
       return;
 
-   int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+   int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
    int iModelIndex = getPluginModelSettingsIndex(pPluginSettings, g_pCurrentModel);
 
    if ( m_bIsMovingH )
@@ -377,7 +377,7 @@ int MenuVehicleOSDPlugin::onBack()
       if ( NULL == pPluginSettings )
          return 0;
 
-      int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+      int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
       int iModelIndex = getPluginModelSettingsIndex(pPluginSettings, g_pCurrentModel);
 
       pPluginSettings->fXPos[iModelIndex][osdLayoutIndex] = m_fXOrg;
@@ -422,7 +422,7 @@ void MenuVehicleOSDPlugin::onSelectItem()
       if ( NULL == pPluginSettings )
          return;
 
-      int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+      int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
       int iModelIndex = getPluginModelSettingsIndex(pPluginSettings, g_pCurrentModel);
 
       m_fXOrg = pPluginSettings->fXPos[iModelIndex][osdLayoutIndex];
@@ -454,7 +454,7 @@ void MenuVehicleOSDPlugin::onSelectItem()
       if ( NULL == pPluginSettings )
          return;
 
-      int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+      int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
       int iModelIndex = getPluginModelSettingsIndex(pPluginSettings, g_pCurrentModel);
 
       m_fXOrg = pPluginSettings->fXPos[iModelIndex][osdLayoutIndex];
@@ -487,7 +487,7 @@ void MenuVehicleOSDPlugin::onSelectItem()
       if ( NULL == pPluginSettings )
          return;
 
-      int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+      int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
       int iModelIndex = getPluginModelSettingsIndex(pPluginSettings, g_pCurrentModel);
 
       m_fXOrg = pPluginSettings->fXPos[iModelIndex][osdLayoutIndex];
@@ -522,7 +522,7 @@ void MenuVehicleOSDPlugin::onSelectItem()
          if ( NULL == pPluginSettings )
             return;
 
-         int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+         int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
          int iModelIndex = getPluginModelSettingsIndex(pPluginSettings, g_pCurrentModel);
 
          int type = osd_plugin_get_setting_type(m_nPluginIndex, i);

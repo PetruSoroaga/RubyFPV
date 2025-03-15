@@ -76,26 +76,36 @@ void MenuUpdateVehiclePopup::Render()
    RenderEnd(yTop);
 }
 
+int MenuUpdateVehiclePopup::onBack()
+{
+   int iRet = Menu::onBack();
+   if ( onEventPairingTookUIActions() )
+      onEventFinishedPairUIAction();
+   return iRet;
+}
 
 void MenuUpdateVehiclePopup::onSelectItem()
 {
    if ( 1 == m_SelectedIndex )
    {
       menu_discard_all();
+      if ( onEventPairingTookUIActions() )
+         onEventFinishedPairUIAction();
       return;
    }
    if ( 0 == m_SelectedIndex )
    {
       if ( uploadSoftware() )
       {
+         onEventPairingDiscardAllUIActions();
          char szBuff[256];
          sprintf(szBuff, "Your %s was updated. It will reboot now.", g_pCurrentModel->getVehicleTypeString());
-         Menu* pm = new MenuConfirmation("Upload Succeeded", szBuff, 3, true);
+         MenuConfirmation* pm = new MenuConfirmation("Upload Succeeded", szBuff, 3, true);
          pm->m_xPos = 0.4; pm->m_yPos = 0.4;
          pm->m_Width = 0.36;
          pm->m_bDisableStacking = true;
+         pm->setTimeoutMs(6000);
          replace_menu_on_stack(this, pm);
       }
    }
 }
-

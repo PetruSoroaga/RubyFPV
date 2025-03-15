@@ -12,18 +12,24 @@ class MenuConfirmation: public Menu
       virtual void onShow();
       virtual void valuesToUI();
       virtual void Render();
+      virtual bool periodicLoop();
       virtual int onBack();
       virtual void onSelectItem();
 
       void setOkActionText(const char* szText);
       void setIconId(u32 uIconId);
+      void setTimeoutMs(u32 uTimeoutMs);
       void setUniqueId(int iUniqueId);
       void enableShowDoNotShowAgain();
+      void disablePairingUIActions();
 
    protected:
       void _saveDoNotShowFlag();
       bool m_bSingleOption;
       bool m_bShowDoNotShowAgain;
+      bool m_bDisablePairingUIActions;
+      u32 m_uTimeoutMs;
+      u32 m_uCloseOnTimeoutTime;
       u32 m_uIconId;
       int m_iUniqueId;
       char m_szButtonOk[64];

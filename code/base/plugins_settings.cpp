@@ -71,10 +71,10 @@ int save_PluginsSettings()
       {
          fprintf(fd, "%u\n", s_PluginsSettings.pPlugins[iPlugin]->uModelsIds[iModel]);
 
-         for( int k=0; k<MODEL_MAX_OSD_PROFILES; k++ )
+         for( int k=0; k<MODEL_MAX_OSD_SCREENS; k++ )
             fprintf(fd, "%f %f %f %f\n", s_PluginsSettings.pPlugins[iPlugin]->fXPos[iModel][k], s_PluginsSettings.pPlugins[iPlugin]->fYPos[iModel][k], s_PluginsSettings.pPlugins[iPlugin]->fWidth[iModel][k], s_PluginsSettings.pPlugins[iPlugin]->fHeight[iModel][k] );
 
-         for( int k=0; k<MODEL_MAX_OSD_PROFILES; k++ )
+         for( int k=0; k<MODEL_MAX_OSD_SCREENS; k++ )
          {
             for( int j=0; j<s_PluginsSettings.pPlugins[iPlugin]->nSettingsCount; j++ )
                fprintf(fd, "%d ", s_PluginsSettings.pPlugins[iPlugin]->nSettings[iModel][k][j]);
@@ -190,12 +190,12 @@ int load_PluginsSettings()
          if ( (!failed) && (1 != fscanf(fd, "%u", &s_PluginsSettings.pPlugins[iPlugin]->uModelsIds[iModel]) ) )
             { failed = 1; log_softerror_and_alarm("Load plugins settings: Invalid plugin model id [%d/%d].", iPlugin,iModel); }
 
-         for( int k=0; k<MODEL_MAX_OSD_PROFILES; k++ )
+         for( int k=0; k<MODEL_MAX_OSD_SCREENS; k++ )
             if ( (!failed) && (4 != fscanf(fd, "%f %f %f %f", &s_PluginsSettings.pPlugins[iPlugin]->fXPos[iModel][k], &s_PluginsSettings.pPlugins[iPlugin]->fYPos[iModel][k], &s_PluginsSettings.pPlugins[iPlugin]->fWidth[iModel][k], &s_PluginsSettings.pPlugins[iPlugin]->fHeight[iModel][k]) ) )
                { failed = 1; log_softerror_and_alarm("Load plugins settings: Invalid plugin OSD layout [%d/%d/%d].", iPlugin, iModel, k); }
 
          if ( !failed )
-         for( int k=0; k<MODEL_MAX_OSD_PROFILES; k++ )
+         for( int k=0; k<MODEL_MAX_OSD_SCREENS; k++ )
          for( int j=0; j<s_PluginsSettings.pPlugins[iPlugin]->nSettingsCount; j++ )
          {
             if ( (!failed) && (1 != fscanf(fd, "%d", &(s_PluginsSettings.pPlugins[iPlugin]->nSettings[iModel][k][j])) ) )
@@ -258,7 +258,7 @@ SinglePluginSettings* pluginsSettingsAddNew(const char* szName, const char* szUI
       s_PluginsSettings.pPlugins[s_PluginsSettings.nPluginsCount]->uModelsIds[iModel] = 0;
 
    for( int iModel=0; iModel<MAX_MODELS; iModel++ )
-   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
    for( int k=0; k<MAX_PLUGIN_SETTINGS; k++ )
       s_PluginsSettings.pPlugins[s_PluginsSettings.nPluginsCount]->nSettings[iModel][i][k] = 0;
 
@@ -313,7 +313,7 @@ int getPluginModelSettingsIndex(SinglePluginSettings* pPlugin, Model* pModel)
       for( int i=0; i<MAX_MODELS-1; i++ )
       {
          pPlugin->uModelsIds[i] = pPlugin->uModelsIds[i+1];
-         for( int k=0; k<MODEL_MAX_OSD_PROFILES; k++ )
+         for( int k=0; k<MODEL_MAX_OSD_SCREENS; k++ )
          {
             pPlugin->fXPos[i][k] = pPlugin->fXPos[i+1][k];
             pPlugin->fYPos[i][k] = pPlugin->fYPos[i+1][k];
@@ -334,7 +334,7 @@ int getPluginModelSettingsIndex(SinglePluginSettings* pPlugin, Model* pModel)
    {
       // Copy setting from last used model
 
-      for( int k=0; k<MODEL_MAX_OSD_PROFILES; k++ )
+      for( int k=0; k<MODEL_MAX_OSD_SCREENS; k++ )
       {
          pPlugin->fXPos[pPlugin->nModels][k] = pPlugin->fXPos[pPlugin->nModels-1][k];
          pPlugin->fYPos[pPlugin->nModels][k] = pPlugin->fYPos[pPlugin->nModels-1][k];
@@ -362,7 +362,7 @@ void deletePluginModelSettings(u32 uModelId)
          {
             for( int k=iModel; k<s_PluginsSettings.pPlugins[i]->nModels-1; k++ )
             {
-               for( int j=0; j<MODEL_MAX_OSD_PROFILES; j++ )
+               for( int j=0; j<MODEL_MAX_OSD_SCREENS; j++ )
                {
                s_PluginsSettings.pPlugins[i]->fXPos[k][j] = s_PluginsSettings.pPlugins[i]->fXPos[k+1][j];
                s_PluginsSettings.pPlugins[i]->fYPos[k][j] = s_PluginsSettings.pPlugins[i]->fYPos[k+1][j];

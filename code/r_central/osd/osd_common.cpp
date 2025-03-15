@@ -113,7 +113,7 @@ u32 g_uOSDElementChangeTimeout = 2000;
 u32 g_uOSDElementChangeBlinkInterval = 100;
 bool g_bOSDElementChangeNotification = true;
 
-int s_iCurrentOSDLayoutIndex = 0;
+int s_iCurrentOSDScreenIndex = 0;
 Model* s_pCurrentOSDLayoutSourceModel = NULL;
 
 int s_iCurrentOSDVehicleDataSourceRuntimeIndex = 0;
@@ -785,7 +785,7 @@ float osd_render_relay(float xCenter, float yBottom, bool bHorizontal)
 
 int osd_get_current_layout_index()
 {
-   return s_iCurrentOSDLayoutIndex;
+   return s_iCurrentOSDScreenIndex;
 }
 
 Model* osd_get_current_layout_source_model()
@@ -795,18 +795,18 @@ Model* osd_get_current_layout_source_model()
 
 void osd_set_current_layout_index_and_source_model(Model* pModel, int iLayout)
 {
-   s_iCurrentOSDLayoutIndex = iLayout;
+   s_iCurrentOSDScreenIndex = iLayout;
    s_pCurrentOSDLayoutSourceModel = pModel;
    if ( NULL == pModel )
       return;
    /*
    int k=0; 
-   while ( (k < 10) && (! (pModel->osd_params.osd_flags2[s_iCurrentOSDLayoutIndex] & OSD_FLAG2_LAYOUT_ENABLED)) )
+   while ( (k < 10) && (! (pModel->osd_params.osd_flags2[s_iCurrentOSDScreenIndex] & OSD_FLAG2_LAYOUT_ENABLED)) )
    {
       k++;
-      s_iCurrentOSDLayoutIndex++;
-      if ( s_iCurrentOSDLayoutIndex >= osdLayoutLast )
-         s_iCurrentOSDLayoutIndex = osdLayout1;
+      s_iCurrentOSDScreenIndex++;
+      if ( s_iCurrentOSDScreenIndex >= osdLayoutLast )
+         s_iCurrentOSDScreenIndex = osdLayout1;
    }
    */
 }

@@ -85,8 +85,8 @@ void _telemetry_mavlink_send_setup()
       parse_telemetry_remove_duplicate_messages(false);
 
    bool bUseLocalVSpeed = false;
-   int li = g_pCurrentModel->osd_params.iCurrentOSDLayout;
-   if ( (li >= 0) && (li < MODEL_MAX_OSD_PROFILES) )
+   int li = g_pCurrentModel->osd_params.iCurrentOSDScreen;
+   if ( (li >= 0) && (li < MODEL_MAX_OSD_SCREENS) )
    if ( g_pCurrentModel->osd_params.osd_flags2[li] & OSD_FLAG2_SHOW_LOCAL_VERTICAL_SPEED )
       bUseLocalVSpeed = true;
 

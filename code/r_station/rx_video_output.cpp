@@ -240,38 +240,31 @@ void rx_video_output_start_video_streamer()
    hw_execute_ruby_process_wait(szStreamerPrefixes, s_szOutputVideoStreamerFilename, szStreamerParams, NULL, 0);
    log_line("Executed video streamer command.");
 
-   char szComm2[256];
-   char szPids[128];
+   char szPIDs[128];
 
-   sprintf(szComm, "pidof %s", s_szOutputVideoStreamerFilename);
-   sprintf(szComm2, "ps -aef | grep %s", s_szOutputVideoStreamerFilename);
-
-   szPids[0] = 0;
+   szPIDs[0] = 0;
    int count = 0;
-   log_line("[VideoOutput] Waiting for process to start using: [%s]", szComm);
+   log_line("[VideoOutput] Waiting for process (%s) to start using...", s_szOutputVideoStreamerFilename);
    u32 uTimeStart = get_current_timestamp_ms();
 
-   while ( (strlen(szPids) <= 2) && (count < 1000) && (get_current_timestamp_ms() < uTimeStart+4000) )
+   hw_process_get_pids(s_szOutputVideoStreamerFilename, szPIDs);
+   removeTrailingNewLines(szPIDs);
+   while ( (strlen(szPIDs) <= 2) && (count < 1000) && (get_current_timestamp_ms() < uTimeStart+4000) )
    {
-      hw_execute_bash_command_silent(szComm, szPids);
-      removeTrailingNewLines(szPids);
-      if ( strlen(szPids) > 2 )
-         break;
       hardware_sleep_ms(5);
-      szPids[0] = 0;
-      count++;
-      char szTmp[256];
-      hw_execute_bash_command(szComm2, szTmp);
-      log_line("[VideoOutput] (%s)", szTmp);
+      szPIDs[0] = 0;
+      hw_process_get_pids(s_szOutputVideoStreamerFilename, szPIDs);
+      removeTrailingNewLines(szPIDs);
    }
-   s_iPIDVideoStreamer = atoi(szPids);
+   replaceNewLinesToSpaces(szPIDs);
+   s_iPIDVideoStreamer = atoi(szPIDs);
    log_line("[VideoOutput] Found executed process PID: %d", s_iPIDVideoStreamer);
 
-   if ( (strlen(szPids) > 2) && (s_iPIDVideoStreamer > 0) )
+   if ( (strlen(szPIDs) > 2) && (s_iPIDVideoStreamer > 0) )
    {
       if ( (pcs->iNiceRXVideo < 0) && (pcs->iPrioritiesAdjustment) )
          hw_set_proc_priority(s_szOutputVideoStreamerFilename, pcs->iNiceRXVideo, pcs->ioNiceRXVideo, 1);
-      log_line("[VideoOutput] Started video streamer [%s], PID: %s (%d)", s_szOutputVideoStreamerFilename, szPids, s_iPIDVideoStreamer);
+      log_line("[VideoOutput] Started video streamer [%s], PID: %s (%d)", s_szOutputVideoStreamerFilename, szPIDs, s_iPIDVideoStreamer);
    }
    else
    {
@@ -328,6 +321,9 @@ void rx_video_output_stop_video_streamer()
       log_line("[VideoOutput] Stopping video streamer (%s) by command...", s_szOutputVideoStreamerFilename);
       char szComm[256];
       snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "ps -ef | nice grep '%s' | nice grep -v grep | awk '{print $2}' | xargs kill -1 2>/dev/null", s_szOutputVideoStreamerFilename);
+      hw_execute_bash_command(szComm, NULL);
+      hardware_sleep_ms(100);
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "pgrep '%s' | awk '{print $2}' | xargs kill -1 2>/dev/null", s_szOutputVideoStreamerFilename);
       hw_execute_bash_command(szComm, NULL);
       hardware_sleep_ms(100);
    }
@@ -1103,7 +1099,7 @@ void rx_video_output_video_data(u32 uVehicleId, u8 uVideoStreamType, int width, 
 
    if ( (NULL != g_pCurrentModel) && g_pControllerSettings->iDeveloperMode )
    if ( uVideoStreamType == VIDEO_TYPE_H264 )
-   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
    //if ( get_ControllerSettings()->iShowVideoStreamInfoCompactType == 0 )
       bParseStream = true;
 

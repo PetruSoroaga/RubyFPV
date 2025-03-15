@@ -15,6 +15,11 @@ void onEventPairingStartReceivingData();
 void onEventArmed(u32 uVehicleId);
 void onEventDisarmed(u32 uVehicleId);
 
-bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool bUnsolicited);
-
 void onEventRelayModeChanged();
+
+bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool bUnsolicited);
+void onEventPairingDiscardAllUIActions();
+bool onEventPairingTookUIActions();
+void onEventFinishedPairUIAction();
+void onEventCheckForPairPendingUIActionsToTake();
+

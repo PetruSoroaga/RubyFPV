@@ -81,6 +81,10 @@ void MenuVehicle::onShow()
    int iTmp = getSelectedMenuItemIndex();
 
    m_Height = 0.0;
+
+   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
+
+   addExtraHeightAtStart(4.0*height_text);
    addTopDescription();
    removeAllItems();
 
@@ -189,7 +193,8 @@ void MenuVehicle::addTopDescription()
 {
    removeAllTopLines();
    char szBuff[256];
-   sprintf(szBuff, "%s Settings", g_pCurrentModel->getLongName());
+   //sprintf(szBuff, "%s Settings", g_pCurrentModel->getLongName());
+   strcpy(szBuff, "Vehicle Settings");
    szBuff[0] = toupper(szBuff[0]);
    setTitle(szBuff);
    //setSubTitle("Vehicle Settings");
@@ -231,6 +236,56 @@ void MenuVehicle::Render()
    for( int i=0; i<m_ItemsCount; i++ )
       y += RenderItem(i,y);
    RenderEnd(yTop);
+
+   float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
+   float iconHeight = 2.2*height_text;
+   float iconWidth = iconHeight/g_pRenderEngine->getAspectRatio();
+
+   float xPos = m_RenderXPos + m_sfMenuPaddingX;
+   float yPos = m_RenderYPos + m_RenderTitleHeight + 2.0*m_sfMenuPaddingY;
+  
+   u32 idIcon = osd_getVehicleIcon( g_pCurrentModel->vehicle_type );
+
+   /*
+   bool bConnected = false;
+   if ( link_has_received_main_vehicle_ruby_telemetry() )
+      bConnected = true;
+   if ( g_bFirstModelPairingDone && (0 == getControllerModelsCount()) && (0 == getControllerModelsSpectatorCount()) )
+      bConnected = false;
+   if ( NULL == g_pCurrentModel )
+      bConnected = false;
+   if ( 0 == g_uActiveControllerModelVID )
+      bConnected = false;
+   */
+   
+   char szLine1[128];
+   char szLine2[128];
+   char szLine3[128];
+   szLine1[0] = 0;
+   szLine2[0] = 0;
+   szLine3[0] = 0;
+   if ( (NULL != g_pCurrentModel) && link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
+   {
+      sprintf(szLine1, "Connected to:");
+      sprintf(szLine2, "%s", g_pCurrentModel->getLongName() );
+      sprintf(szLine3, "Running ver %d.%d", ((g_pCurrentModel->sw_version>>8) & 0xFF), (g_pCurrentModel->sw_version & 0xFF)/10);
+   }
+   else
+   {
+      sprintf(szLine1, "Looking for:" );
+      sprintf(szLine2, "%s", g_pCurrentModel->getLongName() );
+   }
+   szLine2[0] = toupper(szLine2[0]);
+
+   g_pRenderEngine->setColors(get_Color_MenuText(), 0.7);
+   g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
+   g_pRenderEngine->drawIcon(xPos, yPos, iconWidth, iconHeight, idIcon);
+   g_pRenderEngine->setColors(get_Color_MenuText());
+   g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
+
+   g_pRenderEngine->drawText(xPos + iconWidth + m_sfMenuPaddingX, yPos, g_idFontMenuSmall, szLine1);
+   g_pRenderEngine->drawText(xPos + iconWidth + m_sfMenuPaddingX, yPos + height_text, g_idFontMenu, szLine2);
+   g_pRenderEngine->drawText(xPos, yPos + iconHeight + 0.3*m_sfMenuPaddingY, g_idFontMenu, szLine3);
 }
 
 
@@ -281,7 +336,14 @@ void MenuVehicle::onSelectItem()
       if ( m_IndexGeneral == m_SelectedIndex )
          add_menu_to_stack(new MenuVehicleGeneral());
       if ( m_IndexOSD == m_SelectedIndex )
+      {
+         if ( get_sw_version_build(g_pCurrentModel) < 278 )
+         {
+            addMessage("OSD functionality has changed. You need to update your vehicle sowftware.");
+            return;
+         }
          add_menu_to_stack(new MenuVehicleOSD());
+      }
       return;
    }
 
@@ -416,7 +478,15 @@ void MenuVehicle::onSelectItem()
       return;
    }
    if ( m_IndexOSD == m_SelectedIndex )
+   {
+      if ( get_sw_version_build(g_pCurrentModel) < 278 )
+      {
+         addMessage("OSD functionality has changed. You need to update your vehicle sowftware.");
+         return;
+      }
       add_menu_to_stack(new MenuVehicleOSD());
+      return;
+   }
    if ( m_IndexRC == m_SelectedIndex )
       add_menu_to_stack(new MenuVehicleRC());
 

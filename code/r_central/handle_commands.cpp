@@ -771,6 +771,20 @@ bool handle_last_command_result()
 
    switch ( s_CommandType )
    {
+      case COMMAND_ID_SET_TELEMETRY_TYPE_AND_PORT:
+         {
+            int iTelemetryType = s_CommandParam & 0x0F;
+            int iSerialPort = (s_CommandParam & 0xF0) >> 4;
+            int iSerialSpeed = (s_CommandParam >> 8);
+            log_line("Received command response to set telemetry type to %d, serial port to %d and serial speed to %d",
+                iTelemetryType, iSerialPort, iSerialSpeed);
+            if ( NULL != g_pCurrentModel )
+               g_pCurrentModel->setTelemetryTypeAndPort(iTelemetryType, iSerialPort, iSerialSpeed);
+            saveControllerModel(g_pCurrentModel);
+            send_model_changed_message_to_router(MODEL_CHANGED_SERIAL_PORTS, 0);
+         }
+         break;
+
       case COMMAND_ID_SET_THREADS_PRIORITIES:
         {
          g_pCurrentModel->processesPriorities.iThreadPriorityRouter = (int)((s_CommandParam) & 0xFF);
@@ -782,6 +796,7 @@ bool handle_last_command_result()
          send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
         }
         break;
+
       case COMMAND_ID_GET_CORE_PLUGINS_INFO:
          {
          s_RetryGetCorePluginsCounter = 0;
@@ -986,7 +1001,8 @@ bool handle_last_command_result()
             char szName[128];
             snprintf(szName, sizeof(szName)/sizeof(szName[0]), "Did set vehicle type to: %s", str_get_hardware_board_name(s_CommandParam));
             warnings_add(g_pCurrentModel->uVehicleId, szName, g_idIconCPU);
-            g_pCurrentModel->b_mustSyncFromVehicle = true;
+            if ( onEventPairingTookUIActions() )
+               onEventFinishedPairUIAction();
          }
          break;
 
@@ -1816,7 +1832,11 @@ bool handle_last_command_result()
       case COMMAND_ID_SET_OSD_PARAMS:
          {
             osd_parameters_t* pParams = (osd_parameters_t*)s_CommandBuffer;
-            merge_osd_params(pParams, &(g_pCurrentModel->osd_params));
+            if ( (pParams->osd_layout_preset[g_pCurrentModel->osd_params.iCurrentOSDScreen] != OSD_PRESET_CUSTOM) && (pParams->osd_layout_preset[g_pCurrentModel->osd_params.iCurrentOSDScreen] != g_pCurrentModel->osd_params.osd_layout_preset[g_pCurrentModel->osd_params.iCurrentOSDScreen]) )
+               g_pCurrentModel->resetOSDScreenToLayout( g_pCurrentModel->osd_params.iCurrentOSDScreen, pParams->osd_layout_preset[g_pCurrentModel->osd_params.iCurrentOSDScreen]);
+            else
+               merge_osd_params(pParams, &(g_pCurrentModel->osd_params));
+            g_pCurrentModel->osd_params.uFlags &= ~(OSD_BIT_FLAGS_MUST_CHOOSE_PRESET);
             saveControllerModel(g_pCurrentModel);
             send_model_changed_message_to_router(MODEL_CHANGED_OSD_PARAMS, 0);
 
@@ -1824,9 +1844,9 @@ bool handle_last_command_result()
             {
                g_bChangedOSDStatsFontSize = false;
                
-               u32 scale = g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.iCurrentOSDLayout] & 0xFF;
+               u32 scale = g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.iCurrentOSDScreen] & 0xFF;
                osd_setScaleOSD((int)scale);
-               scale = (g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.iCurrentOSDLayout]>>16) & 0x0F;
+               scale = (g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.iCurrentOSDScreen]>>16) & 0x0F;
                osd_setScaleOSDStats((int)scale);
                osd_apply_preferences();
                applyFontScaleChanges();
@@ -1977,6 +1997,7 @@ bool _commands_check_send_get_settings()
    if ( ! g_bVideoPlaying )
    if ( ! g_bSearching )
    if ( ! s_bHasCommandInProgress )
+   if ( ! g_bUpdateInProgress )
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->b_mustSyncFromVehicle || g_bIsFirstConnectionToCurrentVehicle ) && (!g_pCurrentModel->is_spectator))
    if ( g_pCurrentModel->getVehicleFirmwareType() == MODEL_FIRMWARE_TYPE_RUBY )
    if ( link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
@@ -2046,7 +2067,7 @@ bool _commands_check_send_get_settings()
       if ( g_TimeNow >= s_uLastTimeErrorVehicleSync + 2000 )
       {
          s_uLastTimeErrorVehicleSync = g_TimeNow;
-         log_line("[Commands] Must sync vehicle settings for VID %u, but checks fail: command in progress: %s, searching: %s, reinit: %s, is receiving main telemetry: %s; is vehicle online: %s; retry sync counter: %d, is router ready: %s, paired: %s",
+         log_line("[Commands] Must sync vehicle settings for VID %u, but checks fail: command in progress: %s, searching: %s, reinit: %s, is receiving main telemetry: %s; is vehicle online: %s; retry sync counter: %d, is router ready: %s, paired: %s, ctrl update in progress: %s",
             g_pCurrentModel->uVehicleId,
             s_bHasCommandInProgress?"yes":"no",
             g_bSearching?"yes":"no",
@@ -2055,7 +2076,8 @@ bool _commands_check_send_get_settings()
             link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)?"yes":"no",
             s_iCountRetriesToGetModelSettingsCommand,
             (g_TimeNow > g_RouterIsReadyTimestamp + 500)?"yes":"no",
-            g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bPairedConfirmed?"yes":"no"
+            g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bPairedConfirmed?"yes":"no",
+            g_bUpdateInProgress?"yes":"no"
             );
       }
    }

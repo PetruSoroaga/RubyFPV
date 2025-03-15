@@ -154,7 +154,7 @@ MenuVehicleInstrumentsGeneral::~MenuVehicleInstrumentsGeneral()
 void MenuVehicleInstrumentsGeneral::valuesToUI()
 {
    Preferences* p = get_Preferences();
-   m_nOSDIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+   m_nOSDIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
 
    if ( p->iUnits == prefUnitsMetric )
       m_pItemsSelect[10]->setSelection(0);
@@ -226,7 +226,7 @@ void MenuVehicleInstrumentsGeneral::onSelectItem()
       return;
    }
 
-   m_nOSDIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+   m_nOSDIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
 
    Preferences* p = get_Preferences();
    osd_parameters_t params;
@@ -293,13 +293,13 @@ void MenuVehicleInstrumentsGeneral::onSelectItem()
       if ( 0 == m_pItemsSelect[3]->getSelectedIndex() )
       {
          params.altitude_relative = false;
-         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+         for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
             params.osd_flags2[i] &= ~OSD_FLAG2_RELATIVE_ALTITUDE;
       }
       else
       {
          params.altitude_relative = true;
-         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+         for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
             params.osd_flags2[i] |= OSD_FLAG2_RELATIVE_ALTITUDE;
       }
       sendToVehicle = true;
@@ -308,10 +308,10 @@ void MenuVehicleInstrumentsGeneral::onSelectItem()
    if ( m_IndexLocalVertSpeed == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[6]->getSelectedIndex() )
-         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+         for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
             params.osd_flags2[i] &= ~OSD_FLAG2_SHOW_LOCAL_VERTICAL_SPEED;
       else
-         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+         for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
             params.osd_flags2[i] |= OSD_FLAG2_SHOW_LOCAL_VERTICAL_SPEED;
       sendToVehicle = true;
    }
@@ -319,10 +319,10 @@ void MenuVehicleInstrumentsGeneral::onSelectItem()
    if ( m_IndexRevertPitch == m_SelectedIndex )
    {
       u32 idx = m_pItemsSelect[4]->getSelectedIndex();
-      for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+      for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
          params.osd_flags[i] &= ~OSD_FLAG_REVERT_PITCH;
       if ( idx > 0 )
-         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+         for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
             params.osd_flags[i] |= OSD_FLAG_REVERT_PITCH;
       sendToVehicle = true;
    }
@@ -330,10 +330,10 @@ void MenuVehicleInstrumentsGeneral::onSelectItem()
    if ( m_IndexRevertRoll == m_SelectedIndex )
    {
       u32 idx = m_pItemsSelect[5]->getSelectedIndex();
-      for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+      for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
          params.osd_flags[i] &= ~OSD_FLAG_REVERT_ROLL;
       if ( idx > 0 )
-         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+         for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
             params.osd_flags[i] |= OSD_FLAG_REVERT_ROLL;
       sendToVehicle = true;
    } 
@@ -341,10 +341,10 @@ void MenuVehicleInstrumentsGeneral::onSelectItem()
    if ( m_IndexAHIShowAirSpeed == m_SelectedIndex )
    {
       u32 idx = m_pItemsSelect[7]->getSelectedIndex();
-      for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+      for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
          params.osd_flags[i] &= ~OSD_FLAG_AIR_SPEED_MAIN;
       if ( idx > 0 )
-         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+         for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
             params.osd_flags[i] |= OSD_FLAG_AIR_SPEED_MAIN;
       sendToVehicle = true;
    }

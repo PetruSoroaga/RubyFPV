@@ -85,12 +85,8 @@ int MenuConfirmationVehicleBoard::onBack()
 {
    int iRet = Menu::onBack();
 
-   if ( g_bMustNegociateRadioLinksFlag )
-   if ( ! g_bAskedForNegociateRadioLink )
-   if ( (NULL != g_pCurrentModel) && ((g_pCurrentModel->sw_version >> 16) > 262) )
-   {
-      add_menu_to_stack(new MenuNegociateRadio());
-   }
+   if ( onEventPairingTookUIActions() )
+      onEventFinishedPairUIAction();
    return iRet;
 }
 

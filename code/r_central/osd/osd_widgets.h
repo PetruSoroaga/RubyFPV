@@ -34,7 +34,7 @@ typedef struct
 typedef struct
 {
    type_osd_widget_info info;
-   type_osd_widget_display_info display_info[MAX_MODELS][MODEL_MAX_OSD_PROFILES];
+   type_osd_widget_display_info display_info[MAX_MODELS][MODEL_MAX_OSD_SCREENS];
 } ALIGN_STRUCT_SPEC_INFO type_osd_widget;
 
 int osd_widgets_get_count();

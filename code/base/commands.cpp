@@ -113,7 +113,8 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_DOWNLOAD_FILE_SEGMENT: strcpy(szCommandDesc, "Download_File_Segment"); break;
       case COMMAND_ID_CLEAR_LOGS: strcpy(szCommandDesc, "Clear_Logs"); break;
       case COMMAND_ID_SET_VEHICLE_BOARD_TYPE: strcpy(szCommandDesc, "Set_Vehicle_Board_Type"); break;
-      
+      case COMMAND_ID_SET_TELEMETRY_TYPE_AND_PORT: strcpy(szCommandDesc, "Set_TelemetryTypeAndPort"); break;
+
       default:
          sprintf(szCommandDesc, "%d", command_type);
          break;

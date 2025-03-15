@@ -12,12 +12,14 @@ class MenuVehicleOSD: public Menu
       virtual void valuesToUI();
       virtual void Render();
       virtual void onShow();
+      virtual void onReturnFromChild(int iChildMenuId, int returnValue);
       virtual void onSelectItem();
             
    private:
       int m_IndexSettings;
       int m_IndexAlarms;
       int m_IndexPlugins;
+      int m_IndexOSDScreen;
       int m_IndexOSDLayout;
       int m_IndexOSDEnabled;
       int m_IndexOSDFontSize, m_IndexOSDTransparency, m_IndexBgOnTexts;
@@ -28,7 +30,7 @@ class MenuVehicleOSD: public Menu
       int m_IndexOSDWidgets;
       int m_IndexOSDPlugins;
       int m_IndexOSDStats;
-      int m_IndexOSDReset;
+      //int m_IndexOSDReset;
       int m_IndexOSDController;
       MenuItemSlider* m_pItemsSlider[3];
       MenuItemSelect* m_pItemsSelect[20];

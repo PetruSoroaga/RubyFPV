@@ -40,6 +40,7 @@
 
 int s_ArrayTestRadioRates[] = {6000000, 12000000, 18000000, 24000000, 36000000, 48000000, -1, -2, -3, -4, -5};
 
+#define MAX_FAILING_RADIO_NEGOCIATE_STEPS 9
 
 MenuNegociateRadio::MenuNegociateRadio(void)
 :Menu(MENU_ID_NEGOCIATE_RADIO, "Initial Auto Radio Link Adjustment", NULL)
@@ -218,6 +219,8 @@ void MenuNegociateRadio::Render()
 
 int MenuNegociateRadio::onBack()
 {
+   log_line("OnBack: Now there are %d failing steps of max %d", m_iCountFailedSteps, MAX_FAILING_RADIO_NEGOCIATE_STEPS);
+
    if ( -1 != m_MenuIndexCancel )
    {
       _onCancel();
@@ -351,7 +354,7 @@ void MenuNegociateRadio::_advance_to_next_step()
    if ( m_iStep != NEGOCIATE_RADIO_STEP_DATA_RATE )
       return;
 
-   if ( m_iCountFailedSteps >= 6 )
+   if ( (m_iCountFailedSteps >= MAX_FAILING_RADIO_NEGOCIATE_STEPS) && (m_iCountSucceededSteps < MAX_FAILING_RADIO_NEGOCIATE_STEPS/2) )
    {
       log_softerror_and_alarm("Failed 6 data steps. Aborting operation.");
       _switch_to_step(NEGOCIATE_RADIO_STEP_CANCEL);
@@ -539,18 +542,20 @@ bool MenuNegociateRadio::periodicLoop()
             m_iCountFailedSteps++;
          if ( (m_iStep == NEGOCIATE_RADIO_STEP_CANCEL) || (m_iStep == NEGOCIATE_RADIO_STEP_END) )
          {
-            if ( m_iCountFailedSteps >= 6 )
+            if ( (m_iCountFailedSteps >= MAX_FAILING_RADIO_NEGOCIATE_STEPS) && (m_iCountSucceededSteps < MAX_FAILING_RADIO_NEGOCIATE_STEPS/2) )
             {
                menu_stack_pop(0);
                setModal(false);
                m_bWaitingCancelConfirmationFromUser = true;
-               log_line("Timing out operation with 6 failed steps.");
+               log_line("Timing out operation with %d failed steps.", MAX_FAILING_RADIO_NEGOCIATE_STEPS );
                addMessage2(0, "Failed to negociate radio links.", "You radio links quality is very poor. Please fix the physical radio links quality and try again later.");
             }
             else
             {
                menu_stack_pop(0);
                setModal(false);
+               if ( onEventPairingTookUIActions() )
+                  onEventFinishedPairUIAction();
             }
             return false;
          }
@@ -585,6 +590,8 @@ bool MenuNegociateRadio::periodicLoop()
    {
       menu_stack_pop(0);
       setModal(false);
+      if ( onEventPairingTookUIActions() )
+         onEventFinishedPairUIAction();
    }
    return false;
 }
@@ -622,18 +629,21 @@ void MenuNegociateRadio::onReceivedVehicleResponse(u8* pPacketData, int iPacketL
          send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
          g_bMustNegociateRadioLinksFlag = false;
       }
-      if ( (uCommand == NEGOCIATE_RADIO_STEP_CANCEL) && (m_iCountFailedSteps >= 6) )
+      if ( (uCommand == NEGOCIATE_RADIO_STEP_CANCEL) && (m_iCountFailedSteps >= MAX_FAILING_RADIO_NEGOCIATE_STEPS) && (m_iCountSucceededSteps < MAX_FAILING_RADIO_NEGOCIATE_STEPS/2) )
       {
          menu_stack_pop(0);
          setModal(false);
+         log_line("Cancel negociate radio confirmation with %d failing steps.", MAX_FAILING_RADIO_NEGOCIATE_STEPS);
          m_bWaitingCancelConfirmationFromUser = true;
-         log_line("Finishing up operation with 6 failed steps.");
+         log_line("Finishing up operation with %d failed steps.", MAX_FAILING_RADIO_NEGOCIATE_STEPS);
          addMessage2(0, "Failed to negociate radio links.", "You radio links quality is very poor. Please fix the physical radio links quality and try again later.");
       }
       else
       {
          menu_stack_pop(0);
          setModal(false);
+         if ( onEventPairingTookUIActions() )
+            onEventFinishedPairUIAction();
       }
    }
 
@@ -649,6 +659,8 @@ void MenuNegociateRadio::onReturnFromChild(int iChildMenuId, int returnValue)
       menu_stack_pop(0);
       //setModal(false);
       menu_rearrange_all_menus_no_animation();
+      if ( onEventPairingTookUIActions() )
+         onEventFinishedPairUIAction();
    }
 }
 

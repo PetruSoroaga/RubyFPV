@@ -39,6 +39,7 @@
 #include "menu_preferences_buttons.h"
 #include "menu_controller.h"
 #include "menu_controller_peripherals.h"
+#include "menu_vehicle_simplesetup.h"
 #include "menu_storage.h"
 #include "menu_system.h"
 #include "menu_radio_config.h"
@@ -59,27 +60,26 @@ MenuRoot::MenuRoot(void)
 {
    m_Width = 0.164;
    m_xPos = menu_get_XStartPos(m_Width);
-   m_yPos = 0.36;
+   m_yPos = 0.42;
    //m_bFullWidthSelection = true;
 
    if ( 1 == Menu::getRenderMode() )
       addExtraHeightAtStart(0.2);
 
-   m_iIndexVehicle = addMenuItem(new MenuItem("Vehicle Settings","Change vehicle settings."));
-   m_iIndexMyVehicles = addMenuItem(new MenuItem("My Vehicles","Manage your vehicles."));
-   m_iIndexSpectator = addMenuItem(new MenuItem("Spectator Vehicles", "See the list of vehicles you recently connected to as a spectator."));
+   m_iIndexSpectator = -1;
+
+   m_iIndexSimpleSetup = addMenuItem(new MenuItem("Quick Setup", "Quickly change the most common vehicle settings."));
    m_iIndexSearch = addMenuItem(new MenuItem("Search", "Search for vehicles."));
-   //addSeparator();
-
-   m_iIndexMedia = addMenuItem(new MenuItem("Media & Storage", "Manage saved logs, screenshots and videos."));
-
-   //addMenuItem(new MenuItem("Radio Configuration", "Change the current radio configuration and radio settings."));
+   m_iIndexMyVehicles = addMenuItem(new MenuItem("My Vehicles","Manage your vehicles."));
+   addSeparator();
+   //m_iIndexSpectator = addMenuItem(new MenuItem("Spectator Vehicles", "See the list of vehicles you recently connected to as a spectator."));
+   m_iIndexVehicle = addMenuItem(new MenuItem("Vehicle Settings","Change vehicle settings."));
    m_iIndexController = addMenuItem(new MenuItem("Controller Settings", "Change controller settings and user interface preferences."));
-   //addSeparator();
-
    m_iIndexSystem = addMenuItem(new MenuItem("System", "Configure system options, shows detailed information about the system"));
-
-   m_pMenuItems[m_ItemsCount-1]->setExtraHeight(Menu::getSelectionPaddingY());
+   addSeparator();
+   m_iIndexMedia = addMenuItem(new MenuItem("Media & Storage", "Manage saved logs, screenshots and videos."));
+   
+   m_pMenuItems[m_ItemsCount-1]->setExtraHeight(m_sfMenuPaddingY);
    char szBuff[256];
    char szBuff2[64];
    getSystemVersionString(szBuff2, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
@@ -178,35 +178,35 @@ void MenuRoot::RenderVehicleInfo()
 
       if ( bConnected )
       {
-      strcpy(szRunType, "runs");
-      if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE ||
-           (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
-           (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
-         strcpy(szRunType, "flights");
-   
-      //sprintf(szLine3, "Total %s: %d", szRunType, g_pCurrentModel->stats_TotalFlights);
-      //hText3 = g_pRenderEngine->getMessageHeight(szLine3, MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
-      //height += hText3 + lineSpacing;
+         strcpy(szRunType, "runs");
+         if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE ||
+              (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+              (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
+            strcpy(szRunType, "flights");
+      
+         //sprintf(szLine3, "Total %s: %d", szRunType, g_pCurrentModel->stats_TotalFlights);
+         //hText3 = g_pRenderEngine->getMessageHeight(szLine3, MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
+         //height += hText3 + lineSpacing;
 
-      int sec = (g_pCurrentModel->m_Stats.uTotalFlightTime)%60;
-      int min = (g_pCurrentModel->m_Stats.uTotalFlightTime/60)%60;
-      int hours = (g_pCurrentModel->m_Stats.uTotalFlightTime/3600);
+         int sec = (g_pCurrentModel->m_Stats.uTotalFlightTime)%60;
+         int min = (g_pCurrentModel->m_Stats.uTotalFlightTime/60)%60;
+         int hours = (g_pCurrentModel->m_Stats.uTotalFlightTime/3600);
 
-      strcpy(szRunType, "run time");
-      if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE ||
-           (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
-           (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
-         strcpy(szRunType, "flight time");
-      sprintf(szLine4, "Total %s: %dh:%02dm:%02ds", szRunType, hours, min, sec);
-      hText4 = g_pRenderEngine->getMessageHeight(szLine4, MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
-      height += hText4 + lineSpacing;
+         strcpy(szRunType, "run time");
+         if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE ||
+              (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_AIRPLANE ||
+              (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_HELI )
+            strcpy(szRunType, "flight time");
+         sprintf(szLine4, "Total %s: %dh:%02dm:%02ds", szRunType, hours, min, sec);
+         hText4 = g_pRenderEngine->getMessageHeight(szLine4, MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
+         height += hText4 + lineSpacing;
 
-      if ( pP->iUnits == prefUnitsImperial )
-         sprintf(szLine5, "Odometer: %.1f Mi", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
-      else
-         sprintf(szLine5, "Odometer: %.1f Km", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
-      hText5 = g_pRenderEngine->getMessageHeight(szLine5, MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
-      height += hText5 + lineSpacing;
+         if ( pP->iUnits == prefUnitsImperial )
+            sprintf(szLine5, "Odometer: %.1f Mi", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
+         else
+            sprintf(szLine5, "Odometer: %.1f Km", _osd_convertKm(g_pCurrentModel->m_Stats.uTotalFlightDistance/100.0/1000.0));
+         hText5 = g_pRenderEngine->getMessageHeight(szLine5, MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
+         height += hText5 + lineSpacing;
       }
 
       if ( height < iconHeight + 2*m_sfMenuPaddingY )
@@ -214,6 +214,7 @@ void MenuRoot::RenderVehicleInfo()
    }
 
    height += 2.0*height_text;
+   //height += 1.2*height_text;
 
    yPos -= height + 0.5*m_sfMenuPaddingY;
 
@@ -242,7 +243,7 @@ void MenuRoot::RenderVehicleInfo()
 
          g_pRenderEngine->setColors(get_Color_MenuText(), 0.7);
          g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
-         g_pRenderEngine->drawIcon(xPos+width - iconWidth -2.2*m_sfMenuPaddingX , yPos+height - iconHeight - 2.0*Menu::getMenuPaddingY(), iconWidth, iconHeight, idIcon);
+         g_pRenderEngine->drawIcon(xPos+width - iconWidth -2.2*m_sfMenuPaddingX , yPos + height - iconHeight - 2.0*height_text - Menu::getMenuPaddingY(), iconWidth, iconHeight, idIcon);
       }
       g_pRenderEngine->setColors(get_Color_MenuText());
       g_pRenderEngine->setStrokeSize(MENU_OUTLINEWIDTH);
@@ -264,10 +265,10 @@ void MenuRoot::RenderVehicleInfo()
 
       if ( (NULL != g_pCurrentModel) && link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
       {
-         sprintf(szBuff, "Running ver %d.%d", get_sw_version_major(g_pCurrentModel), get_sw_version_minor(g_pCurrentModel) / 10 );
+         sprintf(szBuff, "Running ver %d.%d, on:", get_sw_version_major(g_pCurrentModel), get_sw_version_minor(g_pCurrentModel) / 10 );
          g_pRenderEngine->drawText(xPos, yPos, g_idFontMenuSmall, szBuff);
          yPos += g_pRenderEngine->textHeight(g_idFontMenuSmall);
-         sprintf(szBuff, "Running on %s", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
+         sprintf(szBuff, "%s", str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
          g_pRenderEngine->drawText(xPos, yPos, g_idFontMenuSmall, szBuff);
          yPos += g_pRenderEngine->textHeight(g_idFontMenuSmall);
       }
@@ -281,13 +282,13 @@ void MenuRoot::Render()
    sCounterRefresh_RootMenu++;
 
    if ( Menu::getRenderMode() != 1 )
-      m_RenderHeight -= 1.2 * g_pRenderEngine->textHeight(g_idFontMenu);
+      m_RenderHeight -= 1.14 * g_pRenderEngine->textHeight(g_idFontMenu);
 
    float yTop = RenderFrameAndTitle();
    float y = yTop;
 
    if ( Menu::getRenderMode() != 1 )
-      m_RenderHeight += 1.2 * g_pRenderEngine->textHeight(g_idFontMenu);
+      m_RenderHeight += 1.14 * g_pRenderEngine->textHeight(g_idFontMenu);
    
    RenderVehicleInfo();
 
@@ -296,19 +297,46 @@ void MenuRoot::Render()
    m_bEnableScrolling = false;
    m_bHasScrolling = false;
 
-   RenderItem(0, m_RenderYPos - 0.02*m_sfMenuPaddingY - g_pRenderEngine->textHeight(g_idFontMenu) - 1.5*m_sfMenuPaddingY);
-
+   int iItem = 0;
+   float yTopItems = m_RenderYPos - 0.02*m_sfMenuPaddingY - 1.2*g_pRenderEngine->textHeight(g_idFontMenu) - 1.5*m_sfMenuPaddingY;
+   yTopItems += RenderItem(iItem, yTopItems);
+   iItem++;
+   //yTopItems += RenderItem(iItem, yTopItems);
+   //iItem++;
+ 
    m_bEnableScrolling = bTmp1;
    m_bHasScrolling = bTmp2;
 
-   for( int i=1; i<m_ItemsCount; i++ )
-      y += RenderItem(i,y);
-
+   for(; iItem<m_ItemsCount; iItem++ )
+   {
+      if ( iItem == m_ItemsCount-2 )
+         y += 0.5*m_sfMenuPaddingY;
+      y += RenderItem(iItem,y);
+   }
    RenderEnd(yTop);
 }
 
 void MenuRoot::onSelectItem()
 {
+   if ( m_iIndexSimpleSetup == m_SelectedIndex )
+   {
+      if ( (NULL == g_pCurrentModel) || (0 == g_uActiveControllerModelVID) ||
+        (g_bFirstModelPairingDone && (0 == getControllerModelsCount()) && (0 == getControllerModelsSpectatorCount())) )
+      {
+         addMessage2(0, "Not paired with any vehicle.", "Search for vehicles to find one and connect to.");
+         return;
+      }
+
+      if ( (!pairing_isStarted()) || (NULL == g_pCurrentModel) || (!link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)) )
+      {
+         addMessage2(0, "Not connected to a vehicle.", "Can't change settings when not connected to the vehicle. Connect to a vehicle first.");
+         return;
+      }
+      MenuVehicleSimpleSetup* pMenu = new MenuVehicleSimpleSetup();
+      add_menu_to_stack(pMenu);
+      return;
+   }
+
    if ( m_iIndexVehicle == m_SelectedIndex )
    {
       if ( (NULL == g_pCurrentModel) || (0 == g_uActiveControllerModelVID) ||
@@ -324,7 +352,7 @@ void MenuRoot::onSelectItem()
    if ( m_iIndexMyVehicles == m_SelectedIndex )
          add_menu_to_stack(new MenuVehicles());
 
-   if ( m_iIndexSpectator == m_SelectedIndex )
+   if ( (-1 != m_iIndexSpectator) && (m_iIndexSpectator == m_SelectedIndex) )
          add_menu_to_stack(new MenuSpectator());
 
    if ( m_iIndexSearch == m_SelectedIndex )

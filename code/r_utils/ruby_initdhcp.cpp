@@ -218,9 +218,12 @@ int main(int argc, char *argv[])
    log_line("ifconfig:");
    log_line(szOutput);
 
-   hw_execute_bash_command_raw("ps -aef | grep pump | grep -v grep", szOutput);
+   hw_execute_bash_command_raw("pidof pump", szOutput);
    removeTrailingNewLines(szOutput);
-   log_line("pump: (%s)", szOutput);
+   log_line("pump proc: (%s)", szOutput);
+   hw_execute_bash_command_raw("pgrep pump", szOutput);
+   removeTrailingNewLines(szOutput);
+   log_line("pump proc: (%s)", szOutput);
    log_line("Done DHCP config process.");
    return (0);
 } 

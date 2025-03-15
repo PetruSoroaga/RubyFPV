@@ -18,6 +18,7 @@ class MenuVehicleTelemetry: public Menu
       MenuItemSlider* m_pItemsSlider[10];
       MenuItemRange*  m_pItemsRange[10];
 
+      int m_IndexAutodetect;
       int m_IndexTelemetryFlags;
       int m_IndexTelemetryAnySystem;
       int m_IndexTelemetryNoFCMessages;

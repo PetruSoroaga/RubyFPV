@@ -509,7 +509,7 @@ void MenuControllerExpert::onSelectItem()
       pcs->iNiceRouter = -m_pItemsSlider[0]->getCurrentValue();
       char szBuff[1024];
       char szPids[1024];
-      hw_execute_bash_command("pidof ruby_rt_station", szPids);
+      hw_execute_bash_command("prep ruby_rt_station", szPids);
       if ( strlen(szPids) > 2 )
       {
          snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "renice -n %d -p %s", pcs->iNiceRouter, szPids);
@@ -527,12 +527,13 @@ void MenuControllerExpert::onSelectItem()
 
       #if defined (HW_PLATFORM_RASPBERRY)
       char szBuff[1024];
-      char szPids[1024];
-      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_SM);
-      hw_execute_bash_command(szBuff, szPids);
-      if ( strlen(szPids) > 2 )
+      char szPIDs[1024];
+      hw_process_get_pids(VIDEO_PLAYER_SM, szPIDs);
+      removeTrailingNewLines(szPIDs);
+      replaceNewLinesToSpaces(szPIDs);
+      if ( strlen(szPIDs) > 2 )
       {
-         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "renice -n %d -p %s", pcs->iNiceRXVideo, szPids);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "renice -n %d -p %s", pcs->iNiceRXVideo, szPIDs);
          hw_execute_bash_command(szBuff, NULL);
       }
       #endif
@@ -543,12 +544,14 @@ void MenuControllerExpert::onSelectItem()
       pcs->iNiceRXVideo = -m_pItemsSlider[2]->getCurrentValue();
       #if defined (HW_PLATFORM_RASPBERRY)
       char szBuff[1024];
-      char szPids[1024];
-      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_SM);
-      hw_execute_bash_command(szBuff, szPids);
-      if ( strlen(szPids) > 2 )
+      char szPIDs[1024];
+
+      hw_process_get_pids(VIDEO_PLAYER_SM, szPIDs);
+      removeTrailingNewLines(szPIDs);
+      replaceNewLinesToSpaces(szPIDs);
+      if ( strlen(szPIDs) > 2 )
       {
-         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "renice -n %d -p %s", pcs->iNiceRXVideo, szPids);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "renice -n %d -p %s", pcs->iNiceRXVideo, szPIDs);
          hw_execute_bash_command(szBuff, NULL);
       }
       #endif
@@ -577,14 +580,16 @@ void MenuControllerExpert::onSelectItem()
 
       #ifdef HW_CAPABILITY_IONICE
       char szBuff[1024];
-      char szPids[1024];
-      hw_execute_bash_command("pidof ruby_rt_station", szPids);
-      if ( strlen(szPids) > 2 )
+      char szPIDs[1024];
+      hw_process_get_pids("ruby_rt_station", szPIDs);
+      removeTrailingNewLines(szPIDs);
+      replaceNewLinesToSpaces(szPIDs);
+      if ( strlen(szPIDs) > 2 )
       {
          if ( pcs->ioNiceRouter > 0 )
-            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRouter, szPids);
+            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRouter, szPIDs);
          else
-            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 2 -n 5 -p %s", szPids);
+            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 2 -n 5 -p %s", szPIDs);
          hw_execute_bash_command(szBuff, NULL);
       }
       #endif
@@ -607,15 +612,16 @@ void MenuControllerExpert::onSelectItem()
       #if defined (HW_PLATFORM_RASPBERRY)
       #ifdef HW_CAPABILITY_IONICE
       char szBuff[1024];
-      char szPids[1024];
-      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_SM);
-      hw_execute_bash_command(szBuff, szPids);
-      if ( strlen(szPids) > 2 )
+      char szPIDs[1024];
+      hw_process_get_pids(VIDEO_PLAYER_SM, szPIDs);
+      removeTrailingNewLines(szPIDs);
+      replaceNewLinesToSpaces(szPIDs);
+      if ( strlen(szPIDs) > 2 )
       {
          if ( pcs->ioNiceRXVideo > 0 )
-            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRXVideo, szPids);
+            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRXVideo, szPIDs);
          else
-            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 2 -n 5 -p %s", szPids);
+            snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 2 -n 5 -p %s", szPIDs);
          hw_execute_bash_command(szBuff, NULL);
       }
       #endif
@@ -628,11 +634,13 @@ void MenuControllerExpert::onSelectItem()
       pcs->ioNiceRouter = m_pItemsSlider[1]->getCurrentValue();
       #ifdef HW_CAPABILITY_IONICE
       char szBuff[1024];
-      char szPids[1024];
-      hw_execute_bash_command("pidof ruby_rt_station", szPids);
-      if ( strlen(szPids) > 2 )
+      char szPIDs[1024];
+      hw_process_get_pids("ruby_rt_station", szPIDs);
+      removeTrailingNewLines(szPIDs);
+      replaceNewLinesToSpaces(szPIDs);
+      if ( strlen(szPIDs) > 2 )
       {
-         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRouter, szPids);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRouter, szPIDs);
          hw_execute_bash_command(szBuff, NULL);
       }
       #endif
@@ -645,12 +653,13 @@ void MenuControllerExpert::onSelectItem()
       #if defined (HW_PLATFORM_RASPBERRY)
       #ifdef HW_CAPABILITY_IONICE
       char szBuff[1024];
-      char szPids[1024];
-      sprintf(szBuff, "pidof %s", VIDEO_PLAYER_SM);
-      hw_execute_bash_command(szBuff, szPids);
-      if ( strlen(szPids) > 2 )
+      char szPIDs[1024];
+      hw_process_get_pids(VIDEO_PLAYER_SM, szPIDs);
+      removeTrailingNewLines(szPIDs);
+      replaceNewLinesToSpaces(szPIDs);
+      if ( strlen(szPIDs) > 2 )
       {
-         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRXVideo, szPids);
+         snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "ionice -c 1 -n %d -p %s", pcs->ioNiceRXVideo, szPIDs);
          hw_execute_bash_command(szBuff, NULL);
       }
       #endif

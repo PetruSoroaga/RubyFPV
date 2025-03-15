@@ -606,6 +606,7 @@ void menu_loop_parse_input_events()
       }
       //system("omxplayer -p -o hdmi res/sound_menu_click2.wav");
       if ( g_iMenuStackTopIndex > 0 )
+      if ( (! g_pMenuStack[g_iMenuStackTopIndex-1]->hasDisabledBackAction()) || g_pMenuStack[g_iMenuStackTopIndex-1]->isEditingItem() )
          g_pMenuStack[g_iMenuStackTopIndex-1]->onBack();
       return;
    }
@@ -619,10 +620,14 @@ void menu_loop_parse_input_events()
          return;
       }
       bool bHasModalMenu = false;
-      for( int i=0; i<g_iMenuStackTopIndex; i++ )
+      for( int i=g_iMenuStackTopIndex-1; i>=0; i-- )
       {
+         if ( NULL == g_pMenuStack[i] )
+            continue;
          bHasModalMenu |= g_pMenuStack[i]->isModal();
-         if ( NULL != g_pMenuStack[i] )
+         if ( g_pMenuStack[i]->hasDisabledBackAction() )
+            bHasModalMenu = true;
+         else if ( ! bHasModalMenu )
             g_pMenuStack[i]->onBack();
       }
       if ( ! bHasModalMenu )

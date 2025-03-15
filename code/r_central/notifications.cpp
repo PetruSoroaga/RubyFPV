@@ -55,7 +55,7 @@ void notification_add_armed(u32 uVehicleId)
    if ( (-1 == iRuntimeInfoIndex) || (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel == NULL) )
       return;
 
-   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.iCurrentOSDLayout;
+   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.iCurrentOSDScreen;
    if ( ! (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE) )
       return;
 
@@ -79,7 +79,7 @@ void notification_add_disarmed(u32 uVehicleId)
    if ( (-1 == iRuntimeInfoIndex) || (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel == NULL) )
       return;
 
-   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.iCurrentOSDLayout;
+   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.iCurrentOSDScreen;
    if ( ! (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE) )
       return;
 
@@ -105,7 +105,7 @@ void notification_add_flight_mode(u32 uVehicleId, u32 flightMode)
    if ( (-1 == iRuntimeInfoIndex) || (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel == NULL) )
       return;
 
-   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.iCurrentOSDLayout;
+   int layoutIndex = g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.iCurrentOSDScreen;
    if ( ! (g_VehiclesRuntimeInfo[iRuntimeInfoIndex].pModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE) )
       return;
 

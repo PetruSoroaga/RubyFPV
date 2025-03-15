@@ -10,16 +10,17 @@ int hw_launch_process2(const char *szFile, const char* szParam1, const char* szP
 int hw_launch_process3(const char *szFile, const char* szParam1, const char* szParam2, const char* szParam3);
 int hw_launch_process4(const char *szFile, const char* szParam1, const char* szParam2, const char* szParam3, const char* szParam4);
 int hw_process_exists(const char* szProcName);
-char* hw_process_get_pid(const char* szProcName);
+char* hw_process_get_pids_inline(const char* szProcName);
+void hw_process_get_pids(const char* szProcName, char* szOutput);
 
 void hw_stop_process(const char* szProcName);
 int hw_kill_process(const char* szProcName, int iSignal);
 
 void hw_set_priority_current_proc(int nice);
-void hw_set_proc_priority(const char* szProgName, int nice, int ionice, int waitForProcess);
-void hw_get_proc_priority(const char* szProgName, char* szOutput);
+void hw_set_proc_priority(const char* szProcName, int nice, int ionice, int waitForProcess);
+void hw_get_proc_priority(const char* szProcName, char* szOutput);
 
-void hw_set_proc_affinity(const char* szProgName, int iExceptThreadId, int iCoreStart, int iCoreEnd);
+void hw_set_proc_affinity(const char* szProcName, int iExceptThreadId, int iCoreStart, int iCoreEnd);
 
 int hw_execute_bash_command_nonblock(const char* command, char* outBuffer);
 int hw_execute_bash_command(const char* command, char* outBuffer);

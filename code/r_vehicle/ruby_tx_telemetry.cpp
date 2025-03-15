@@ -576,8 +576,8 @@ void reload_model(u8 changeType)
 
    s_bSendRCInfoBack = false;
    if ( g_pCurrentModel->osd_params.show_stats_rc ||
-       (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_HID_IN_OSD) ||
-       (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_STATS_RC)
+       (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG_SHOW_HID_IN_OSD) ||
+       (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG2_SHOW_STATS_RC)
       )
       s_bSendRCInfoBack = true;
    log_line("Sending RC info back to controller: %s", s_bSendRCInfoBack?"yes":"no");
@@ -609,8 +609,8 @@ void reload_model(u8 changeType)
       s_uTimeToAdjustBalanceInterupts = g_TimeNow + 2000;
    }
    bool bLocalVSpeed = false;
-   int li = g_pCurrentModel->osd_params.iCurrentOSDLayout;
-   if ( li >= 0 && li < MODEL_MAX_OSD_PROFILES )
+   int li = g_pCurrentModel->osd_params.iCurrentOSDScreen;
+   if ( li >= 0 && li < MODEL_MAX_OSD_SCREENS )
    if ( g_pCurrentModel->osd_params.osd_flags2[li] & OSD_FLAG2_SHOW_LOCAL_VERTICAL_SPEED )
       bLocalVSpeed = true;
 
@@ -1170,7 +1170,7 @@ void check_send_telemetry_to_controller()
    static u32 s_uTimeLastSentRadioRxHistory = 0;
    static u32 s_uLastRadioRxHistorySentInterface = 0;
 
-   if ( g_pCurrentModel->osd_params.osd_flags3[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG3_SHOW_RADIO_RX_HISTORY_VEHICLE)
+   if ( g_pCurrentModel->osd_params.osd_flags3[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG3_SHOW_RADIO_RX_HISTORY_VEHICLE)
    if ( (g_TimeNow < s_uTimeLastSentRadioRxHistory) || (g_TimeNow >= s_uTimeLastSentRadioRxHistory + 433/g_pCurrentModel->radioInterfacesParams.interfaces_count) )
    {
       s_uTimeLastSentRadioRxHistory = g_TimeNow;
@@ -1238,7 +1238,7 @@ void check_send_telemetry_to_controller()
    }
    
    if ( (NULL != g_pCurrentModel) && (NULL != s_pSM_VideoInfoStats) && (NULL != s_pSM_VideoInfoStatsRadioOut) )
-   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
    {
       radio_packet_init(&sPH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_RUBY_TELEMETRY_VIDEO_INFO_STATS, STREAM_ID_TELEMETRY);
       sPH.vehicle_id_src = g_pCurrentModel->uVehicleId;
@@ -1268,8 +1268,8 @@ void check_send_telemetry_to_controller()
    // Send FC RC Channels
 
    if ( g_pCurrentModel->osd_params.show_stats_rc ||
-       (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_HID_IN_OSD) ||
-       (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_STATS_RC)
+       (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG_SHOW_HID_IN_OSD) ||
+       (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG2_SHOW_STATS_RC)
       )
    if ( g_bRouterReady && (! s_bRadioInterfacesReinitIsInProgress) )
    {
@@ -1478,7 +1478,7 @@ int main(int argc, char *argv[])
    }
 
 
-   log_init("TX Telemetry2");
+   log_init("TXTelemetry");
    log_arguments(argc, argv);
 
    //log_add_file("logs/log_tx_telemetry.log"); 
@@ -1511,8 +1511,8 @@ int main(int argc, char *argv[])
    hw_set_priority_current_proc(g_pCurrentModel->processesPriorities.iNiceTelemetry);
 
    bool bLocalVSpeed = false;
-   int li = g_pCurrentModel->osd_params.iCurrentOSDLayout;
-   if ( li >= 0 && li < MODEL_MAX_OSD_PROFILES )
+   int li = g_pCurrentModel->osd_params.iCurrentOSDScreen;
+   if ( li >= 0 && li < MODEL_MAX_OSD_SCREENS )
    if ( g_pCurrentModel->osd_params.osd_flags2[li] & OSD_FLAG2_SHOW_LOCAL_VERTICAL_SPEED )
       bLocalVSpeed = true;
 
@@ -1522,8 +1522,8 @@ int main(int argc, char *argv[])
 
    s_bSendRCInfoBack = false;
    if ( g_pCurrentModel->osd_params.show_stats_rc ||
-       (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_HID_IN_OSD) ||
-       (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_STATS_RC)
+       (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG_SHOW_HID_IN_OSD) ||
+       (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG2_SHOW_STATS_RC)
       )
       s_bSendRCInfoBack = true;
 

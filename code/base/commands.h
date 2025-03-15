@@ -148,6 +148,10 @@ typedef struct
 #define COMMAND_ID_SET_ENCRYPTION_PARAMS 54 // (added ruby 5.1)
 // byte 0: flags, byte 1: pass key lenght; byte 2..N: pass key
 
+#define COMMAND_ID_SET_TELEMETRY_TYPE_AND_PORT 55
+// param:
+//  byte 0: bit 0...3 telemetry type, bit 4...7 serial port
+//  byte 1-3: serial speed
 
 #define COMMAND_ID_SET_TELEMETRY_PARAMETERS 60
 #define COMMAND_ID_SET_RC_CAMERA_PARAMS 61 // param is a u32 with camera control params

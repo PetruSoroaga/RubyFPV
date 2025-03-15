@@ -1983,6 +1983,7 @@ void osd_render_elements()
 
       // Bottom part
       //--------------------------
+      /*
       x = 1.0 - osd_getSpacingH()-osd_getMarginX();
       y = 1.0 - osd_getMarginY() - osd_getBarHeight()-osd_getSecondBarHeight() + osd_getSpacingV();
       osd_show_voltage(x,y, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.voltage/1000.0, true);
@@ -1993,7 +1994,7 @@ void osd_render_elements()
 
       x -= 0.074*osd_getScaleOSD();
       osd_show_mah(x,y, (float)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.mah, true);
-
+      */
       g_pRenderEngine->enableFontScaling(false);
       return;
    }
@@ -2001,7 +2002,7 @@ void osd_render_elements()
    if ( !(pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_ENABLED) )
       return;
 
-   if ( pActiveModel->osd_params.iCurrentOSDLayout == osdLayoutLean )
+   if ( pActiveModel->osd_params.iCurrentOSDScreen == osdLayoutLean )
    {
       render_osd_layout_lean();
       osd_set_colors();
@@ -2013,7 +2014,7 @@ void osd_render_elements()
       return;
    }
 
-   if ( pActiveModel->osd_params.iCurrentOSDLayout == osdLayoutLeanExtended )
+   if ( pActiveModel->osd_params.iCurrentOSDScreen == osdLayoutLeanExtended )
    {
       render_osd_layout_lean_extended();
       osd_set_colors();
@@ -2420,8 +2421,11 @@ void osd_render_elements()
    x = 1.0 - osd_getMarginX() - osd_getSpacingH()*0.6;
    y = 1.0 - osd_getMarginY()-osd_getBarHeight()+osd_getSpacingV();
 
-   x -= render_osd_voltagesamps(x,y);
-   x -= osd_getSpacingH();
+   if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_BATTERY ) )
+   {
+      x -= render_osd_voltagesamps(x,y);
+      x -= osd_getSpacingH();
+   }
 
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_TIME ) )
    {
@@ -2748,6 +2752,7 @@ void osd_render_all()
    {
       if ( pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
       if ( pModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_RENDER_MSP_OSD )
+      if ( pModel->osd_params.osd_layout_preset[osd_get_current_layout_index()] != OSD_PRESET_NONE )
       if ( ! g_bDebugStats )
          _osd_render_msp(pModel);
       osd_render_elements();

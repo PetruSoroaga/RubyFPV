@@ -231,7 +231,7 @@ SinglePluginSettings* osd_get_settings_for_plugin_for_model(const char* szPlugin
          if ( NULL == pPluginSettings2 )
             continue;
    
-         int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+         int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
 
          if ( g_pRenderEngine->rectIntersect( x, y, w,h, pPluginSettings2->fXPos[iModelSettingsIndex][osdLayoutIndex],  pPluginSettings2->fYPos[iModelSettingsIndex][osdLayoutIndex], pPluginSettings2->fWidth[iModelSettingsIndex][osdLayoutIndex], pPluginSettings2->fHeight[iModelSettingsIndex][osdLayoutIndex] ) )
          {
@@ -253,7 +253,7 @@ SinglePluginSettings* osd_get_settings_for_plugin_for_model(const char* szPlugin
    }
 
 
-   for( int i=1; i<MODEL_MAX_OSD_PROFILES; i++ )
+   for( int i=1; i<MODEL_MAX_OSD_SCREENS; i++ )
    {
       pPlugin->fWidth[iModelSettingsIndex][i] = pPlugin->fWidth[iModelSettingsIndex][0];
       pPlugin->fHeight[iModelSettingsIndex][i] = pPlugin->fHeight[iModelSettingsIndex][0];
@@ -276,7 +276,7 @@ SinglePluginSettings* osd_get_settings_for_plugin_for_model(const char* szPlugin
             int defValue = 0;
             if ( NULL != g_pPluginsOSD[iOSDPluginIndex]->pFunctionGetPluginSettingDefaultValue )
                defValue = (*(g_pPluginsOSD[iOSDPluginIndex]->pFunctionGetPluginSettingDefaultValue))(i);
-            for( int k=0; k<MODEL_MAX_OSD_PROFILES; k++ )
+            for( int k=0; k<MODEL_MAX_OSD_SCREENS; k++ )
                pPlugin->nSettings[iModelSettingsIndex][k][i] = defValue;
    }
    
@@ -482,7 +482,7 @@ void osd_plugins_render()
          continue;
 
       int iModelSettingsIndex = getPluginModelSettingsIndex(pPlugin, pModel);
-      int osdLayoutIndex = pModel->osd_params.iCurrentOSDLayout;
+      int osdLayoutIndex = pModel->osd_params.iCurrentOSDScreen;
 
 
       vehicle_and_telemetry_info_t telemetry_info;

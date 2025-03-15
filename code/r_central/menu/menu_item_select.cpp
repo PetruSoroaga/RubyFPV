@@ -221,7 +221,7 @@ void MenuItemSelect::Render(float xPos, float yPos, bool bSelected, float fWidth
    float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
    
    float fAlphaOrg = g_pRenderEngine->getGlobalAlfa();
-   float fAlphaLow = 0.3;
+   float fAlphaLow = 0.5;
    height_text = 0.9*height_text;
 
    float xEnd = xPos + m_pMenu->getUsableWidth();
@@ -229,8 +229,9 @@ void MenuItemSelect::Render(float xPos, float yPos, bool bSelected, float fWidth
 
    float dxPaddings = Menu::getSelectionPaddingX();
    float dyPaddings = 0.6*Menu::getSelectionPaddingY();
-
-   float dyText = 0.2*(m_RenderHeight - m_RenderTitleHeight)-0.07*height_text;
+   float dyText = 0.14*(m_RenderHeight - m_RenderTitleHeight)-0.07*height_text;
+   float dxItemPadding = dxPaddings*1.5;
+   
    for( int i=m_SelectionsCount-1; i>=0; i-- )
    {
       float width_text = g_pRenderEngine->textWidth(g_idFontMenu, m_szSelections[i]);
@@ -239,9 +240,11 @@ void MenuItemSelect::Render(float xPos, float yPos, bool bSelected, float fWidth
          g_pRenderEngine->setGlobalAlfa(fAlphaLow);
          if ( m_bCustomTextColor )
             g_pRenderEngine->setColors(&m_TextColor[0]);
+         else if ( ! m_bEnabled )
+            g_pRenderEngine->setColors(get_Color_MenuItemDisabledText());
          else
             g_pRenderEngine->setColors(get_Color_MenuText());
-         g_pRenderEngine->drawTextLeft(xEnd-dxPaddings, yPos+dyText, g_idFontMenu, m_szSelections[i]);
+         g_pRenderEngine->drawTextLeft(xEnd-dxItemPadding, yPos+dyText, g_idFontMenu, m_szSelections[i]);
       }
       else
       {
@@ -249,19 +252,21 @@ void MenuItemSelect::Render(float xPos, float yPos, bool bSelected, float fWidth
          double pC[4];
          memcpy(pC, get_Color_MenuItemSelectedBg(), 4*sizeof(double));
          if ( ! m_bEnabled )
-            pC[3] = 0.2;
+            pC[3] = 0.1;
          g_pRenderEngine->setColors(pC);
-         g_pRenderEngine->drawRoundRect(xEnd-width_text-2*dxPaddings, yPos-dyPaddings, width_text+2*dxPaddings, m_RenderHeight+2*dyPaddings, 0.05*Menu::getMenuPaddingY());
+         g_pRenderEngine->drawRoundRect(xEnd-width_text-2*dxItemPadding, yPos-dyPaddings, width_text+2*dxItemPadding, m_RenderHeight+2*dyPaddings - m_fExtraHeight, 0.05*Menu::getMenuPaddingY());
          g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
-         g_pRenderEngine->drawTextLeft(xEnd-dxPaddings, yPos+dyText, g_idFontMenu, m_szSelections[i]);
+         g_pRenderEngine->drawTextLeft(xEnd-dxItemPadding, yPos+dyText, g_idFontMenu, m_szSelections[i]);
       }
 
-      xEnd -= width_text+2*dxPaddings;
+      xEnd -= width_text+2*dxItemPadding;
       g_pRenderEngine->setColors(get_Color_MenuBg());
       g_pRenderEngine->setGlobalAlfa(fAlphaLow);
       g_pRenderEngine->setStroke(get_Color_MenuText());
+      if ( ! m_bEnabled )
+         g_pRenderEngine->setStroke(get_Color_MenuItemDisabledText());
       if ( i != 0 )
-         g_pRenderEngine->drawLine(xEnd, yPos, xEnd, yPos+m_RenderHeight);
+         g_pRenderEngine->drawLine(xEnd, yPos, xEnd, yPos+m_RenderHeight - m_fExtraHeight);
       g_pRenderEngine->setColors(get_Color_MenuText(),1);
       g_pRenderEngine->setGlobalAlfa(fAlphaOrg);
    }
@@ -270,7 +275,7 @@ void MenuItemSelect::Render(float xPos, float yPos, bool bSelected, float fWidth
    g_pRenderEngine->setGlobalAlfa(fAlphaLow);
    g_pRenderEngine->setStroke(get_Color_MenuText());
    g_pRenderEngine->setFill(0,0,0,0);
-   g_pRenderEngine->drawRoundRect(xEnd, yPos-dyPaddings, (x0-xEnd), m_RenderHeight+2*dyPaddings, 0.05*Menu::getMenuPaddingY());
+   g_pRenderEngine->drawRoundRect(xEnd, yPos-dyPaddings, (x0-xEnd), m_RenderHeight+2*dyPaddings - m_fExtraHeight, 0.05*Menu::getMenuPaddingY());
 
    g_pRenderEngine->setColors(get_Color_MenuText());
    g_pRenderEngine->setGlobalAlfa(fAlphaOrg);
@@ -321,7 +326,7 @@ void MenuItemSelect::RenderPopupSelections(float xPos, float yPos, bool bSelecte
    int countInColumn = 0;
    for( int i=0; i<m_SelectionsCount; i++ )
    {
-      hTmp += m_RenderHeight + MENU_ITEM_SPACING * height_text;
+      hTmp += m_RenderHeight + MENU_ITEM_SPACING * height_text - m_fExtraHeight;
       countInColumn++;
       for( int c=0; c<m_iCountSeparators; c++ )
          if ( m_SeparatorIndexes[c] == i )
@@ -371,7 +376,7 @@ void MenuItemSelect::RenderPopupSelections(float xPos, float yPos, bool bSelecte
       if ( i == m_SelectedIndex )
       {
          g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
-         g_pRenderEngine->drawRoundRect(xValues-selectionPaddingH, y - selectionPaddingV, width_text+2.0*selectionPaddingH , m_RenderHeight + 2.0*selectionPaddingV, 0.2*Menu::getMenuPaddingY());
+         g_pRenderEngine->drawRoundRect(xValues-selectionPaddingH, y - selectionPaddingV, width_text+2.0*selectionPaddingH , m_RenderHeight + 2.0*selectionPaddingV - m_fExtraHeight, 0.2*Menu::getMenuPaddingY());
          g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());
          g_pRenderEngine->drawText(xValues, y, g_idFontMenu, m_szSelections[i]);
          if ( m_bCustomTextColor )
@@ -386,7 +391,7 @@ void MenuItemSelect::RenderPopupSelections(float xPos, float yPos, bool bSelecte
          if ( i == m_SelectedIndexBeforeEdit )
          {
             g_pRenderEngine->setFill(0,0,0,0);
-            g_pRenderEngine->drawRoundRect(xValues-selectionPaddingH, y - selectionPaddingV + g_pRenderEngine->getPixelHeight(), width_text+2.0*selectionPaddingH , m_RenderHeight + 2.0*selectionPaddingV - 2.0 * g_pRenderEngine->getPixelHeight(), 0.2*Menu::getMenuPaddingY());
+            g_pRenderEngine->drawRoundRect(xValues-selectionPaddingH, y - selectionPaddingV + g_pRenderEngine->getPixelHeight(), width_text+2.0*selectionPaddingH , m_RenderHeight + 2.0*selectionPaddingV - 2.0 * g_pRenderEngine->getPixelHeight() - m_fExtraHeight, 0.2*Menu::getMenuPaddingY());
             if ( m_bCustomTextColor )
                g_pRenderEngine->setColors(&m_TextColor[0]);
             else
@@ -398,7 +403,7 @@ void MenuItemSelect::RenderPopupSelections(float xPos, float yPos, bool bSelecte
          else
             g_pRenderEngine->setColors(get_Color_MenuText());
       }
-      y += m_RenderHeight;
+      y += m_RenderHeight - m_fExtraHeight;
       y += MENU_ITEM_SPACING * height_text;
       for( int c=0; c<m_iCountSeparators; c++ )
          if ( m_SeparatorIndexes[c] == i )

@@ -2665,12 +2665,20 @@ bool process_command(u8* pBuffer, int length)
          sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
          return true;
       }
-      osd_parameters_t* params = (osd_parameters_t*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
+      osd_parameters_t* pParams = (osd_parameters_t*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       //log_line("Received osd params %d bytes, expected %d bytes", iParamsLength, sizeof(osd_parameters_t));
-      memcpy(&g_pCurrentModel->osd_params, params, sizeof(osd_parameters_t));
-      int nOSDIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
-      if ( nOSDIndex < 0 || nOSDIndex >= MODEL_MAX_OSD_PROFILES )
+      if ( (pParams->osd_layout_preset[g_pCurrentModel->osd_params.iCurrentOSDScreen] != OSD_PRESET_CUSTOM) && (pParams->osd_layout_preset[g_pCurrentModel->osd_params.iCurrentOSDScreen] != g_pCurrentModel->osd_params.osd_layout_preset[g_pCurrentModel->osd_params.iCurrentOSDScreen]) )
+      {
+         log_line("Set new layout %d on screen %d", pParams->osd_layout_preset[g_pCurrentModel->osd_params.iCurrentOSDScreen], g_pCurrentModel->osd_params.iCurrentOSDScreen);
+         g_pCurrentModel->resetOSDScreenToLayout(g_pCurrentModel->osd_params.iCurrentOSDScreen, pParams->osd_layout_preset[g_pCurrentModel->osd_params.iCurrentOSDScreen]);
+      }
+      else
+         memcpy(&g_pCurrentModel->osd_params, pParams, sizeof(osd_parameters_t));
+      int nOSDIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
+      if ( nOSDIndex < 0 || nOSDIndex >= MODEL_MAX_OSD_SCREENS )
          nOSDIndex = 0;
+
+      g_pCurrentModel->osd_params.uFlags &= ~(OSD_BIT_FLAGS_MUST_CHOOSE_PRESET);
 
       saveCurrentModel();
       log_line("Saved new OSD params, current layout: %d, enabled: %s", nOSDIndex, (g_pCurrentModel->osd_params.osd_flags2[nOSDIndex] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
@@ -2703,9 +2711,9 @@ bool process_command(u8* pBuffer, int length)
       s_uLastCommandIdSetOSDLayout = pPHC->command_counter;
 
       int nOSDIndex = pPHC->command_param;
-      if ( nOSDIndex < 0 || nOSDIndex >= MODEL_MAX_OSD_PROFILES )
+      if ( nOSDIndex < 0 || nOSDIndex >= MODEL_MAX_OSD_SCREENS )
          nOSDIndex = 0;
-      g_pCurrentModel->osd_params.iCurrentOSDLayout = nOSDIndex;
+      g_pCurrentModel->osd_params.iCurrentOSDScreen = nOSDIndex;
       saveCurrentModel();
       log_line("Saved received new active OSD layout layout: %d, enabled: %s", nOSDIndex, (g_pCurrentModel->osd_params.osd_flags2[nOSDIndex] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
       signalReloadModel(MODEL_CHANGED_OSD_PARAMS, 0);
@@ -2715,6 +2723,8 @@ bool process_command(u8* pBuffer, int length)
    if ( uCommandType == COMMAND_ID_SET_SERIAL_PORTS_INFO )
    {
       log_line("Received new serial ports info");
+      for( int i=0; i<5; i++ )
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 20);
       type_vehicle_hardware_interfaces_info* pNewInfo = (type_vehicle_hardware_interfaces_info*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       g_pCurrentModel->hardwareInterfacesInfo.serial_port_count = pNewInfo->serial_port_count;
       for( int i=0; i<pNewInfo->serial_port_count; i++ )
@@ -2752,12 +2762,9 @@ bool process_command(u8* pBuffer, int length)
          pPortInfo->lPortSpeed = g_pCurrentModel->hardwareInterfacesInfo.serial_port_speed[i];
          pPortInfo->iPortUsage = (int)(g_pCurrentModel->hardwareInterfacesInfo.serial_port_supported_and_usage[i] & 0xFF);
       }
+
       hardware_serial_save_configuration();
-
       saveCurrentModel();
-      for( int i=0; i<5; i++ )
-         sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 20);
-
       signalReloadModel(MODEL_CHANGED_SERIAL_PORTS, 0);
       
       if ( -1 != iSiKPortToUpdate )
@@ -2797,8 +2804,25 @@ bool process_command(u8* pBuffer, int length)
       return true;      
    }
 
+   if ( uCommandType == COMMAND_ID_SET_TELEMETRY_TYPE_AND_PORT )
+   {
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+      int iTelemetryType = pPHC->command_param & 0x0F;
+      int iSerialPort = (pPHC->command_param & 0xF0) >> 4;
+      int iSerialSpeed = (pPHC->command_param >> 8);
+      log_line("Received command to set telemetry type to %d, serial port to %d and serial speed to %d",
+          iTelemetryType, iSerialPort, iSerialSpeed);
+      g_pCurrentModel->setTelemetryTypeAndPort(iTelemetryType, iSerialPort, iSerialSpeed);
+      saveCurrentModel();
+      g_pCurrentModel->syncModelSerialPortsToHardwareSerialPorts();
+      hardware_serial_save_configuration();
+      signalReloadModel(MODEL_CHANGED_SERIAL_PORTS, 0);
+      return true;
+   }
+
    if ( uCommandType == COMMAND_ID_SET_TELEMETRY_PARAMETERS )
    {
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
       telemetry_parameters_t* params = (telemetry_parameters_t*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
       log_line("Received telemetry params, size: %d bytes, expected %d bytes", iParamsLength, sizeof(telemetry_parameters_t));
       memcpy(&g_pCurrentModel->telemetry_params, params, sizeof(telemetry_parameters_t));
@@ -2871,10 +2895,9 @@ bool process_command(u8* pBuffer, int length)
       }
 
       saveCurrentModel();
-      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
-      //vehicle_stop_tx_telemetry();
-      //vehicle_launch_tx_telemetry(g_pCurrentModel);
-      signalReloadModel(0, 0);
+      g_pCurrentModel->syncModelSerialPortsToHardwareSerialPorts();
+      hardware_serial_save_configuration();
+      signalReloadModel(MODEL_CHANGED_SERIAL_PORTS, 0);
       return true;
    }
 
@@ -3126,7 +3149,7 @@ bool process_command(u8* pBuffer, int length)
       if ( bTelemetryIn != g_pCurrentModel->telemetry_params.bControllerHasInputTelemetry )
          bTelemetryChanged = true;
 
-      log_line("Current OSD params, current layout: %d, enabled: %s", g_pCurrentModel->osd_params.iCurrentOSDLayout, (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
+      log_line("Current OSD params, current layout: %d, enabled: %s", g_pCurrentModel->osd_params.iCurrentOSDScreen, (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
       log_line("Current on time: %02d:%02d, current flights: %d", g_pCurrentModel->m_Stats.uCurrentOnTime/60, g_pCurrentModel->m_Stats.uCurrentOnTime%60, g_pCurrentModel->m_Stats.uTotalFlights);
 
       log_line("Received flags: telemetry in: %d, telemetry out: %d", bTelemetryIn, bTelemetryOut );
@@ -3160,7 +3183,7 @@ bool process_command(u8* pBuffer, int length)
       if ( bTelemetryChanged || bNotifyChanged || bSave )
          signalReloadModel(0, 0);
 
-      log_line("Current OSD params, current layout: %d, enabled: %s", g_pCurrentModel->osd_params.iCurrentOSDLayout, (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
+      log_line("Current OSD params, current layout: %d, enabled: %s", g_pCurrentModel->osd_params.iCurrentOSDScreen, (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG2_LAYOUT_ENABLED)?"yes":"no");
       log_line("Current on time: %02d:%02d, current flights: %d", g_pCurrentModel->m_Stats.uCurrentOnTime/60, g_pCurrentModel->m_Stats.uCurrentOnTime%60, g_pCurrentModel->m_Stats.uTotalFlights);
 
       if ( bNewZIPCommand )

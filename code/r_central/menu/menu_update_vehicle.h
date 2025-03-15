@@ -8,6 +8,7 @@ class MenuUpdateVehiclePopup: public Menu
       MenuUpdateVehiclePopup(int vehicleIndex);
       virtual void Render();
       virtual void onShow();
+      virtual int onBack();
       virtual void onSelectItem();
    protected:
       int m_VehicleIndex;

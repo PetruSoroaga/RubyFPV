@@ -41,7 +41,7 @@
 
 void _osd_widget_altitude_reset_possize(type_osd_widget* pWidgetInfo, int iModelIndex)
 {
-   for( int k=0; k<MODEL_MAX_OSD_PROFILES; k++ )
+   for( int k=0; k<MODEL_MAX_OSD_SCREENS; k++ )
    {
       pWidgetInfo->display_info[iModelIndex][k].fXPos = 0.94;
       pWidgetInfo->display_info[iModelIndex][k].fYPos = 0.3;
@@ -76,7 +76,7 @@ void osd_widget_builtin_altitude_render(type_osd_widget* pWidgetInfo, type_osd_w
       return;
    if ( (0 == uCurrentVehicleId) || (MAX_U32 == uCurrentVehicleId) )
       return;
-   if ( (NULL == g_pCurrentModel) || (iOSDScreen < 0) || (iOSDScreen >= MODEL_MAX_OSD_PROFILES) )
+   if ( (NULL == g_pCurrentModel) || (iOSDScreen < 0) || (iOSDScreen >= MODEL_MAX_OSD_SCREENS) )
       return;
 
    int iModelIndex = osd_widget_get_model_index(pWidgetInfo, uCurrentVehicleId);

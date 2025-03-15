@@ -72,7 +72,7 @@ void _osd_widgets_add(u32 uGUID, int iVersion, const char* szName)
    strcpy(s_ListOSDWidgets[s_iListOSDWidgetsCount].info.szName, szName);
 
    for( int i=0; i<MAX_MODELS; i++ )
-   for( int k=0; k<MODEL_MAX_OSD_PROFILES; k++ )
+   for( int k=0; k<MODEL_MAX_OSD_SCREENS; k++ )
    {
       memset(&(s_ListOSDWidgets[s_iListOSDWidgetsCount].display_info[i][k]), 0, sizeof(type_osd_widget_display_info));
       s_ListOSDWidgets[s_iListOSDWidgetsCount].display_info[i][k].bShow = false;
@@ -146,8 +146,8 @@ bool osd_widgets_load()
             iIndex = MAX_MODELS-1;
 
          int iOSDProfile = iProfile;
-         if ( iOSDProfile >= MODEL_MAX_OSD_PROFILES )
-            iOSDProfile = MODEL_MAX_OSD_PROFILES-1;
+         if ( iOSDProfile >= MODEL_MAX_OSD_SCREENS )
+            iOSDProfile = MODEL_MAX_OSD_SCREENS-1;
 
          int tmp = 0;
          if ( 6 != fscanf(fd, "%u %d %f %f %f %f\n",
@@ -231,12 +231,12 @@ bool osd_widgets_save()
          if ( s_ListOSDWidgets[i].display_info[k][0].uVehicleId != MAX_U32 )
             iCountModels++;
       }
-      fprintf(fd, "   models: %d profiles: %d\n", iCountModels, MODEL_MAX_OSD_PROFILES);
+      fprintf(fd, "   models: %d profiles: %d\n", iCountModels, MODEL_MAX_OSD_SCREENS);
       for( int k=0; k<MAX_MODELS; k++ )
       {
          if ( (s_ListOSDWidgets[i].display_info[k][0].uVehicleId == 0) || (s_ListOSDWidgets[i].display_info[k][0].uVehicleId == MAX_U32) )
              continue;
-         for( int j=0; j<MODEL_MAX_OSD_PROFILES; j++ )
+         for( int j=0; j<MODEL_MAX_OSD_SCREENS; j++ )
          {
              fprintf(fd, "      %u %d %.2f %.2f %.2f %.2f\n",
                 s_ListOSDWidgets[i].display_info[k][j].uVehicleId,
@@ -305,7 +305,7 @@ int osd_widget_add_to_model(type_osd_widget* pWidget, u32 uVehicleId)
          }
          if ( ! bValidModel )
          {
-             for( int k=0; k<MODEL_MAX_OSD_PROFILES; k++ )
+             for( int k=0; k<MODEL_MAX_OSD_SCREENS; k++ )
                 pWidget->display_info[i][k].uVehicleId = 0;
              iIndexFree = i;
              break;
@@ -316,7 +316,7 @@ int osd_widget_add_to_model(type_osd_widget* pWidget, u32 uVehicleId)
    if ( -1 == iIndexFree )
       return -1;
 
-   for( int k=0; k<MODEL_MAX_OSD_PROFILES; k++ )
+   for( int k=0; k<MODEL_MAX_OSD_SCREENS; k++ )
       pWidget->display_info[iIndexFree][k].uVehicleId = uVehicleId;
 
    return iIndexFree;
@@ -360,7 +360,7 @@ void osd_widgets_render(u32 uCurrentVehicleId, int iOSDScreen)
 {
    if ( (0 == uCurrentVehicleId) || (MAX_U32 == uCurrentVehicleId) )
       return;
-   if ( (NULL == g_pCurrentModel) || (iOSDScreen < 0) || (iOSDScreen >= MODEL_MAX_OSD_PROFILES) )
+   if ( (NULL == g_pCurrentModel) || (iOSDScreen < 0) || (iOSDScreen >= MODEL_MAX_OSD_SCREENS) )
       return;
 
    for( int iWidget=0; iWidget<s_iListOSDWidgetsCount; iWidget++ )

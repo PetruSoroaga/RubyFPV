@@ -378,6 +378,8 @@ bool telemetry_msp_on_new_serial_data(u8* pData, int iDataLength)
          case MSP_STATE_WAIT_CHECKSUM:
             if ( s_uMSPChecksum == *pData )
             {
+               if ( 0 == s_uLastMSPCommandReceivedTime )
+                  log_line("Started receiving valid MSP telemetry from FC");
                s_uLastMSPCommandReceivedTime = g_TimeNow;
                if ( s_uMSPCommand == MSP_CMD_DISPLAYPORT )
                   _parse_msp_osd_command();

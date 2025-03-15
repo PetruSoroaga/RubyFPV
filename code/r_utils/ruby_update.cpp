@@ -100,6 +100,29 @@ void update_openipc_cpu(Model* pModel)
       pModel->processesPriorities.iFreqARM = DEFAULT_FREQ_OPENIPC_SIGMASTAR;
 }
 
+void do_update_to_107()
+{
+   log_line("Doing update to 10.7");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_ControllerSettings();
+      ControllerSettings* pCS = get_ControllerSettings();
+      save_ControllerSettings();
+      load_Preferences();
+      Preferences* pP = get_Preferences();
+      pP->nLogLevel = 1;
+      save_Preferences();
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   pModel->osd_params.uFlags |= OSD_BIT_FLAGS_MUST_CHOOSE_PRESET;
+
+   log_line("Updated model VID %u (%s) to v10.7", pModel->uVehicleId, pModel->getLongName());
+}
 
 
 void do_update_to_106()
@@ -218,7 +241,7 @@ void do_update_to_104()
    if ( NULL == pModel )
       return;
 
-   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
       pModel->osd_params.osd_flags3[i] &= ~((u32)(((u32)0x01)<<12));
 
 
@@ -316,7 +339,7 @@ void do_update_to_103()
    }
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileFlags = 0; // lowest
 
-   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
       pModel->osd_params.osd_preferences[i] &= ~(OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM); // controller link lost alarm disabled
 
    pModel->osd_params.osd_flags2[0] |= OSD_FLAG2_LAYOUT_ENABLED;
@@ -324,8 +347,8 @@ void do_update_to_103()
    pModel->osd_params.osd_flags2[2] &= ~ OSD_FLAG2_LAYOUT_ENABLED;
    pModel->osd_params.osd_flags2[3] |= OSD_FLAG2_LAYOUT_ENABLED;
    pModel->osd_params.osd_flags2[4] &= ~ OSD_FLAG2_LAYOUT_ENABLED;
-   if ( (pModel->osd_params.iCurrentOSDLayout != 0) && (pModel->osd_params.iCurrentOSDLayout != 3) )
-      pModel->osd_params.iCurrentOSDLayout = 0;
+   if ( (pModel->osd_params.iCurrentOSDScreen != 0) && (pModel->osd_params.iCurrentOSDScreen != 3) )
+      pModel->osd_params.iCurrentOSDScreen = 0;
    
    pModel->uModelFlags |= MODEL_FLAG_PRIORITIZE_UPLINK;
 
@@ -399,7 +422,7 @@ void do_update_to_102()
       pModel->radioLinksParams.uDownlinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO;
    }
 
-   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
    {
       pModel->osd_params.osd_preferences[i] &= 0xFFFFFF00;
       pModel->osd_params.osd_preferences[i] |= 2;
@@ -557,7 +580,7 @@ void do_update_to_100()
       }
    }
 
-   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
    {
       pModel->osd_params.osd_flags[i] |= OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
    }
@@ -715,7 +738,7 @@ void do_update_to_97()
       pModel->video_link_profiles[i].video_data_length = DEFAULT_VIDEO_DATA_LENGTH;
    }
 
-   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
    {
       pModel->osd_params.osd_flags3[i] |= OSD_FLAG3_RENDER_MSP_OSD;
    }
@@ -769,7 +792,7 @@ void do_update_to_96()
          pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;   
    }
 
-   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
    {
       pModel->osd_params.osd_flags2[i] &= (~OSD_FLAG2_SHOW_STATS_RADIO_LINKS);
    }
@@ -937,7 +960,7 @@ void do_update_to_91()
       }   
    }
 
-   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
    {
       //pModel->osd_params.osd_flags2[i] |= OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST;
    }
@@ -1011,7 +1034,7 @@ void do_update_to_90()
 
    pModel->rc_params.rc_frames_per_second = DEFAULT_RC_FRAMES_PER_SECOND;
    
-   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
    {
       pModel->osd_params.osd_flags3[i] |= OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS;
    }
@@ -1227,6 +1250,8 @@ int main(int argc, char *argv[])
       do_update_to_105();
    if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 6) )
       do_update_to_106();
+   if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 7) )
+      do_update_to_107();
 
 
    saveCurrentModel();

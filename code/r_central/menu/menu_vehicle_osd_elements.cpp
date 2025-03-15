@@ -48,7 +48,7 @@ MenuVehicleOSDElements::MenuVehicleOSDElements(void)
    m_yPos = 0.12;
 
    char szBuff[256];
-   sprintf(szBuff, "OSD Elements (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.iCurrentOSDLayout));
+   sprintf(szBuff, "OSD Elements (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.iCurrentOSDScreen));
    setTitle(szBuff);
    
    setColumnsCount(2);
@@ -327,23 +327,23 @@ void MenuVehicleOSDElements::valuesToUI()
    Preferences* p = get_Preferences();
    ControllerSettings* pCS = get_ControllerSettings();
    
-   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+   int iScreenIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
 
-   m_pItemsSelect[25]->setSelection((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_BGBARS)?1:0);
+   m_pItemsSelect[25]->setSelection((g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_SHOW_BGBARS)?1:0);
 
-   m_pItemsSelect[1]->setSelection((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_BATTERY)?1:0);
-   m_pItemsSelect[2]->setSelection((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_BATTERY_CELLS)?1:0);
-   if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_BATTERY )
+   m_pItemsSelect[1]->setSelection((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_BATTERY)?1:0);
+   m_pItemsSelect[2]->setSelection((g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_SHOW_BATTERY_CELLS)?1:0);
+   if ( g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_BATTERY )
       m_pItemsSelect[2]->setEnabled(true);
    else
       m_pItemsSelect[2]->setEnabled(false);
 
-   m_pItemsSelect[3]->setSelection((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_DISTANCE)?1:0);
-   m_pItemsSelect[10]->setSelection((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_TOTAL_DISTANCE)?1:0);
+   m_pItemsSelect[3]->setSelection((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_DISTANCE)?1:0);
+   m_pItemsSelect[10]->setSelection((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_TOTAL_DISTANCE)?1:0);
 
-   m_pItemsSelect[4]->setSelection((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_ALTITUDE)?1:0);
+   m_pItemsSelect[4]->setSelection((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_ALTITUDE)?1:0);
 
-   m_pItemsSelect[6]->setSelection((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_HOME)?1:0);
+   m_pItemsSelect[6]->setSelection((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_HOME)?1:0);
    m_pItemsSelect[7]->setSelection(g_pCurrentModel->osd_params.invert_home_arrow);
 
    if ( g_pCurrentModel->osd_params.home_arrow_rotate < 90 )
@@ -355,7 +355,7 @@ void MenuVehicleOSDElements::valuesToUI()
    else
       m_pItemsSelect[8]->setSelection(3);
 
-   if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_HOME )
+   if ( g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_HOME )
    {
       m_pItemsSelect[7]->setEnabled(true);
       m_pItemsSelect[8]->setEnabled(true);
@@ -366,24 +366,24 @@ void MenuVehicleOSDElements::valuesToUI()
       m_pItemsSelect[8]->setEnabled(false);
    }
 
-   m_pItemsSelect[26]->setSelection((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_GPS_INFO)?1:0);
-   m_pItemsSelect[9]->setSelection((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_GPS_POS)?1:0);
-   if ( g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_GPS_POS )
-   if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SCRAMBLE_GPS )
+   m_pItemsSelect[26]->setSelection((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_GPS_INFO)?1:0);
+   m_pItemsSelect[9]->setSelection((g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_SHOW_GPS_POS)?1:0);
+   if ( g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_SHOW_GPS_POS )
+   if ( g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SCRAMBLE_GPS )
       m_pItemsSelect[9]->setSelection(2);
 
    m_pItemsSelect[11]->setSelection(0);
-   if ( (g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE) &&
-        (g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE) )
+   if ( (g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_FLIGHT_MODE) &&
+        (g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE) )
       m_pItemsSelect[11]->setSelection(3);
-   else if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE )
+   else if ( g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_FLIGHT_MODE )
       m_pItemsSelect[11]->setSelection(1);
-   else if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE )
+   else if ( g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE )
       m_pItemsSelect[11]->setSelection(2);
 
-   if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_TIME )
+   if ( g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_TIME )
    {
-      if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_TIME_LOWER )
+      if ( g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_TIME_LOWER )
          m_pItemsSelect[12]->setSelection(2);
       else
          m_pItemsSelect[12]->setSelection(1);
@@ -391,69 +391,69 @@ void MenuVehicleOSDElements::valuesToUI()
    else
       m_pItemsSelect[12]->setSelection(0);
    
-   m_pItemsSelect[13]->setSelection((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_THROTTLE)?1:0);
-   m_pItemsSelect[14]->setSelection((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_PITCH)?1:0);
-   m_pItemsSelect[15]->setSelection((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_CPU_INFO)?1:0);
-   m_pItemsSelect[16]->setSelection((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_VIDEO_MODE)?1:0);
-   m_pItemsSelect[17]->setSelection((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_VIDEO_MBPS)?1:0);
-   if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_VIDEO_MODE )
+   m_pItemsSelect[13]->setSelection((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_THROTTLE)?1:0);
+   m_pItemsSelect[14]->setSelection((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_PITCH)?1:0);
+   m_pItemsSelect[15]->setSelection((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_CPU_INFO)?1:0);
+   m_pItemsSelect[16]->setSelection((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_VIDEO_MODE)?1:0);
+   m_pItemsSelect[17]->setSelection((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_VIDEO_MBPS)?1:0);
+   if ( g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_VIDEO_MODE )
       m_pItemsSelect[17]->setEnabled(true);
    else
       m_pItemsSelect[17]->setEnabled(false);
 
-   m_pItemsSelect[18]->setSelection((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_VIDEO_MODE_EXTENDED)?1:0);
+   m_pItemsSelect[18]->setSelection((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_VIDEO_MODE_EXTENDED)?1:0);
 
    m_pItemsSelect[19]->setSelectedIndex(0);
-   if ( (g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_RADIO_LINKS) &&
-        (g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS) )
+   if ( (g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_RADIO_LINKS) &&
+        (g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS) )
       m_pItemsSelect[19]->setSelectedIndex(3);
-   else if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_RADIO_LINKS )
+   else if ( g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_RADIO_LINKS )
       m_pItemsSelect[19]->setSelectedIndex(1);
-   else if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS )
+   else if ( g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS )
       m_pItemsSelect[19]->setSelectedIndex(2);
 
    
-   if ( (g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS) &&
-        (g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS) )
+   if ( (g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS) &&
+        (g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS) )
       m_pItemsSelect[20]->setSelectedIndex(2);
-   else if ( g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS )
+   else if ( g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS )
       m_pItemsSelect[20]->setSelectedIndex(0);
    else
       m_pItemsSelect[20]->setSelectedIndex(1);
 
-   if ( (g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_RADIO_INTERFACES_INFO) &&
-        (g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_RADIO_LINK_INTERFACES_EXTENDED) )
+   if ( (g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_RADIO_INTERFACES_INFO) &&
+        (g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_SHOW_RADIO_LINK_INTERFACES_EXTENDED) )
       m_pItemsSelect[21]->setSelectedIndex(2);
-   else if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_RADIO_INTERFACES_INFO )
+   else if ( g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_RADIO_INTERFACES_INFO )
       m_pItemsSelect[21]->setSelectedIndex(1);
    else
       m_pItemsSelect[21]->setSelectedIndex(0);
 
    
-   m_pItemsSelect[22]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_SIGNAL_BARS)?1:0);
-   m_pItemsSelect[23]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SIGNAL_BARS_MASK)>>14);
-   if ( g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_SIGNAL_BARS )
+   m_pItemsSelect[22]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_SIGNAL_BARS)?1:0);
+   m_pItemsSelect[23]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SIGNAL_BARS_MASK)>>14);
+   if ( g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_SIGNAL_BARS )
       m_pItemsSelect[23]->setEnabled(true);
    else
       m_pItemsSelect[23]->setEnabled(false);
 
-   m_pItemsSelect[24]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_HID_IN_OSD)?1:0);
+   m_pItemsSelect[24]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_HID_IN_OSD)?1:0);
    
    m_pItemsSelect[27]->setSelectedIndex(0);
-   if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_GRID_CROSSHAIR )
+   if ( g_pCurrentModel->osd_params.osd_flags3[iScreenIndex] & OSD_FLAG3_SHOW_GRID_CROSSHAIR )
       m_pItemsSelect[27]->setSelectedIndex(1);
-   if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_GRID_DIAGONAL )
+   if ( g_pCurrentModel->osd_params.osd_flags3[iScreenIndex] & OSD_FLAG3_SHOW_GRID_DIAGONAL )
       m_pItemsSelect[27]->setSelectedIndex(2);
-   if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_GRID_SQUARES )
+   if ( g_pCurrentModel->osd_params.osd_flags3[iScreenIndex] & OSD_FLAG3_SHOW_GRID_SQUARES )
       m_pItemsSelect[27]->setSelectedIndex(3);
-   if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_GRID_DIAGONAL )
-   if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_GRID_SQUARES )
+   if ( g_pCurrentModel->osd_params.osd_flags3[iScreenIndex] & OSD_FLAG3_SHOW_GRID_DIAGONAL )
+   if ( g_pCurrentModel->osd_params.osd_flags3[iScreenIndex] & OSD_FLAG3_SHOW_GRID_SQUARES )
       m_pItemsSelect[27]->setSelectedIndex(4);
-   if ( g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_GRID_THIRDS_SMALL )
+   if ( g_pCurrentModel->osd_params.osd_flags3[iScreenIndex] & OSD_FLAG3_SHOW_GRID_THIRDS_SMALL )
       m_pItemsSelect[27]->setSelectedIndex(5);
 
 
-   m_pItemsSelect[34]->setSelection((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_RC_RSSI)?1:0);
+   m_pItemsSelect[34]->setSelection((g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_SHOW_RC_RSSI)?1:0);
 
    m_pItemsSelect[30]->setSelection(p->iShowControllerCPUInfo);
    if ( hardware_i2c_has_current_sensor() )
@@ -467,19 +467,19 @@ void MenuVehicleOSDElements::valuesToUI()
       m_pItemsSelect[31]->setEnabled(false);
    }
 
-   m_pItemsSelect[32]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_LAYOUT_LEFT_RIGHT)?1:0);
+   m_pItemsSelect[32]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_LAYOUT_LEFT_RIGHT)?1:0);
    m_pItemsSelect[33]->setSelectedIndex(0);
-   if ( (g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_GROUND_SPEED) &&
-        (g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_AIR_SPEED) )
+   if ( (g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_SHOW_GROUND_SPEED) &&
+        (g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_SHOW_AIR_SPEED) )
       m_pItemsSelect[33]->setSelectedIndex(3);
-   else if ( g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_GROUND_SPEED )
+   else if ( g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_SHOW_GROUND_SPEED )
       m_pItemsSelect[33]->setSelectedIndex(1);
-   else if ( g_pCurrentModel->osd_params.osd_flags2[layoutIndex] & OSD_FLAG2_SHOW_AIR_SPEED )
+   else if ( g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_SHOW_AIR_SPEED )
       m_pItemsSelect[33]->setSelectedIndex(2);
 
 
-   if ( g_pCurrentModel->osd_params.iCurrentOSDLayout == osdLayoutLean ||
-        g_pCurrentModel->osd_params.iCurrentOSDLayout == osdLayoutLeanExtended )
+   if ( g_pCurrentModel->osd_params.iCurrentOSDScreen == osdLayoutLean ||
+        g_pCurrentModel->osd_params.iCurrentOSDScreen == osdLayoutLeanExtended )
    {
       for( int i=1; i<50; i++ )
          if ( NULL != m_pItemsSelect[i] )
@@ -500,8 +500,8 @@ void MenuVehicleOSDElements::valuesToUI()
          m_pItemsSelect[28]->setEnabled(true);
       m_pItemsSelect[29]->setEnabled(true);
 
-      if ( (g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_RADIO_LINKS) ||
-           (g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS) )
+      if ( (g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_RADIO_LINKS) ||
+           (g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS) )
       {
          m_pItemsSelect[20]->setEnabled(true);
          m_pItemsSelect[21]->setEnabled(true);
@@ -520,7 +520,7 @@ void MenuVehicleOSDElements::valuesToUI()
    else
       m_pItemsSelect[31]->setEnabled(false);
 
-   if ( g_pCurrentModel->osd_params.iCurrentOSDLayout == osdLayoutLean )
+   if ( g_pCurrentModel->osd_params.iCurrentOSDScreen == osdLayoutLean )
    {
       m_pItemsSelect[1]->setEnabled(true);
       m_pItemsSelect[3]->setEnabled(true);
@@ -535,7 +535,7 @@ void MenuVehicleOSDElements::valuesToUI()
       m_pItemsSelect[19]->setEnabled(true);
       m_pItemsSelect[33]->setEnabled(true);
    }
-   else if ( g_pCurrentModel->osd_params.iCurrentOSDLayout == osdLayoutLeanExtended )
+   else if ( g_pCurrentModel->osd_params.iCurrentOSDScreen == osdLayoutLeanExtended )
    {
       m_pItemsSelect[1]->setEnabled(true);
       m_pItemsSelect[3]->setEnabled(true);
@@ -551,8 +551,8 @@ void MenuVehicleOSDElements::valuesToUI()
    }
    else
    {
-      if ( (g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_RADIO_LINKS) ||
-           (g_pCurrentModel->osd_params.osd_flags[layoutIndex] & OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS) )
+      if ( (g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_RADIO_LINKS) ||
+           (g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS) )
       {
          m_pItemsSelect[20]->setEnabled(true);
          m_pItemsSelect[21]->setEnabled(true);
@@ -564,8 +564,8 @@ void MenuVehicleOSDElements::valuesToUI()
       }
    }
 
-   m_pItemsSelect[28]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_WIND)?1:0);
-   m_pItemsSelect[29]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags3[layoutIndex] & OSD_FLAG3_SHOW_FC_TEMPERATURE)?1:0);
+   m_pItemsSelect[28]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags3[iScreenIndex] & OSD_FLAG3_SHOW_WIND)?1:0);
+   m_pItemsSelect[29]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags3[iScreenIndex] & OSD_FLAG3_SHOW_FC_TEMPERATURE)?1:0);
 
    if ( g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexHIDOSD]->setEnabled(false);
@@ -611,7 +611,7 @@ void MenuVehicleOSDElements::onSelectItem()
    bool sendToVehicle = false;
    osd_parameters_t params;
    memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
-   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+   int iScreenIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
 
    Preferences* p = get_Preferences();
    ControllerSettings* pCS = get_ControllerSettings();
@@ -619,54 +619,58 @@ void MenuVehicleOSDElements::onSelectItem()
    if ( m_IndexOSDOrientation == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[32]->getSelectedIndex() )
-         params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_LAYOUT_LEFT_RIGHT;
+         params.osd_flags2[iScreenIndex] &= ~OSD_FLAG2_LAYOUT_LEFT_RIGHT;
       else
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_LAYOUT_LEFT_RIGHT;
+         params.osd_flags2[iScreenIndex] |= OSD_FLAG2_LAYOUT_LEFT_RIGHT;
       sendToVehicle = true;
    }
 
    if ( m_IndexShowBg == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[25]->getSelectedIndex() )
-         params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_BGBARS;
+         params.osd_flags2[iScreenIndex] &= ~OSD_FLAG2_SHOW_BGBARS;
       else
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_BGBARS;
+         params.osd_flags2[iScreenIndex] |= OSD_FLAG2_SHOW_BGBARS;
       sendToVehicle = true;
    }
 
    if ( m_IndexVoltage == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[1]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_BATTERY;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_BATTERY;
       else
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_BATTERY;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_BATTERY;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexVoltagePerCell == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[2]->getSelectedIndex() )
-         params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_BATTERY_CELLS;
+         params.osd_flags2[iScreenIndex] &= ~OSD_FLAG2_SHOW_BATTERY_CELLS;
       else
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_BATTERY_CELLS;
+         params.osd_flags2[iScreenIndex] |= OSD_FLAG2_SHOW_BATTERY_CELLS;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexDistance == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[3]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_DISTANCE;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_DISTANCE;
       else
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_DISTANCE;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_DISTANCE;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexTotalDistance == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[10]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_TOTAL_DISTANCE;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_TOTAL_DISTANCE;
       else
-         params.osd_flags[layoutIndex] |= OSD_FLAG_TOTAL_DISTANCE;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_TOTAL_DISTANCE;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
@@ -674,48 +678,52 @@ void MenuVehicleOSDElements::onSelectItem()
    {
       if ( 0 == m_pItemsSelect[33]->getSelectedIndex() )
       {
-         params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_GROUND_SPEED;
-         params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_AIR_SPEED;
+         params.osd_flags2[iScreenIndex] &= ~OSD_FLAG2_SHOW_GROUND_SPEED;
+         params.osd_flags2[iScreenIndex] &= ~OSD_FLAG2_SHOW_AIR_SPEED;
       }
       if ( 3 == m_pItemsSelect[33]->getSelectedIndex() )
       {
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_GROUND_SPEED;
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_AIR_SPEED;
+         params.osd_flags2[iScreenIndex] |= OSD_FLAG2_SHOW_GROUND_SPEED;
+         params.osd_flags2[iScreenIndex] |= OSD_FLAG2_SHOW_AIR_SPEED;
       }
       if ( 1 == m_pItemsSelect[33]->getSelectedIndex() )
       {
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_GROUND_SPEED;
-         params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_AIR_SPEED;
+         params.osd_flags2[iScreenIndex] |= OSD_FLAG2_SHOW_GROUND_SPEED;
+         params.osd_flags2[iScreenIndex] &= ~OSD_FLAG2_SHOW_AIR_SPEED;
       }
       if ( 2 == m_pItemsSelect[33]->getSelectedIndex() )
       {
-         params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_GROUND_SPEED;
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_AIR_SPEED;
+         params.osd_flags2[iScreenIndex] &= ~OSD_FLAG2_SHOW_GROUND_SPEED;
+         params.osd_flags2[iScreenIndex] |= OSD_FLAG2_SHOW_AIR_SPEED;
       }
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexAltitude == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[4]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_ALTITUDE;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_ALTITUDE;
       else
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_ALTITUDE;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_ALTITUDE;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexHome == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[6]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_HOME;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_HOME;
       else
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_HOME;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_HOME;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexHomeInvert == m_SelectedIndex )
    {
       params.invert_home_arrow = m_pItemsSelect[7]->getSelectedIndex();
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
@@ -730,28 +738,31 @@ void MenuVehicleOSDElements::onSelectItem()
          params.home_arrow_rotate = 180;
       if ( 3 == index )
          params.home_arrow_rotate = 270;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexShowGPSInfo == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[26]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_GPS_INFO;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_GPS_INFO;
       else
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_GPS_INFO;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_GPS_INFO;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexShowGPSPos == m_SelectedIndex )
    {
       if ( 0 != m_pItemsSelect[9]->getSelectedIndex() )
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_GPS_POS;
+         params.osd_flags2[iScreenIndex] |= OSD_FLAG2_SHOW_GPS_POS;
       else
-         params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_GPS_POS;
+         params.osd_flags2[iScreenIndex] &= ~OSD_FLAG2_SHOW_GPS_POS;
       if ( 2 == m_pItemsSelect[9]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SCRAMBLE_GPS;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SCRAMBLE_GPS;
       else
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SCRAMBLE_GPS;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SCRAMBLE_GPS;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
@@ -759,137 +770,149 @@ void MenuVehicleOSDElements::onSelectItem()
    {
       if ( 0 == m_pItemsSelect[11]->getSelectedIndex() )
       {
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_FLIGHT_MODE;
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_FLIGHT_MODE;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
       }
       else if ( 1 == m_pItemsSelect[11]->getSelectedIndex() )
       {
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_FLIGHT_MODE;
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_FLIGHT_MODE;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
       }
       else if ( 2 == m_pItemsSelect[11]->getSelectedIndex() )
       {
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_FLIGHT_MODE;
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_FLIGHT_MODE;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
       }
       else
       {
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_FLIGHT_MODE;
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_FLIGHT_MODE;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;
       }
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
    
    if ( m_IndexTime == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[12]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_TIME;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_TIME;
       else
       {
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_TIME;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_TIME;
          if ( m_pItemsSelect[12]->getSelectedIndex() == 1 )
-            params.osd_flags[layoutIndex] &= (~OSD_FLAG_SHOW_TIME_LOWER);
+            params.osd_flags[iScreenIndex] &= (~OSD_FLAG_SHOW_TIME_LOWER);
          else
-            params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_TIME_LOWER;
+            params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_TIME_LOWER;
       }
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexWind == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[28]->getSelectedIndex() )
-         params.osd_flags3[layoutIndex] &= ~OSD_FLAG3_SHOW_WIND;
+         params.osd_flags3[iScreenIndex] &= ~OSD_FLAG3_SHOW_WIND;
       else
-         params.osd_flags3[layoutIndex] |= OSD_FLAG3_SHOW_WIND;
+         params.osd_flags3[iScreenIndex] |= OSD_FLAG3_SHOW_WIND;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexTemperature == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[29]->getSelectedIndex() )
-         params.osd_flags3[layoutIndex] &= ~OSD_FLAG3_SHOW_FC_TEMPERATURE;
+         params.osd_flags3[iScreenIndex] &= ~OSD_FLAG3_SHOW_FC_TEMPERATURE;
       else
-         params.osd_flags3[layoutIndex] |= OSD_FLAG3_SHOW_FC_TEMPERATURE;
+         params.osd_flags3[iScreenIndex] |= OSD_FLAG3_SHOW_FC_TEMPERATURE;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexThrottle == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[13]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_THROTTLE;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_THROTTLE;
       else
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_THROTTLE;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_THROTTLE;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexPitch == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[14]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_PITCH;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_PITCH;
       else
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_PITCH;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_PITCH;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexCPU == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[15]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_CPU_INFO;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_CPU_INFO;
       else
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_CPU_INFO;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_CPU_INFO;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexVideo == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[16]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_VIDEO_MODE;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_VIDEO_MODE;
       else
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_VIDEO_MODE;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_VIDEO_MODE;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexShowDetailedBPS == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[17]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_VIDEO_MBPS;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_VIDEO_MBPS;
       else
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_VIDEO_MBPS;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_VIDEO_MBPS;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexVideoExtended == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[18]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_VIDEO_MODE_EXTENDED;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_VIDEO_MODE_EXTENDED;
       else
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_VIDEO_MODE_EXTENDED;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_VIDEO_MODE_EXTENDED;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexRadioLinks == m_SelectedIndex )
    {
-      params.osd_flags[layoutIndex] &= ~(OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS);
+      params.osd_flags[iScreenIndex] &= ~(OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS);
       if ( 1 == m_pItemsSelect[19]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_RADIO_LINKS;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_RADIO_LINKS;
       else if ( 2 == m_pItemsSelect[19]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS;
       else if ( 3 == m_pItemsSelect[19]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS;
 
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
    
    if ( m_IndexRadioLinkBars == m_SelectedIndex )
    {
-      params.osd_flags2[layoutIndex] &= ~(OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS | OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS);
+      params.osd_flags2[iScreenIndex] &= ~(OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS | OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS);
       if ( 0 == m_pItemsSelect[20]->getSelectedIndex() )
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS;
+         params.osd_flags2[iScreenIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS;
       else if ( 1 == m_pItemsSelect[20]->getSelectedIndex() )
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS;
+         params.osd_flags2[iScreenIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS;
       else
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS | OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS;
+         params.osd_flags2[iScreenIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS | OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS;
       
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
@@ -897,45 +920,49 @@ void MenuVehicleOSDElements::onSelectItem()
    {
       if ( 0 == m_pItemsSelect[21]->getSelectedIndex() )
       {
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_RADIO_INTERFACES_INFO;
-         params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_RADIO_LINK_INTERFACES_EXTENDED;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_RADIO_INTERFACES_INFO;
+         params.osd_flags2[iScreenIndex] &= ~OSD_FLAG2_SHOW_RADIO_LINK_INTERFACES_EXTENDED;
       }
       else if ( 1 == m_pItemsSelect[21]->getSelectedIndex() )
       {
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_RADIO_INTERFACES_INFO;
-         params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_RADIO_LINK_INTERFACES_EXTENDED;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_RADIO_INTERFACES_INFO;
+         params.osd_flags2[iScreenIndex] &= ~OSD_FLAG2_SHOW_RADIO_LINK_INTERFACES_EXTENDED;
       }
       else if ( 2 == m_pItemsSelect[21]->getSelectedIndex() )
       {
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_RADIO_INTERFACES_INFO;
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_INTERFACES_EXTENDED;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_RADIO_INTERFACES_INFO;
+         params.osd_flags2[iScreenIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_INTERFACES_EXTENDED;
       }
 
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexRCRSSI == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[34]->getSelectedIndex() )
-         params.osd_flags2[layoutIndex] &= ~OSD_FLAG2_SHOW_RC_RSSI;
+         params.osd_flags2[iScreenIndex] &= ~OSD_FLAG2_SHOW_RC_RSSI;
       else
-         params.osd_flags2[layoutIndex] |= OSD_FLAG2_SHOW_RC_RSSI;
+         params.osd_flags2[iScreenIndex] |= OSD_FLAG2_SHOW_RC_RSSI;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexSignalBars == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[22]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_SIGNAL_BARS;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_SIGNAL_BARS;
       else
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_SIGNAL_BARS;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_SIGNAL_BARS;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
    if ( m_IndexSignalBarsPosition == m_SelectedIndex )
    {
       int index = m_pItemsSelect[23]->getSelectedIndex();
-      params.osd_flags[layoutIndex] &= ~OSD_FLAG_SIGNAL_BARS_MASK;
-      params.osd_flags[layoutIndex] |= (index<<14);
+      params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SIGNAL_BARS_MASK;
+      params.osd_flags[iScreenIndex] |= (index<<14);
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
@@ -943,27 +970,29 @@ void MenuVehicleOSDElements::onSelectItem()
    if ( m_IndexHIDOSD == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[24]->getSelectedIndex() )
-         params.osd_flags[layoutIndex] &= ~OSD_FLAG_SHOW_HID_IN_OSD;
+         params.osd_flags[iScreenIndex] &= ~OSD_FLAG_SHOW_HID_IN_OSD;
       else
-         params.osd_flags[layoutIndex] |= OSD_FLAG_SHOW_HID_IN_OSD;
+         params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_HID_IN_OSD;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
    if ( m_IndexGrid == m_SelectedIndex )
    {
-      params.osd_flags3[layoutIndex] &= ~(OSD_FLAG3_SHOW_GRID_CROSSHAIR | OSD_FLAG3_SHOW_GRID_DIAGONAL | OSD_FLAG3_SHOW_GRID_SQUARES | OSD_FLAG3_SHOW_GRID_THIRDS_SMALL);
+      params.osd_flags3[iScreenIndex] &= ~(OSD_FLAG3_SHOW_GRID_CROSSHAIR | OSD_FLAG3_SHOW_GRID_DIAGONAL | OSD_FLAG3_SHOW_GRID_SQUARES | OSD_FLAG3_SHOW_GRID_THIRDS_SMALL);
       if ( 0 == m_pItemsSelect[27]->getSelectedIndex() )
-         params.osd_flags3[layoutIndex] &= ~(OSD_FLAG3_SHOW_GRID_CROSSHAIR | OSD_FLAG3_SHOW_GRID_DIAGONAL | OSD_FLAG3_SHOW_GRID_SQUARES);
+         params.osd_flags3[iScreenIndex] &= ~(OSD_FLAG3_SHOW_GRID_CROSSHAIR | OSD_FLAG3_SHOW_GRID_DIAGONAL | OSD_FLAG3_SHOW_GRID_SQUARES);
       else if ( 1 == m_pItemsSelect[27]->getSelectedIndex() )
-         params.osd_flags3[layoutIndex] |= OSD_FLAG3_SHOW_GRID_CROSSHAIR;
+         params.osd_flags3[iScreenIndex] |= OSD_FLAG3_SHOW_GRID_CROSSHAIR;
       else if ( 2 == m_pItemsSelect[27]->getSelectedIndex() )
-         params.osd_flags3[layoutIndex] |= OSD_FLAG3_SHOW_GRID_DIAGONAL;
+         params.osd_flags3[iScreenIndex] |= OSD_FLAG3_SHOW_GRID_DIAGONAL;
       else if ( 3 == m_pItemsSelect[27]->getSelectedIndex() )
-         params.osd_flags3[layoutIndex] |= OSD_FLAG3_SHOW_GRID_SQUARES;
+         params.osd_flags3[iScreenIndex] |= OSD_FLAG3_SHOW_GRID_SQUARES;
       else if ( 4 == m_pItemsSelect[27]->getSelectedIndex() )
-         params.osd_flags3[layoutIndex] |= OSD_FLAG3_SHOW_GRID_DIAGONAL | OSD_FLAG3_SHOW_GRID_SQUARES;
+         params.osd_flags3[iScreenIndex] |= OSD_FLAG3_SHOW_GRID_DIAGONAL | OSD_FLAG3_SHOW_GRID_SQUARES;
       else if ( 5 == m_pItemsSelect[27]->getSelectedIndex() )
-         params.osd_flags3[layoutIndex] |= OSD_FLAG3_SHOW_GRID_THIRDS_SMALL;
+         params.osd_flags3[iScreenIndex] |= OSD_FLAG3_SHOW_GRID_THIRDS_SMALL;
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 

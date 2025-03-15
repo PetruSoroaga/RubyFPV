@@ -15,6 +15,7 @@ class MenuRoot: public Menu
       void RenderVehicleInfo();
       void createHWInfo(Menu* pm);
 
+      int m_iIndexSimpleSetup;
       int m_iIndexVehicle, m_iIndexMyVehicles;
       int m_iIndexSpectator, m_iIndexSearch;
       int m_iIndexController, m_iIndexMedia;

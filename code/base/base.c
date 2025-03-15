@@ -374,6 +374,23 @@ char* removeLeadingWhiteSpace(char* szBuff)
    return p;
 }
 
+char* replaceNewLinesToSpaces(char* szBuff)
+{
+   if ( (NULL == szBuff) || (0 == szBuff[0]) )
+      return szBuff;
+      
+   removeTrailingNewLines(szBuff);
+
+   int iLen = strlen(szBuff);
+   for( int i=0; i<iLen; i++ )
+   {
+      if ( (szBuff[i] >= 10) && (szBuff[i] <= 14) )
+         szBuff[i] = ' ';
+   }
+   return szBuff;
+
+}
+
 int _log_check_for_service_log_access()
 {
    if ( 0 == s_logUseService )

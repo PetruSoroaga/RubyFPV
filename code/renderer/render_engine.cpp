@@ -287,7 +287,7 @@ void RenderEngine::setColors(const double* color, float fAlfaScale)
    m_uTextFontMixColor[3] = 255 * fAlpha;
 }
 
-void RenderEngine::setFill(double* pColor)
+void RenderEngine::setFill(const double* pColor)
 {
    m_ColorFill[0] = pColor[0];
    m_ColorFill[1] = pColor[1];

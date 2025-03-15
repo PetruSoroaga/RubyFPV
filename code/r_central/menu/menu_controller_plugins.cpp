@@ -206,6 +206,11 @@ void MenuControllerPlugins::onReturnFromChild(int iChildMenuId, int returnValue)
    
    if ( (1 == iChildMenuId/1000) && (1 == returnValue) )
    {
+      if ( get_sw_version_build(g_pCurrentModel) < 278 )
+      {
+         addMessage("Plugins and OSD functionality has changed. You need to update your vehicle sowftware.");
+         return;
+      }
       importFromUSB();
       return;
    }
@@ -472,7 +477,7 @@ void MenuControllerPlugins::importFromUSB()
             break;
          if ( NULL == g_pCurrentModel )
             break;
-         int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+         int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
          g_pCurrentModel->osd_params.instruments_flags[layoutIndex] |= (INSTRUMENTS_FLAG_SHOW_FIRST_OSD_PLUGIN << i);
       }
 

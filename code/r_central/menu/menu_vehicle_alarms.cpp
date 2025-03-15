@@ -134,7 +134,7 @@ void MenuVehicleAlarms::valuesToUI()
 
    bool bHasFlashOn = false;
    bool bHasFlashOff = false;
-   for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+   for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
    {
       if ( g_pCurrentModel->osd_params.osd_flags2[i] & OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST )
          bHasFlashOn = true;
@@ -210,12 +210,12 @@ void MenuVehicleAlarms::onSelectItem()
    {
       if ( m_pItemsSelect[2]->getSelectedIndex() == 0 )
       {
-         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+         for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
             params.osd_preferences[i] &= ~(OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM); // controller link lost alarm disabled
       }
       else
       {
-         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+         for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
             params.osd_preferences[i] |= OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM; // controller link lost alarm enabled
       }
       sendToVehicle = true;
@@ -274,13 +274,13 @@ void MenuVehicleAlarms::onSelectItem()
       if ( 0 == m_pItemsSelect[4]->getSelectedIndex() )
       {
          sendToVehicle = true;
-         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+         for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
             params.osd_flags2[i] &= ~OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST;
       }
       else if ( 1 == m_pItemsSelect[4]->getSelectedIndex() )
       {
          sendToVehicle = true;
-         for( int i=0; i<MODEL_MAX_OSD_PROFILES; i++ )
+         for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
             params.osd_flags2[i] |= OSD_FLAG2_FLASH_OSD_ON_TELEMETRY_DATA_LOST;
       }
    }
@@ -292,6 +292,11 @@ void MenuVehicleAlarms::onSelectItem()
          memcpy(&(g_pCurrentModel->osd_params), &params, sizeof(osd_parameters_t));
          saveControllerModel(g_pCurrentModel);
          valuesToUI();
+         return;
+      }
+      if ( get_sw_version_build(g_pCurrentModel) < 278 )
+      {
+         addMessage("Alarms and OSD functionality has changed. You need to update your vehicle sowftware.");
          return;
       }
       if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_OSD_PARAMS, 0, (u8*)&params, sizeof(osd_parameters_t)) )

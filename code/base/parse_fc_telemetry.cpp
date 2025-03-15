@@ -725,6 +725,8 @@ bool parse_telemetry_from_fc( u8* buffer, int length, t_packet_header_fc_telemet
       buffer++;
       if (mavlink_parse_char(0, c, &msgMav, &statusMav))
       {
+         if ( 0 == s_uTimeLastMAVLinkMessageFromFC )
+            log_line("Started receiving valid MAVLink telemetry from FC");
          s_uTimeLastMAVLinkMessageFromFC = get_current_timestamp_ms();
          ret = true;
          _process_mav_message(pphfct, pPHRTE, vehicleType);

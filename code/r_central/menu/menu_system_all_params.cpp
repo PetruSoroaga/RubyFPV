@@ -238,7 +238,7 @@ float MenuSystemAllParams::renderVehicleRC(float xPos, float yPos, float width, 
    yPos += MENU_TEXTLINE_SPACING * height_text;
 
    bool bSI = false;
-   if ( g_pCurrentModel->osd_params.show_stats_rc || (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_HID_IN_OSD) )
+   if ( g_pCurrentModel->osd_params.show_stats_rc || (g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG_SHOW_HID_IN_OSD) )
       bSI = true;
    sprintf(szBuff, "RC: send info back: %s, show on OSD: %d/%d", bSI?"Yes":"No", g_pCurrentModel->osd_params.show_stats_rc, (g_pCurrentModel->osd_params.osd_flags[0] & OSD_FLAG_SHOW_HID_IN_OSD));
    yPos += g_pRenderEngine->drawMessageLines(xPos, yPos, szBuff, MENU_TEXTLINE_SPACING, width, g_idFontMenuSmall);

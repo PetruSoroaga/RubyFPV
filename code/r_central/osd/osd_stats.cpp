@@ -785,7 +785,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
 
       bool bECChanged = false;
       if ( g_bOSDElementChangeNotification )
-      if ( (pActiveModel->osd_params.osd_flags3[pActiveModel->osd_params.iCurrentOSDLayout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) || pCS->iDeveloperMode )
+      if ( (pActiveModel->osd_params.osd_flags3[pActiveModel->osd_params.iCurrentOSDScreen] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) || pCS->iDeveloperMode )
       if ( g_TimeNow < s_uTimeLastECSchemeChangedTime + g_uOSDElementChangeTimeout )
          bECChanged = true;
 
@@ -805,7 +805,7 @@ float osd_render_stats_video_decode(float xPos, float yPos, int iDeveloperMode, 
       }
 
       if ( bECChanged && g_bOSDElementChangeNotification )
-      if ( (pActiveModel->osd_params.osd_flags3[pActiveModel->osd_params.iCurrentOSDLayout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) || pCS->iDeveloperMode )
+      if ( (pActiveModel->osd_params.osd_flags3[pActiveModel->osd_params.iCurrentOSDScreen] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) || pCS->iDeveloperMode )
          osd_set_colors_text(get_Color_OSDElementChanged());
 
       if ( (! bECChanged) || (g_TimeNow >= s_uTimeLastECSchemeChangedTime + g_uOSDElementChangeTimeout/2) ||
@@ -3562,7 +3562,7 @@ void _osd_render_stats_panels_horizontal()
 
    float yMax = 1.0-osd_getMarginY()-osd_getBarHeight()-0.01 - osd_getSecondBarHeight();
 
-   if ( g_pCurrentModel->osd_params.iCurrentOSDLayout == osdLayoutLean )
+   if ( g_pCurrentModel->osd_params.iCurrentOSDScreen == osdLayoutLean )
       yMax -= 0.05; 
 
    float xSpacing = 0.01*fStatsSize;
@@ -3684,7 +3684,7 @@ void _osd_render_stats_panels_vertical()
    float yMin = osd_getMarginY() + hBar + hBar2 + 0.04; 
    float yMax = 1.0-osd_getMarginY() - hBar - hBar2 - 0.03;
    
-   if ( g_pCurrentModel->osd_params.iCurrentOSDLayout == osdLayoutLean )
+   if ( g_pCurrentModel->osd_params.iCurrentOSDScreen == osdLayoutLean )
       yMax -= 0.05; 
 
    float yStats = yMin;
@@ -4205,7 +4205,7 @@ void osd_render_stats_panels()
    if ( NULL == pModel )
       return;
 
-   int iOSDLayoutIndex = pModel->osd_params.iCurrentOSDLayout;
+   int iOSDLayoutIndex = pModel->osd_params.iCurrentOSDScreen;
 
    ControllerSettings* pCS = get_ControllerSettings();
    Preferences* p = get_Preferences();

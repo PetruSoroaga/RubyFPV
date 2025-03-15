@@ -45,6 +45,9 @@ MenuConfirmation::MenuConfirmation(const char* szTitle, const char* szText, int 
    m_bSingleOption = false;
    m_bShowDoNotShowAgain = false;
    m_bDoNotShowAgain = false;
+   m_bDisablePairingUIActions = false;
+   m_uTimeoutMs = 0;
+   m_uCloseOnTimeoutTime = 0;
    m_uIconId = 0;
    m_iUniqueId = 0;
    if ( NULL != szText )
@@ -66,6 +69,9 @@ MenuConfirmation::MenuConfirmation(const char* szTitle, const char* szText, int 
    m_bSingleOption = singleOption;
    m_bShowDoNotShowAgain = false;
    m_bDoNotShowAgain = false;
+   m_bDisablePairingUIActions = false;
+   m_uTimeoutMs = 0;
+   m_uCloseOnTimeoutTime = 0;
    m_uIconId = 0;
    m_iUniqueId = 0;
    if ( NULL != szText )
@@ -95,6 +101,14 @@ void MenuConfirmation::setIconId(u32 uIconId)
    invalidate();
 }
 
+void MenuConfirmation::setTimeoutMs(u32 uTimeoutMs)
+{
+   m_uTimeoutMs = uTimeoutMs;
+   if ( m_uTimeoutMs > 0 )
+      m_uCloseOnTimeoutTime = g_TimeNow + m_uTimeoutMs;
+}
+
+
 void MenuConfirmation::setUniqueId(int iUniqueId)
 {
    m_iUniqueId = iUniqueId;
@@ -103,6 +117,11 @@ void MenuConfirmation::setUniqueId(int iUniqueId)
 void MenuConfirmation::enableShowDoNotShowAgain()
 {
    m_bShowDoNotShowAgain = true;
+}
+
+void MenuConfirmation::disablePairingUIActions()
+{
+   m_bDisablePairingUIActions = true;
 }
 
 void MenuConfirmation::onShow()
@@ -179,10 +198,26 @@ void MenuConfirmation::_saveDoNotShowFlag()
    save_Preferences();
 }
 
+bool MenuConfirmation::periodicLoop()
+{
+   if ( (m_uTimeoutMs != 0) && (m_uCloseOnTimeoutTime != 0) && (g_TimeNow > m_uCloseOnTimeoutTime) )
+   {
+      m_uTimeoutMs = 0;
+      m_uCloseOnTimeoutTime = 0;
+      menu_stack_pop(1);
+      if ( (! m_bDisablePairingUIActions) && onEventPairingTookUIActions() )
+         onEventFinishedPairUIAction();
+      return true;
+   }
+   return Menu::periodicLoop();
+}
+
 int MenuConfirmation::onBack()
 {
    int iRet = Menu::onBack();
    _saveDoNotShowFlag();
+   if ( (! m_bDisablePairingUIActions) && onEventPairingTookUIActions() )
+      onEventFinishedPairUIAction();
    log_line("Menu Confirmation: will close on Back, return value: %d, confirmation id: %d (%d)", iRet, m_MenuId, (m_MenuId - MENU_ID_CONFIRMATION)/1000);
    return iRet;
 }
@@ -196,6 +231,8 @@ void MenuConfirmation::onSelectItem()
       log_line("Menu Confirmation: will close with Ok, confirmation id: %d (%d)", m_MenuId, (m_MenuId - MENU_ID_CONFIRMATION)/1000);
       _saveDoNotShowFlag();
       menu_stack_pop(1);
+      if ( (! m_bDisablePairingUIActions) && onEventPairingTookUIActions() )
+         onEventFinishedPairUIAction();
       return;
    }
 
@@ -204,6 +241,8 @@ void MenuConfirmation::onSelectItem()
       log_line("Menu Confirmation: will close with Cancel, confirmation id: %d (%d)", m_MenuId, (m_MenuId - MENU_ID_CONFIRMATION)/1000);
       _saveDoNotShowFlag();
       menu_stack_pop(0);
+      if ( (! m_bDisablePairingUIActions) && onEventPairingTookUIActions() )
+         onEventFinishedPairUIAction();
       return;
    }
 

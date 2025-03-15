@@ -34,8 +34,8 @@ typedef u32 __le32;
 #define SYSTEM_NAME "Ruby"
 // dword[3...0]: BB.BB.MM.mm  (BB.BB: build number (highest bytes), MM: major ver, mm: minor ver (lowest byte)) 
 #define SYSTEM_SW_VERSION_MAJOR 10
-#define SYSTEM_SW_VERSION_MINOR 60
-#define SYSTEM_SW_BUILD_NUMBER  277
+#define SYSTEM_SW_VERSION_MINOR 70
+#define SYSTEM_SW_BUILD_NUMBER  279
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define le16_to_cpu(x) (x)
@@ -94,6 +94,7 @@ char* removeTrailingZero(char* szBuff);
 char* removeNewLines(char* szBuff);
 char* removeTrailingNewLines(char* szBuff);
 char* removeLeadingWhiteSpace(char* szBuff);
+char* replaceNewLinesToSpaces(char* szBuff);
 
 void log_init_local_only(const char* component_name);
 void log_init(const char* component_name);

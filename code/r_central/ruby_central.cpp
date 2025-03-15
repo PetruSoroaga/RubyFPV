@@ -214,8 +214,9 @@ void _draw_background()
    if ( g_TimeNow > s_uTimeLastChangeBgImage + 40000 )
    {
       s_uTimeLastChangeBgImage = g_TimeNow;
-      if ( ! g_bUpdateInProgress )
+      if ( (! g_bUpdateInProgress) && (! g_bSearching) )
       {
+         log_line("Not searching or updating. Update background picture.");
          int iIndex = s_iBgImageIndex;
          while ( iIndex == s_iBgImageIndex )
          {
@@ -235,7 +236,7 @@ void _draw_background()
       iImageIdPrev = s_idBgImageMenu[s_iBgImageIndexPrev];
    }
 
-   if ( (g_TimeNow >= s_uTimeLastChangeBgImage) && (g_TimeNow < s_uTimeLastChangeBgImage + 3000) )
+   if ( (! g_bUpdateInProgress) && (! g_bSearching) && (g_TimeNow >= s_uTimeLastChangeBgImage) && (g_TimeNow < s_uTimeLastChangeBgImage + 3000) )
    {
       int iAlpha = ((s_uTimeLastChangeBgImage+3000) - g_TimeNow)/12;
       if ( iAlpha < 0 )
@@ -271,10 +272,12 @@ void _draw_background()
    //g_pRenderEngine->drawText(0.42, 0.2, g_idFontMenuLarge, szBuff);
    //g_pRenderEngine->drawText(0.42, 0.24, g_idFontMenuLarge, "Digital FPV System");
 
+   float fXTextStart = 0.3;
+   
    double c[4] = {40,40,40,1};
    g_pRenderEngine->setColors(c);
    sprintf(szBuff, "Welcome to %s Digital FPV System", SYSTEM_NAME);
-   g_pRenderEngine->drawText(0.35, 0.1, g_idFontMenuLarge, szBuff);
+   g_pRenderEngine->drawText(fXTextStart, 0.1, g_idFontMenuLarge, szBuff);
 
    double c2[4] = {0,0,0,1};
    g_pRenderEngine->setColors(c2);
@@ -284,15 +287,15 @@ void _draw_background()
    {
       if ( 0 == getControllerModelsCount() )
       {
-         g_pRenderEngine->drawText(0.32, 0.3, g_idFontMenuLarge, "Info: No vehicle defined!");
-         g_pRenderEngine->drawText(0.32, 0.34, g_idFontMenuLarge, "You have no vehicles linked to this controller.");
-         g_pRenderEngine->drawText(0.32, 0.37, g_idFontMenuLarge, "Press [Menu] key and then select 'Search' to search for a vehicle to connect to.");
+         g_pRenderEngine->drawText(fXTextStart, 0.3, g_idFontMenuLarge, "Info: No vehicle defined!");
+         g_pRenderEngine->drawText(fXTextStart, 0.34, g_idFontMenuLarge, "You have no vehicles linked to this controller.");
+         g_pRenderEngine->drawText(fXTextStart, 0.37, g_idFontMenuLarge, "Press [Menu] key and then select 'Search' to search for a vehicle to connect to.");
       }
       else if ( ! g_bSearching )
       {
-         g_pRenderEngine->drawText(0.32, 0.3, g_idFontMenuLarge, "Info: No vehicle selected!");
-         g_pRenderEngine->drawText(0.32, 0.34, g_idFontMenuLarge, "You have no vehicle selected as active.");
-         g_pRenderEngine->drawText(0.32, 0.37, g_idFontMenuLarge, "Press [Menu] key and then select 'My Vehicles' to select the vehicle to connect to.");
+         g_pRenderEngine->drawText(fXTextStart, 0.3, g_idFontMenuLarge, "Info: No vehicle selected!");
+         g_pRenderEngine->drawText(fXTextStart, 0.34, g_idFontMenuLarge, "You have no vehicle selected as active.");
+         g_pRenderEngine->drawText(fXTextStart, 0.37, g_idFontMenuLarge, "Press [Menu] key and then select 'My Vehicles' to select the vehicle to connect to.");
       }
    }
 }
@@ -428,7 +431,7 @@ void _render_video_background()
    g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45, g_idFontOSDBig, szText);
    g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45, g_idFontOSDBig, szText);
 
-   if ( (uVehicleSoftwareVersion >>16)  < 262 )
+   if ( (!g_bSearching) && ((uVehicleSoftwareVersion >>16)  < 262) )
    {
       float fHeight = 1.5*g_pRenderEngine->textHeight(g_idFontOSDBig);
       width_text = g_pRenderEngine->textRawWidth(g_idFontOSDBig, L("Video protocols have changed. You must update your vehicle"));
@@ -574,7 +577,7 @@ void render_all_with_menus(u32 timeNow, bool bRenderMenus, bool bForceBackground
       char szBuff[64];
       float yPos = osd_getMarginY() + osd_getBarHeight() + osd_getSecondBarHeight() + 0.01*osd_getScaleOSD();
       float xPos = osd_getMarginX() + 0.02*osd_getScaleOSD();
-      if ( NULL != g_pCurrentModel && osd_get_current_layout_index() >= 0 && osd_get_current_layout_index() < MODEL_MAX_OSD_PROFILES )
+      if ( NULL != g_pCurrentModel && osd_get_current_layout_index() >= 0 && osd_get_current_layout_index() < MODEL_MAX_OSD_SCREENS )
       if ( g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_LAYOUT_LEFT_RIGHT )
       {
          xPos = osd_getMarginX() + osd_getVerticalBarWidth() + 0.01*osd_getScaleOSD();
@@ -1602,6 +1605,7 @@ void start_loop()
       char szPids[1024];
       bool procRunning = false;
       hw_execute_bash_command_silent("pidof ruby_video_proc", szPids);
+      removeTrailingNewLines(szPids);
       if ( strlen(szPids) > 2 )
          procRunning = true;
       if ( procRunning )
@@ -1866,7 +1870,7 @@ void synchronize_shared_mems()
    
    if ( pCS->iDeveloperMode )
    if ( NULL != g_pCurrentModel )
-   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
    {
       if ( NULL != g_pSM_VideoFramesStatsOutput )
       if ( g_TimeNow >= g_SM_VideoFramesStatsOutput.uLastTimeStatsUpdate + 200 )
@@ -1941,7 +1945,7 @@ void ruby_processing_loop(bool bNoKeys)
       g_iMustSendCurrentActiveOSDLayoutCounter--;
       g_TimeLastSentCurrentActiveOSDLayout = g_TimeNow;
       handle_commands_decrement_command_counter();
-      handle_commands_send_single_oneway_command(0, COMMAND_ID_SET_OSD_CURRENT_LAYOUT, (u32)g_pCurrentModel->osd_params.iCurrentOSDLayout, NULL, 0);
+      handle_commands_send_single_oneway_command(0, COMMAND_ID_SET_OSD_CURRENT_LAYOUT, (u32)g_pCurrentModel->osd_params.iCurrentOSDScreen, NULL, 0);
    }
 
    if ( g_bIsRouterReady )
@@ -1988,6 +1992,9 @@ void main_loop_r_central()
       menu_discard_all();
       ruby_reinit_hdmi_display();
    }
+
+   if ( pairing_isStarted() )
+      onEventCheckForPairPendingUIActionsToTake();
 
    compute_cpu_state();
 

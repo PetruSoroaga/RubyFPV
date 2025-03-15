@@ -223,7 +223,7 @@ void MenuVehicleRadioConfig::populateFrequencies()
       int iRadioInterfaceId = g_pCurrentModel->getRadioInterfaceIndexForRadioLink(iRadioLinkId);
       if ( -1 == iRadioInterfaceId )
       {
-         log_softerror_and_alarm("Invalid radio link. No radio interfaces assigned to radio link %d.", iRadioLinkId+1);
+         log_softerror_and_alarm("MenuVehicleRadio: Invalid radio link. No radio interfaces assigned to radio link %d.", iRadioLinkId+1);
          continue;
       }
 

@@ -109,7 +109,7 @@ void _synchronize_shared_mems()
    //---------------------------------------------
    
    if ( (NULL != g_pCurrentModel) && g_pControllerSettings->iDeveloperMode )
-   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG_SHOW_STATS_VIDEO_H264_FRAMES_INFO)
    if ( g_TimeNow >= g_SM_VideoFramesStatsOutput.uLastTimeStatsUpdate + 200 )
    {
       update_shared_mem_video_frames_stats( &g_SM_VideoFramesStatsOutput, g_TimeNow);
@@ -264,7 +264,7 @@ void _check_send_pairing_requests()
 // returns 0 if not ping must be sent now, or the ping interval in ms if it must be inserted
 int _must_inject_ping_now()
 {
-   if ( g_bUpdateInProgress || g_bSearching || (NULL == g_pCurrentModel) || g_pCurrentModel->is_spectator || g_pCurrentModel->b_mustSyncFromVehicle )
+   if ( g_bSearching || (NULL == g_pCurrentModel) || g_pCurrentModel->is_spectator || g_pCurrentModel->b_mustSyncFromVehicle )
       return 0;
 
    if ( g_pCurrentModel->getVehicleFirmwareType() != MODEL_FIRMWARE_TYPE_RUBY )

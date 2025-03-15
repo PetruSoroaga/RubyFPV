@@ -295,8 +295,8 @@ void MenuVehicleRC::valuesToUI()
    Preferences* p = get_Preferences();
    ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
 
-   int nOSDIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
-   if ( nOSDIndex < 0 || nOSDIndex >= MODEL_MAX_OSD_PROFILES )
+   int nOSDIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
+   if ( nOSDIndex < 0 || nOSDIndex >= MODEL_MAX_OSD_SCREENS )
       nOSDIndex = 0;
 
    m_bSBUSInverted = false;
@@ -998,8 +998,8 @@ void MenuVehicleRC::onSelectItem()
 
    ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
    Preferences* p = get_Preferences();
-   int nOSDIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
-   if ( nOSDIndex < 0 || nOSDIndex >= MODEL_MAX_OSD_PROFILES )
+   int nOSDIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
+   if ( nOSDIndex < 0 || nOSDIndex >= MODEL_MAX_OSD_SCREENS )
       nOSDIndex = 0;
 
    if ( m_IndexRCEnabled == m_SelectedIndex )

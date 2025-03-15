@@ -296,6 +296,8 @@ void MenuVehiclePeripherals::onSelectItem()
          memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardwareInterfacesInfo), sizeof(type_vehicle_hardware_interfaces_info));
          new_info.serial_port_supported_and_usage[i] &= 0xFFFFFF00;
          new_info.serial_port_supported_and_usage[i] |= (u8)newUsage;
+
+         vehicle_runtime_reset_has_received_fc_telemetry_info(g_pCurrentModel->uVehicleId);
          log_line("Sending new serial ports usage to vehicle.");
          if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(type_vehicle_hardware_interfaces_info)) )
             valuesToUI();
@@ -311,6 +313,7 @@ void MenuVehiclePeripherals::onSelectItem()
          type_vehicle_hardware_interfaces_info new_info;
          memcpy((u8*)&new_info, (u8*)&(g_pCurrentModel->hardwareInterfacesInfo), sizeof(type_vehicle_hardware_interfaces_info));
          new_info.serial_port_speed[i] = val;
+         vehicle_runtime_reset_has_received_fc_telemetry_info(g_pCurrentModel->uVehicleId);
          log_line("Sending new serial ports info to vehicle.");
          if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_SERIAL_PORTS_INFO, 0, (u8*)&new_info, sizeof(type_vehicle_hardware_interfaces_info)) )
             valuesToUI();

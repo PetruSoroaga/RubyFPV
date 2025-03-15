@@ -11,90 +11,118 @@
 
 int hw_process_exists(const char* szProcName)
 {
-   char szComm[128];
-   char szPids[1024];
-   int iPID = 0;
    if ( (NULL == szProcName) || (0 == szProcName[0]) )
       return 0;
-
-   sprintf(szComm, "pidof %s", szProcName);
-   hw_execute_bash_command_raw_silent(szComm, szPids);
+   char szPids[256];
+   hw_process_get_pids(szProcName, szPids);
    removeTrailingNewLines(szPids);
    char* p = removeLeadingWhiteSpace(szPids);
+
    if ( strlen(p) < 3 )
    {
-      sprintf(szComm, "ps -aef | grep %s | grep -v \"grep\"", szProcName);
-      hw_execute_bash_command_raw_silent(szComm, szPids);
-      removeTrailingNewLines(szPids);
-      p = removeLeadingWhiteSpace(szPids);
-      if ( ! isdigit(*p) )
-         return 0;
-      if ( 1 != sscanf(p, "%d", &iPID) )
-         return 0;
-      if ( iPID < 100 )
-         return 0;
-      return iPID;
+      log_line("Process (%s) is not running.", szProcName);
+      return 0;
+   }
+   if ( ! isdigit(*p) )
+   {
+      log_line("Process (%s) is not running.", szProcName);
+      return 0;
    }
 
-   if ( ! isdigit(*p) )
-      return 0;
+   int iPID = 0;
    if ( 1 != sscanf(p, "%d", &iPID) )
+   {
+      log_line("Process (%s) is not running.", szProcName);
       return 0;
+   }
    if ( iPID < 100 )
+   {
+      log_line("Process (%s) is not running.", szProcName);
       return 0;
+   }
+   log_line("Process (%s) is running, PID: %d", szProcName, iPID);
    return iPID;
 }
 
-char* hw_process_get_pid(const char* szProcName)
+char* hw_process_get_pids_inline(const char* szProcName)
 {
    static char s_szHWProcessPIDs[256];
-
    s_szHWProcessPIDs[0] = 0;
+   hw_process_get_pids(szProcName, s_szHWProcessPIDs);
+   return s_szHWProcessPIDs;
+}
+void hw_process_get_pids(const char* szProcName, char* szOutput)
+{
+   if ( NULL == szOutput )
+      return;
+
+   szOutput[0] = 0;
 
    if ( (NULL == szProcName) || (0 == szProcName[0]) )
-      return s_szHWProcessPIDs;
+      return;
 
    char szComm[128];
+
+   log_line("Check existence of process (%s)...", szProcName);
    sprintf(szComm, "pidof %s", szProcName);
-   hw_execute_bash_command_silent(szComm, s_szHWProcessPIDs);
-   removeTrailingNewLines(s_szHWProcessPIDs);
-   return s_szHWProcessPIDs;
+   hw_execute_bash_command_raw_silent(szComm, szOutput);
+   removeTrailingNewLines(szOutput);
+   log_line("Result of pidof: (%s)", szOutput);
+   char* p = removeLeadingWhiteSpace(szOutput);
+   if ( strlen(p) < 3 )
+   {
+      log_line("No result on pidof. Check using pgrep...");
+      sprintf(szComm, "pgrep %s", szProcName);
+      hw_execute_bash_command_raw_silent(szComm, szOutput);
+      removeTrailingNewLines(szOutput);
+      log_line("Result of pgrep: (%s)", szOutput);
+      p = removeLeadingWhiteSpace(szOutput);
+      if ( strlen(p) < 3 )
+      {
+         log_line("No results on pgrep. Check using ps...");
+         sprintf(szComm, "ps -ae | grep %s | grep -v \"grep\"", szProcName);
+         hw_execute_bash_command_raw_silent(szComm, szOutput);
+         removeTrailingNewLines(szOutput);
+         log_line("Result of ps search: (%s)", szOutput);
+         p = removeLeadingWhiteSpace(szOutput);
+      }
+   }
 }
 
 void hw_stop_process(const char* szProcName)
 {
    char szComm[1024];
-   char szPids[1024];
+   char szPIDs[512];
 
    if ( NULL == szProcName || 0 == szProcName[0] )
       return;
 
    log_line("Stopping process [%s]...", szProcName);
    
-   sprintf(szComm, "pidof %s", szProcName);
-   hw_execute_bash_command(szComm, szPids);
-   removeTrailingNewLines(szPids);
-   if ( strlen(szPids) > 2 )
+   hw_process_get_pids(szProcName, szPIDs);
+   removeTrailingNewLines(szPIDs);
+   replaceNewLinesToSpaces(szPIDs);
+   if ( strlen(szPIDs) > 2 )
    {
-      log_line("Found PID(s) for process %s: %s", szProcName, szPids);
-      sprintf(szComm, "kill $(pidof %s) 2>/dev/null", szProcName);
+      log_line("Found PID(s) for process to stop %s: %s", szProcName, szPIDs);
+      sprintf(szComm, "kill %s 2>/dev/null", szPIDs);
       hw_execute_bash_command(szComm, NULL);
       int retryCount = 30;
-      sprintf(szComm, "pidof %s", szProcName);
       while ( retryCount > 0 )
       {
          hardware_sleep_ms(10);
-         szPids[0] = 0;
-         hw_execute_bash_command(szComm, szPids);
-         removeTrailingNewLines(szPids);
-         if ( strlen(szPids) < 2 )
+         szPIDs[0] = 0;
+         hw_process_get_pids(szProcName, szPIDs);
+         removeTrailingNewLines(szPIDs);
+         replaceNewLinesToSpaces(szPIDs);
+         if ( strlen(szPIDs) < 2 )
          {
             log_line("Did stopped process %s", szProcName);
             return;
          }
          retryCount--;
       }
-      sprintf(szComm, "kill -9 $(pidof %s) 2>/dev/null", szProcName);
+      sprintf(szComm, "kill -9 %s 2>/dev/null", szPIDs);
       hw_execute_bash_command(szComm, NULL);
       hardware_sleep_ms(20);
    }
@@ -105,36 +133,44 @@ void hw_stop_process(const char* szProcName)
 
 int hw_kill_process(const char* szProcName, int iSignal)
 {
-   char szCommStop[256];
-   char szComm[256];
-   char szPids[256];
+   char szCommStop[512];
+   char szPIDs[256];
 
    if ( (NULL == szProcName) || (0 == szProcName[0]) )
       return -1;
 
-   sprintf(szCommStop, "kill %d $(pidof %s) 2>/dev/null", iSignal, szProcName);
+   hw_process_get_pids(szProcName, szPIDs);
+   removeTrailingNewLines(szPIDs);
+   replaceNewLinesToSpaces(szPIDs);
+   if ( strlen(szPIDs) < 3 )
+   {
+      log_line("Process %s does not exist. Nothing to kill.", szProcName);
+      return 0;
+   }
+   sprintf(szCommStop, "kill %d %s 2>/dev/null", iSignal, szPIDs);
    hw_execute_bash_command_raw(szCommStop, NULL);
    hardware_sleep_ms(20);
 
-   sprintf(szComm, "pidof %s", szProcName);
-   hw_execute_bash_command_raw(szComm, szPids);
-   removeTrailingNewLines(szPids);
-   if ( strlen(szPids) < 3 )
+   hw_process_get_pids(szProcName, szPIDs);
+   removeTrailingNewLines(szPIDs);
+   replaceNewLinesToSpaces(szPIDs);
+   if ( strlen(szPIDs) < 3 )
       return 1;
 
-   log_line("Process still exists, %s pid is: %s", szProcName, szPids);
+   log_line("Process still exists, %s PIDs are: %s", szProcName, szPIDs);
 
    int retryCount = 5;
    while ( retryCount > 0 )
    {
       hardware_sleep_ms(10);
       hw_execute_bash_command_raw(szCommStop, NULL);
-      szPids[0] = 0;
-      hw_execute_bash_command_raw(szComm, szPids);
-      removeTrailingNewLines(szPids);
-      if ( strlen(szPids) < 3 )
+      szPIDs[0] = 0;
+      hw_process_get_pids(szProcName, szPIDs);
+      removeTrailingNewLines(szPIDs);
+      replaceNewLinesToSpaces(szPIDs);
+      if ( strlen(szPIDs) < 3 )
          return 1;
-      log_line("Process still exists (%d), %s pid is: %s", retryCount, szProcName, szPids);
+      log_line("Process still exists (%d), %s PIDs are: %s", retryCount, szProcName, szPIDs);
       retryCount--;
    }
    return 0;
@@ -253,36 +289,37 @@ void hw_set_priority_current_proc(int nice)
 }
 
 
-void hw_set_proc_priority(const char* szProgName, int nice, int ionice, int waitForProcess)
+void hw_set_proc_priority(const char* szProcName, int nice, int ionice, int waitForProcess)
 {
-   char szPids[128];
+   char szPIDs[128];
    char szComm[256];
-   if ( NULL == szProgName || 0 == szProgName[0] )
+   if ( NULL == szProcName || 0 == szProcName[0] )
       return;
+   
+   hw_process_get_pids(szProcName, szPIDs);
+   removeTrailingNewLines(szPIDs);
+   replaceNewLinesToSpaces(szPIDs);
 
-   sprintf(szComm, "pidof %s", szProgName);
-   szPids[0] = 0;
    int count = 0;
-   hw_execute_bash_command_silent(szComm, szPids);
-   removeTrailingNewLines(szPids);
-   while ( waitForProcess && (strlen(szPids) <= 2) && (count < 100) )
+   while ( waitForProcess && (strlen(szPIDs) <= 2) && (count < 100) )
    {
       hardware_sleep_ms(2);
-      szPids[0] = 0;
-      hw_execute_bash_command_silent(szComm, szPids);
-      removeTrailingNewLines(szPids);
+      szPIDs[0] = 0;
+      hw_process_get_pids(szProcName, szPIDs);
+      removeTrailingNewLines(szPIDs);
+      replaceNewLinesToSpaces(szPIDs);
       count++;
    }
 
-   if ( strlen(szPids) <= 2 )
+   if ( strlen(szPIDs) <= 2 )
       return;
-   sprintf(szComm, "renice -n %d -p %s", nice, szPids);
+   sprintf(szComm, "renice -n %d -p %s", nice, szPIDs);
    hw_execute_bash_command(szComm, NULL);
 
    #ifdef HW_CAPABILITY_IONICE
    if ( ionice > 0 )
    {
-      sprintf(szComm, "ionice -c 1 -n %d -p %s", ionice, szPids);
+      sprintf(szComm, "ionice -c 1 -n %d -p %s", ionice, szPIDs);
       hw_execute_bash_command(szComm, NULL);
    }
    //else
@@ -290,33 +327,47 @@ void hw_set_proc_priority(const char* szProgName, int nice, int ionice, int wait
    #endif
 }
 
-void hw_get_proc_priority(const char* szProgName, char* szOutput)
+void hw_get_proc_priority(const char* szProcName, char* szOutput)
 {
-   char szPids[128];
+   char szPIDs[128];
    char szComm[256];
    char szCommOut[1024];
    if ( NULL == szOutput )
       return;
 
    szOutput[0] = 0;
-   if ( NULL == szProgName || 0 == szProgName[0] )
+   if ( NULL == szProcName || 0 == szProcName[0] )
       return;
 
-   if ( szProgName[0] == 'r' && szProgName[1] == 'u' )
-      strcpy(szOutput, szProgName+5);
+   if ( szProcName[0] == 'r' && szProcName[1] == 'u' )
+      strcpy(szOutput, szProcName+5);
    else
-      strcpy(szOutput, szProgName);
+      strcpy(szOutput, szProcName);
    strcat(szOutput, ": ");
 
-   sprintf(szComm, "pidof %s", szProgName);
-   hw_execute_bash_command(szComm, szPids);
-   if ( strlen(szPids) <= 2 )
+   hw_process_get_pids(szProcName, szPIDs);
+   removeTrailingNewLines(szPIDs);
+   replaceNewLinesToSpaces(szPIDs);
+
+   if ( strlen(szPIDs) <= 2 )
    {
       strcat(szOutput, "Not Running");
       return;
    }
    strcat(szOutput, "Running, ");
-   sprintf(szComm, "cat /proc/%s/stat | awk '{print \"priority \" $18 \", nice \" $19}'", szPids);
+
+   char* p = removeLeadingWhiteSpace(szPIDs);
+   char* t = p;
+   while ( (*t) != 0 )
+   {
+      if ( (*t) == ' ' )
+      {
+         *t = 0;
+         break;
+      }
+      t++;
+   }
+   sprintf(szComm, "cat /proc/%s/stat | awk '{print \"priority \" $18 \", nice \" $19}'", p);
    hw_execute_bash_command_raw(szComm, szCommOut);
    if ( 0 < strlen(szCommOut) )
       szCommOut[strlen(szCommOut)-1] = 0;
@@ -326,7 +377,7 @@ void hw_get_proc_priority(const char* szProgName, char* szOutput)
    #ifdef HW_CAPABILITY_IONICE
    strcat(szOutput, ", io priority: ");
 
-   sprintf(szComm, "ionice -p %s", szPids);
+   sprintf(szComm, "ionice -p %s", p);
    hw_execute_bash_command_raw(szComm, szCommOut);
    if ( 0 < strlen(szCommOut) )
       szCommOut[strlen(szCommOut)-1] = 0;
@@ -335,29 +386,33 @@ void hw_get_proc_priority(const char* szProgName, char* szOutput)
    strcat(szOutput, ";");
 }
 
-void hw_set_proc_affinity(const char* szProgName, int iExceptThreadId, int iCoreStart, int iCoreEnd)
+void hw_set_proc_affinity(const char* szProcName, int iExceptThreadId, int iCoreStart, int iCoreEnd)
 {
-   if ( NULL == szProgName || 0 == szProgName[0] )
+   if ( NULL == szProcName || 0 == szProcName[0] )
    {
       log_softerror_and_alarm("Tried to adjus affinity for NULL process");
       return;
    }
-   log_line("Adjusting affinity for process [%s] except thread id: %d ...", szProgName, iExceptThreadId);
+   log_line("Adjusting affinity for process [%s] except thread id: %d ...", szProcName, iExceptThreadId);
 
    char szComm[128];
    char szOutput[256];
-   sprintf(szComm, "pidof %s", szProgName);
-   hw_execute_bash_command_silent(szComm, szOutput);
-   if ( strlen(szOutput) < 3 )
+   char szPIDs[256];
+
+   hw_process_get_pids(szProcName, szPIDs);
+   removeTrailingNewLines(szPIDs);
+   replaceNewLinesToSpaces(szPIDs);
+   if ( strlen(szPIDs) < 3 )
    {
-      log_softerror_and_alarm("Failed to set process affinity for process [%s], no such process.", szProgName);
+      log_softerror_and_alarm("Failed to set process affinity for process [%s], no such process.", szProcName);
       return;
    }
-   int iPID = atoi(szOutput);
+   char* p = removeLeadingWhiteSpace(szPIDs);
+   int iPID = atoi(p);
 
    if ( iPID < 100 )
    {
-      log_softerror_and_alarm("Failed to set process affinity for process [%s], invalid pid: %d.", szProgName, iPID);
+      log_softerror_and_alarm("Failed to set process affinity for process [%s], invalid pid: %d.", szProcName, iPID);
       return;
    }
 
@@ -366,30 +421,25 @@ void hw_set_proc_affinity(const char* szProgName, int iExceptThreadId, int iCore
    
    if ( strlen(szOutput) < 3 )
    {
-      log_softerror_and_alarm("Failed to set process affinity for process [%s], invalid tasks: [%s].", szProgName, szOutput);
+      log_softerror_and_alarm("Failed to set process affinity for process [%s], invalid tasks: [%s].", szProcName, szOutput);
       return;
    }
 
-   for( int i=0; i<strlen(szOutput); i++ )
-      if ( szOutput[i] == 10 || szOutput[i] == 13 )
-         szOutput[i] = ' ';
-   
-   char* pTmp = &szOutput[0];
-   while ( (*pTmp) == ' ' )
-      pTmp++;
+   replaceNewLinesToSpaces(szOutput);
+   char* pTmp = removeLeadingWhiteSpace(szOutput);
 
-   log_line("Child processes to adjust affinity for, for process [%s] %d: [%s]", szProgName, iPID, szOutput);
+   log_line("Child processes to adjust affinity for, for process [%s] %d: [%s]", szProcName, iPID, pTmp);
    do
    {
        int iTask = 0;
        if ( 1 != sscanf(pTmp, "%d", &iTask) )
        {
-          log_softerror_and_alarm("Failed to set process affinity for process [%s], invalid parsing tasks from [%s].", szProgName, pTmp);
+          log_softerror_and_alarm("Failed to set process affinity for process [%s], invalid parsing tasks from [%s].", szProcName, pTmp);
           return;
        }
        if ( iTask < 100 )
        {
-          log_softerror_and_alarm("Failed to set process affinity for process [%s], read invalid parsing tasks (%d) from [%s].", szProgName, iTask, pTmp);
+          log_softerror_and_alarm("Failed to set process affinity for process [%s], read invalid parsing tasks (%d) from [%s].", szProcName, iTask, pTmp);
           return;
        }
 
@@ -418,7 +468,7 @@ void hw_set_proc_affinity(const char* szProgName, int iExceptThreadId, int iCore
    }
    while(*pTmp);
 
-   log_line("Done adjusting affinity for process [%s].", szProgName);
+   log_line("Done adjusting affinity for process [%s].", szProcName);
 }
 
 

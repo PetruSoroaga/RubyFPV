@@ -118,7 +118,7 @@ float _osd_render_local_radio_link_tag_new(float xPos, float yPos, int iLocalRad
          g_pRenderEngine->drawText(xPos+(fWidthLink-fWidth)*0.5, yPos, g_idFontOSDSmall, szBuff3);
       }
 
-      if ( g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY )
+      if ( g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY )
          g_pRenderEngine->drawBackgroundBoundingBoxes(true);
    }
 
@@ -208,10 +208,10 @@ float _osd_get_radio_link_new_height()
 
    float fHeightLink = _osd_get_link_bars_height(1.0);
 
-   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_RADIO_INTERFACES_INFO )
+   if ( g_pCurrentModel->osd_params.osd_flags[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG_SHOW_RADIO_INTERFACES_INFO )
       fHeightLink += height_text_small;
 
-   if ( g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_RADIO_LINK_INTERFACES_EXTENDED )
+   if ( g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG2_SHOW_RADIO_LINK_INTERFACES_EXTENDED )
       fHeightLink += height_text_small;
    return fHeightLink;
 }
@@ -373,25 +373,25 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
    bool bShowInterfaces = false;
    bool bShowInterfacesExtended = false;
 
-   if ( pModelToUse->osd_params.osd_flags[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_RADIO_LINKS )
+   if ( pModelToUse->osd_params.osd_flags[pModelToUse->osd_params.iCurrentOSDScreen] & OSD_FLAG_SHOW_RADIO_LINKS )
       bShowControllerSide = true;
 
-   if ( pModelToUse->osd_params.osd_flags[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS )
+   if ( pModelToUse->osd_params.osd_flags[pModelToUse->osd_params.iCurrentOSDScreen] & OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS )
       bShowVehicleSide = true;
 
-   if ( pModelToUse->osd_params.osd_flags2[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS )
+   if ( pModelToUse->osd_params.osd_flags2[pModelToUse->osd_params.iCurrentOSDScreen] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS )
       bShowBars = true;
 
-   if ( pModelToUse->osd_params.osd_flags2[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS )
+   if ( pModelToUse->osd_params.osd_flags2[pModelToUse->osd_params.iCurrentOSDScreen] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS )
       bShowNumbers = true;
 
-   if ( pModelToUse->osd_params.osd_flags[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG_SHOW_RADIO_INTERFACES_INFO )
+   if ( pModelToUse->osd_params.osd_flags[pModelToUse->osd_params.iCurrentOSDScreen] & OSD_FLAG_SHOW_RADIO_INTERFACES_INFO )
    {
       bShowInterfaces = true;
       bShowSummary = false;
    }
 
-   if ( pModelToUse->osd_params.osd_flags2[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_RADIO_LINK_INTERFACES_EXTENDED )
+   if ( pModelToUse->osd_params.osd_flags2[pModelToUse->osd_params.iCurrentOSDScreen] & OSD_FLAG2_SHOW_RADIO_LINK_INTERFACES_EXTENDED )
    {
       bShowInterfaces = true;
       bShowInterfacesExtended = true;
@@ -560,7 +560,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
          
             bool bDRChanged = false;
             if ( g_bOSDElementChangeNotification )
-            if ( (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) ||
+            if ( (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDScreen] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) ||
                  pCS->iDeveloperMode )
             if ( g_TimeNow < s_uLastOSDVehRadioLinkInterfacesRecvDataratesChangeTimes[iVehicleRadioLinkId][i] + g_uOSDElementChangeTimeout )
                bDRChanged = true;
@@ -598,7 +598,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
                g_pRenderEngine->setColors(get_Color_IconError());
 
             if ( bDRChanged && g_bOSDElementChangeNotification )
-            if ( (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS)
+            if ( (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDScreen] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS)
                  || pCS->iDeveloperMode )
                osd_set_colors_text(get_Color_OSDElementChanged());
 
@@ -757,7 +757,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
 
             bool bDRChanged = false;
             if ( g_bOSDElementChangeNotification )
-            if ( (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) ||
+            if ( (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDScreen] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) ||
                  pCS->iDeveloperMode )
             if ( g_TimeNow < s_uLastOSDRadioLinkInterfacesRecvDataratesChangeTimes[iLocalRadioLinkId][i] + g_uOSDElementChangeTimeout )
                bDRChanged = true;
@@ -831,7 +831,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
                g_pRenderEngine->setColors(get_Color_IconError());
 
             if ( bDRChanged && g_bOSDElementChangeNotification )
-            if ( (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDLayout] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) ||
+            if ( (pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDScreen] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) ||
                 pCS->iDeveloperMode )
                osd_set_colors_text(get_Color_OSDElementChanged());
 

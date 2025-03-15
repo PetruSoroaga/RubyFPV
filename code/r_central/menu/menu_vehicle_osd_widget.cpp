@@ -478,7 +478,7 @@ void MenuVehicleOSDWidget::onSelectItem()
          if ( NULL == pPluginSettings )
             return;
 
-         int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+         int osdLayoutIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
          int iModelIndex = getPluginModelSettingsIndex(pPluginSettings, g_pCurrentModel);
 
          int type = osd_plugin_get_setting_type(m_nPluginIndex, i);

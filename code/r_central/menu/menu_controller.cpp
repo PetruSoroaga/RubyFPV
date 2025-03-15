@@ -392,16 +392,6 @@ void MenuController::onSelectItem()
    }
 }
 
-
-void MenuController::addMessage(const char* szMessage)
-{
-   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+11*1000,"Update Info",NULL);
-   pm->m_xPos = 0.4; pm->m_yPos = 0.4;
-   pm->m_Width = 0.36;
-   pm->addTopLine(szMessage);
-   add_menu_to_stack(pm);
-}
-
 void MenuController::updateControllerSoftware()
 {
    Popup* p = new Popup("Updating. Please wait...",0.36,0.4, 0.5, 60);
@@ -456,14 +446,7 @@ void MenuController::updateControllerSoftware()
    strcpy(szFile, FOLDER_RUBY_TEMP);
    strcat(szFile, FILE_TEMP_UPDATE_CONTROLLER_PROGRESS);
 
-   FILE* fd = fopen(szFile, "wb");
-   if ( fd != NULL )
-   {
-      fprintf(fd, "0\n \n");
-      fclose(fd);
-      fd = NULL;
-   }
-
+   FILE* fd = NULL;
    int iCounter[2];
    int iResult[2];
    iCounter[0] = iCounter[1] = 0;
@@ -471,6 +454,11 @@ void MenuController::updateControllerSoftware()
 
    for( int iRepeatCount=0; iRepeatCount<2; iRepeatCount++ )
    {
+      char szLine[256];
+      char szTitle[256];
+      szTitle[0] = 0;
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s", szFile);
+      hw_execute_bash_command(szComm, NULL);
       hw_execute_ruby_process(NULL, "ruby_update_worker", NULL, NULL);
       ruby_signal_alive();
 
@@ -480,39 +468,38 @@ void MenuController::updateControllerSoftware()
       do
       {
          g_TimeNow = get_current_timestamp_ms();
-         char szTitle[256];
- 
+         szTitle[0] = 0;
          fd = fopen(szFile, "r");
          if ( fd != NULL )
          {
             int iPartialResult = -1;
-            szTitle[0] = 0;
-            if ( NULL != fgets(szTitle, 255, fd) )
-            if ( 1 != sscanf(szTitle, "%d", &iPartialResult) )
+            szLine[0] = 0;
+            if ( NULL != fgets(szLine, 255, fd) )
+            if ( 1 != sscanf(szLine, "%d", &iPartialResult) )
                iPartialResult = -10;
 
-            szTitle[0] = 0;
-            if ( (NULL == fgets(szTitle, 255, fd)) || (strlen(szTitle)<5) )
+            szLine[0] = 0;
+            if ( (NULL == fgets(szLine, 255, fd)) || (strlen(szLine)<5) )
             {
                log_line("Did not found an update status string.");
                strcpy(szTitle, L("Updating. Please wait"));
             }
             else
             {
-               removeTrailingNewLines(szTitle);
+               removeTrailingNewLines(szLine);
+               strcpy(szTitle, szLine);
                log_line("Found partial update status: (%s)", szTitle);
             }
-            if ( (iPartialResult == 1) || (iPartialResult < 0) )
+            if ( (iPartialResult >= 0) )
             {
-               log_line("Found final update status from worker: %d", iPartialResult);
+               log_line("Found progress update status from worker: %d", iPartialResult);
                bFoundProcess = true;
-               bFinishedProcess = true;
             }
             fclose(fd);
             fd = NULL;
          }
 
-         if ( 0 == iRepeatCount )
+         if ( (0 == iRepeatCount) || (0 == szTitle[0]) )
             strcpy(szTitle, L("Updating. Please wait"));
 
          if ( 0 == ((iCounter[iRepeatCount]/2) % 3) )
@@ -521,6 +508,7 @@ void MenuController::updateControllerSoftware()
             strcat(szTitle, "..");
          if ( 2 == ((iCounter[iRepeatCount]/2) % 3) )
             strcat(szTitle, "...");
+         log_line("Set update popup title for run %d: (%s)", iRepeatCount, szTitle);
          p->setTitle(szTitle);
          ruby_processing_loop(true);
          render_all_with_menus(g_TimeNow, false);
@@ -542,7 +530,10 @@ void MenuController::updateControllerSoftware()
                 if ( 0 == hw_process_exists("ruby_update_worker") )
                 if ( 0 == hw_process_exists("unzip") )
                 {
-                   log_line("Update worker process finished (test 2)");
+                   hw_execute_bash_command_raw("ps -ae | grep ruby_update_worker | grep -v grep", szOutput);
+                   removeTrailingNewLines(szOutput);
+                   char* p = removeLeadingWhiteSpace(szOutput);
+                   log_line("Update worker process finished (test 2), ps list: [%s]", p);
                    bFinishedProcess = true;
                 }
              }
@@ -559,29 +550,76 @@ void MenuController::updateControllerSoftware()
 
          if ( bFoundProcess )
          if ( bFinishedProcess )
+         {
+            log_line("Update run %d finished. Read final status.", iRepeatCount);
+            fd = fopen(szFile, "r");
+            if ( fd != NULL )
+            {
+               szLine[0] = 0;
+               if ( NULL != fgets(szLine, 255, fd) )
+               {
+                  if ( 1 != sscanf(szLine, "%d", &iResult[iRepeatCount]) )
+                     iResult[iRepeatCount] = -10;
+                  else
+                     log_line("Run %d: Found final update status: %d", iRepeatCount, iResult[iRepeatCount]);
+               }
+               szLine[0] = 0;
+               if ( (NULL == fgets(szLine, 255, fd)) || (strlen(szLine)<5) )
+                  log_line("Run %d: Did not found  final update status string.", iRepeatCount);
+               else
+               {
+                  removeTrailingNewLines(szLine);
+                  strcpy(szTitle, szLine);
+                  log_line("Run %d: Found final update status: (%s)", iRepeatCount, szTitle);
+               }
+               if ( (iResult[iRepeatCount] == 1) || (iResult[iRepeatCount] < 0) )
+                  log_line("Run %d: Found final update status from worker: %d", iRepeatCount, iResult[iRepeatCount]);
+               fclose(fd);
+               fd = NULL;
+            }
             break;
-
+         }
       }
       while ( (iCounter[iRepeatCount] < 500) && (! bFinishedProcess) );
       
-      log_line("Done waiting for update worker process (on counter %d).", iCounter[iRepeatCount]);
-      iResult[iRepeatCount] = -10;
-      fd = fopen(szFile, "rb");
-      if ( fd != NULL )
-      {
-         if ( 1 != fscanf(fd, "%d", &iResult[iRepeatCount] ) )
-            iResult[iRepeatCount] = -10;
-         fclose(fd);
-         fd = NULL;
-      }
-      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s", szFile);
-      hw_execute_bash_command(szComm, NULL);
+      log_line("Done waiting for update worker process run %d (on counter %d).", iRepeatCount, iCounter[iRepeatCount]);
       if ( iResult[iRepeatCount] < 0 )
          break;
    }
 
+   int iFinalResult = -1000;
+   char szFinalResult[256];
+   strcpy(szFinalResult, "Unknown result.");
+   if ( access(szFile, R_OK) != -1 )
+   {
+      fd = fopen(szFile, "r");
+      if ( fd != NULL )
+      {
+         szOutput[0] = 0;
+         if ( NULL != fgets(szOutput, 255, fd) )
+         if ( 1 != sscanf(szOutput, "%d", &iFinalResult) )
+            iFinalResult = -900;
+
+         szOutput[0] = 0;
+         if ( (NULL == fgets(szOutput, 255, fd)) || (strlen(szOutput)<5) )
+            log_line("Did not found an update final status string.");
+         else
+         {
+            removeTrailingNewLines(szOutput);
+            log_line("Found final update status: (%s)", szOutput);
+            strcpy(szFinalResult, szOutput);
+         }
+         fclose(fd);
+         fd = NULL;
+      }
+   }
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s", szFile);
+   hw_execute_bash_command(szComm, NULL);
+
    log_line("Finished update workers. Loop counter[0]: %d, counter[1]: %d, result[0]: %d, result[1]: %d",
        iCounter[0], iCounter[1], iResult[0], iResult[1]);
+   log_line("Final result: %d, (%s)", iFinalResult, szFinalResult);
+
    hardware_unmount_usb();
    ruby_processing_loop(true);
    render_all(g_TimeNow);
@@ -622,8 +660,10 @@ void MenuController::updateControllerSoftware()
       else if ( iResult[1] < 0 )
       {
          char szMsg[256];
-         sprintf(szMsg, "The update procedure failed on second step, error code %d.", iResult[1]);
+         sprintf(szMsg, "The update procedure failed, error code %d.", iResult[1]);
          pMC = new MenuConfirmation("Update Failed", szMsg, 5, true);
+         if ( iFinalResult < 0 )
+            pMC->addTopLine(szFinalResult);
       }
       else
          pMC = new MenuConfirmation("Update Failed", "Update failed.", 5, true);

@@ -68,7 +68,7 @@ class RenderEngine
 
      virtual void setColors(const double* color);
      virtual void setColors(const double* color, float fAlfaScale);
-     virtual void setFill(double* pColor);
+     virtual void setFill(const double* pColor);
      virtual void setFill(float r, float g, float b, float a);
      virtual void setStroke(const double* color);
      virtual void setStroke(const double* color, float fStrokeSize); 

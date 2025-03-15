@@ -334,3 +334,38 @@ bool vehicle_runtime_has_received_fc_telemetry(u32 uVehicleId)
 
    return ! bNoTelemetryFromFC;
 }
+
+u32 vehicle_runtime_get_time_last_received_fc_telemetry(u32 uVehicleId)
+{
+   if ( (0 == uVehicleId) || (MAX_U32 == uVehicleId) )
+      return 0;
+
+   t_structure_vehicle_info* pRuntimeInfo = get_vehicle_runtime_info_for_vehicle_id(uVehicleId);
+   if ( (NULL == pRuntimeInfo) || (NULL == pRuntimeInfo->pModel) )
+      return 0;
+
+   bool bNoTelemetryFromFC = false;
+
+   if ( pRuntimeInfo->pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
+      return pRuntimeInfo->mspState.uLastMSPCommandReceivedTime;
+
+   if ( (pRuntimeInfo->pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MAVLINK) ||
+       (pRuntimeInfo->pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_LTM) )
+      return pRuntimeInfo->uTimeLastRecvFCTelemetryFull;
+   return 0;
+}
+
+void vehicle_runtime_reset_has_received_fc_telemetry_info(u32 uVehicleId)
+{
+   if ( (0 == uVehicleId) || (MAX_U32 == uVehicleId) )
+      return;
+
+   t_structure_vehicle_info* pRuntimeInfo = get_vehicle_runtime_info_for_vehicle_id(uVehicleId);
+   if ( (NULL == pRuntimeInfo) || (NULL == pRuntimeInfo->pModel) )
+      return; 
+
+   parse_msp_reset_state(&pRuntimeInfo->mspState);
+   pRuntimeInfo->uTimeLastRecvFCTelemetry = 0;
+   pRuntimeInfo->uTimeLastRecvFCTelemetryFull = 0;
+   pRuntimeInfo->uTimeLastRecvFCTelemetryShort =0;
+}

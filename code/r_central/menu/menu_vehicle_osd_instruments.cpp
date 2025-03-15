@@ -50,7 +50,7 @@ MenuVehicleOSDInstruments::MenuVehicleOSDInstruments(void)
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.30;
 
    char szBuff[256];
-   sprintf(szBuff, "Instruments/Gauges Settings (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.iCurrentOSDLayout));
+   sprintf(szBuff, "Instruments/Gauges Settings (%s)", str_get_osd_screen_name(g_pCurrentModel->osd_params.iCurrentOSDScreen));
    setTitle(szBuff);
    
    for( int i=0; i<50; i++ )
@@ -111,7 +111,7 @@ MenuVehicleOSDInstruments::~MenuVehicleOSDInstruments()
 
 void MenuVehicleOSDInstruments::valuesToUI()
 {
-   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
 
    //log_dword("start: osd flags", g_pCurrentModel->osd_params.osd_flags[layoutIndex]);
    //log_dword("start: instruments flags", g_pCurrentModel->osd_params.instruments_flags[layoutIndex]);
@@ -189,7 +189,7 @@ void MenuVehicleOSDInstruments::onSelectItem()
    osd_parameters_t params;
    memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
    bool sendToVehicle = false;
-   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDLayout;
+   int layoutIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
 
    if ( m_IndexAHIShowSpeedAlt == m_SelectedIndex )
    {

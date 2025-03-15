@@ -812,8 +812,8 @@ int r_start_vehicle(int argc, char *argv[])
             log_format_time(s_pProcessStatsRouter->lastActiveTime, szTime);
             log_format_time(s_pProcessStatsRouter->lastIPCIncomingTime, szTime2);
             log_format_time(s_pProcessStatsRouter->lastRadioTxTime, szTime3);
-            char* szPIDs = hw_process_get_pid("ruby_rt_vehicle");
-            if ( strlen(szPIDs) > 3 )
+            char* szPIDs = hw_process_get_pids_inline("ruby_rt_vehicle");
+            if ( strlen(szPIDs) > 2 )
             {
                log_line_watchdog("Router pipeline watchdog check failed: router process (PID [%s]) has blocked! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szPIDs, szTime, szTime2, szTime3);
                log_softerror_and_alarm("Router pipeline watchdog check failed: router process (PID [%s]) has blocked! Last active time: %s, last IPC incoming time: %s, last radio TX time: %s", szPIDs, szTime, szTime2, szTime3);
@@ -828,7 +828,7 @@ int r_start_vehicle(int argc, char *argv[])
             if ( modelVehicle.hasCamera() )
             if ( modelVehicle.isActiveCameraOpenIPC() )
             {
-               szPIDs = hw_process_get_pid("majestic");
+               szPIDs = hw_process_get_pids_inline("majestic");
                log_line("Majestic PID(s): (%s)", szPIDs);
             }
             bMustRestart = true;
@@ -845,8 +845,8 @@ int r_start_vehicle(int argc, char *argv[])
          {
             log_format_time(s_pProcessStatsTelemetry->lastActiveTime, szTime);
             log_format_time(s_pProcessStatsTelemetry->lastIPCOutgoingTime, szTime2);
-            char* szPIDs = hw_process_get_pid("ruby_tx_telemetry");
-            if ( strlen(szPIDs) > 3 )
+            char* szPIDs = hw_process_get_pids_inline("ruby_tx_telemetry");
+            if ( strlen(szPIDs) > 2 )
             {
                log_line_watchdog("Telemetry TX pipeline watchdog check failed: telemetry tx process (PID [%s]) has blocked! Last active time: %s, last IPC outgoing time: %s", szPIDs, szTime, szTime2);
                log_softerror_and_alarm("Telemetry TX pipeline watchdog check failed: telemetry tx process (PID [%s]) has blocked! Last active time: %s, last IPC outgoing time: %s", szPIDs, szTime, szTime2);
@@ -870,8 +870,8 @@ int r_start_vehicle(int argc, char *argv[])
          {
             log_format_time(s_pProcessStatsCommands->lastActiveTime, szTime);
             log_format_time(s_pProcessStatsCommands->lastIPCIncomingTime, szTime2);
-            char* szPIDs = hw_process_get_pid("ruby_start");
-            if ( strlen(szPIDs) > 3 )
+            char* szPIDs = hw_process_get_pids_inline("ruby_start");
+            if ( strlen(szPIDs) > 2 )
             {
                log_line_watchdog("Commands RX process watchdog check failed: commands rx process (PID [%s]) has blocked! Last active time: %s", szPIDs, szTime);
                log_softerror_and_alarm("Commands RX process watchdog check failed: commands rx process (PID [%s]) has blocked! Last active time: %s", szPIDs, szTime);
@@ -897,8 +897,8 @@ int r_start_vehicle(int argc, char *argv[])
          {
             log_format_time(s_pProcessStatsRC->lastActiveTime, szTime);
             log_format_time(s_pProcessStatsRC->lastIPCIncomingTime, szTime2);
-            char* szPIDs = hw_process_get_pid("ruby_start");
-            if ( strlen(szPIDs) > 3 )
+            char* szPIDs = hw_process_get_pids_inline("ruby_start");
+            if ( strlen(szPIDs) > 2 )
             {
                log_line_watchdog("RC RX process watchdog check failed: RC rx process (PID [%s]) has blocked! Last active time: %s, last IPC incoming time: %s", szPIDs, szTime, szTime2);
                log_softerror_and_alarm("RC RX process watchdog check failed: RC rx process (PID [%s]) has blocked! Last active time: %s, last IPC incoming time: %s", szPIDs, szTime, szTime2);

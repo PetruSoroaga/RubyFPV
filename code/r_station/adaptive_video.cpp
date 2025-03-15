@@ -365,7 +365,7 @@ void _adaptive_keyframe_check_vehicle(Model* pModel, type_global_state_vehicle_r
 
 void adaptive_video_periodic_loop(bool bForceSyncNow)
 {
-   if ( (g_TimeNow < g_TimeStart + 4000) || g_bNegociatingRadioLinks || test_link_is_in_progress() )
+   if ( (g_TimeNow < g_TimeStart + 4000) || g_bNegociatingRadioLinks || test_link_is_in_progress() || g_bUpdateInProgress )
       return;
 
    if ( 0 != s_uTimePauseAdaptiveVideoUntil )

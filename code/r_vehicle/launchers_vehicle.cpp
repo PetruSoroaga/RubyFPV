@@ -280,7 +280,6 @@ void vehicle_stop_audio_capture(Model* pModel)
    if ( NULL == pModel || (! pModel->audio_params.has_audio_device) )
       return;
 
-   //hw_execute_bash_command("kill -9 $(pidof arecord) 2>/dev/null", NULL);
    #if defined (HW_PLATFORM_RASPBERRY)
    hw_stop_process("arecord");
    #endif

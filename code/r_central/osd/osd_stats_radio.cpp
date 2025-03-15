@@ -346,7 +346,7 @@ float osd_render_stats_radio_interfaces_get_height(shared_mem_radio_stats* pStat
    
    height += height_text* 1.0 * (pStats->countLocalRadioInterfaces-1);
 
-   if ( pActiveModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_VEHICLE_RADIO_INTERFACES_STATS )
+   if ( pActiveModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG2_SHOW_VEHICLE_RADIO_INTERFACES_STATS )
    {
       height += 2.0*height_text * s_OSDStatsLineSpacing;
       if ( (!bIsCompact) && (!bIsMinimal) )
@@ -385,7 +385,7 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
 
    if ( NULL == pActiveModel )
       return 0.0;
-   if ( ! (pActiveModel->osd_params.osd_flags2[pActiveModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_STATS_RADIO_INTERFACES) )
+   if ( ! (pActiveModel->osd_params.osd_flags2[pActiveModel->osd_params.iCurrentOSDScreen] & OSD_FLAG2_SHOW_STATS_RADIO_INTERFACES) )
       return 0.0;
    
    bool bIsMinimal = false;
@@ -833,7 +833,7 @@ float osd_render_stats_radio_interfaces( float xPos, float yPos, const char* szT
    // End - render controller radio interfaces graphs
    // ----------------------------------------------------------------
 
-   if ( ! (pActiveModel->osd_params.osd_flags2[pActiveModel->osd_params.iCurrentOSDLayout] & OSD_FLAG2_SHOW_VEHICLE_RADIO_INTERFACES_STATS ) )
+   if ( ! (pActiveModel->osd_params.osd_flags2[pActiveModel->osd_params.iCurrentOSDScreen] & OSD_FLAG2_SHOW_VEHICLE_RADIO_INTERFACES_STATS ) )
    {
       osd_set_colors();
       return height;

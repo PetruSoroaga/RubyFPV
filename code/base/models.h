@@ -13,7 +13,7 @@
 #define MODEL_MAX_CAMERAS 4
 #define MODEL_CAMERA_PROFILES 3
 
-#define MODEL_MAX_OSD_PROFILES 5
+#define MODEL_MAX_OSD_SCREENS 5
 
 #define CAMERA_FLAG_FORCE_MODE_1 1
 #define CAMERA_FLAG_IR_FILTER_OFF ((u32)(((u32)0x01)<<2))
@@ -138,7 +138,7 @@ typedef struct
 
 typedef struct
 {
-   int iCurrentOSDLayout;
+   int iCurrentOSDScreen;
    bool voltage_alarm_enabled;
    float voltage_alarm;
    int  battery_show_per_cell;
@@ -155,11 +155,17 @@ typedef struct
    bool show_instruments;
    int ahi_warning_angle;
    bool show_gps_position;
-   u32 osd_flags[MODEL_MAX_OSD_PROFILES]; // what OSD elements to display for each layout mode
-   u32 osd_flags2[MODEL_MAX_OSD_PROFILES];
-   u32 osd_flags3[MODEL_MAX_OSD_PROFILES];
-   u32 instruments_flags[MODEL_MAX_OSD_PROFILES]; // each bit: what instrument to show
-   u32 osd_preferences[MODEL_MAX_OSD_PROFILES];
+   u8  osd_layout_preset[MODEL_MAX_OSD_SCREENS]; // presets
+     // 0 - none
+     // 1 - minimal
+     // 2 - compact
+     // 3 - default
+     // 4 - custom
+   u32 osd_flags[MODEL_MAX_OSD_SCREENS]; // what OSD elements to display for each layout mode
+   u32 osd_flags2[MODEL_MAX_OSD_SCREENS];
+   u32 osd_flags3[MODEL_MAX_OSD_SCREENS];
+   u32 instruments_flags[MODEL_MAX_OSD_SCREENS]; // each bit: what instrument to show
+   u32 osd_preferences[MODEL_MAX_OSD_SCREENS];
      // byte 0: osd elements font size (0...6)
      // byte 1: transparency (0: max ... 4: none)
      // byte 2: bit 0...3  osd stats windows font size (0...6)
@@ -174,9 +180,11 @@ typedef struct
      //
 
    u32 uFlags;
+     // check OSD_BIT_FLAGS_xxx
      // bit 0,1,2: MSO OSD font: 0 - auto, 1 - BF, 2 - INAV
      // bit 3: show flight end stats
      // bit 4: show temps in F
+     // bit 5: must choose OSD preset
 } osd_parameters_t;
 
 
@@ -603,6 +611,7 @@ class Model
       void resetRadioLinksParams();
       void resetOSDFlags(int iScreen = -1);
       void resetOSDStatsFlags(int iScreen = -1);
+      void resetOSDScreenToLayout(int iScreen, int iLayout);
       void resetTelemetryParams();
       void resetRCParams();
       void resetVideoParamsToDefaults();
@@ -662,6 +671,8 @@ class Model
       void populateVehicleTelemetryData_v4(t_packet_header_ruby_telemetry_extended_v4* pPHRTE);
       void populateFromVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_extended_v3* pPHRTE);
       void populateFromVehicleTelemetryData_v4(t_packet_header_ruby_telemetry_extended_v4* pPHRTE);
+      void setTelemetryTypeAndPort(int iTelemetryType, int iSerialPort, int iSerialSpeed);
+      void syncModelSerialPortsToHardwareSerialPorts();
 
       void copy_video_link_profile(int from, int to);
       int get_video_profile_total_levels(int iProfile);
