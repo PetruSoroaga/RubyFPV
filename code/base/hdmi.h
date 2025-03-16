@@ -4,7 +4,7 @@
 extern "C" {
 #endif 
 
-void hdmi_enum_modes();
+int hdmi_enum_modes();
 
 int hdmi_load_current_mode();
 

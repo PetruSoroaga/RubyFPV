@@ -21,8 +21,8 @@ LDFLAGS_RENDERER := -ldrm -lcairo
 CFLAGS_RENDERER := -I/usr/include/drm -I/usr/include/libdrm
 CFLAGS_RENDERER += `pkg-config cairo --cflags`
 _LDFLAGS := $(LDFLAGS) -lrt -lpcap -lpthread -li2c -lgpiod -Wl,--gc-sections 
-_CFLAGS := $(_CFLAGS) -DRUBY_BUILD_HW_PLATFORM_RADXA_ZERO3
-_CPPFLAGS := $(_CPPFLAGS) -DRUBY_BUILD_HW_PLATFORM_RADXA_ZERO3
+_CFLAGS := $(_CFLAGS) -DRUBY_BUILD_HW_PLATFORM_RADXA
+_CPPFLAGS := $(_CPPFLAGS) -DRUBY_BUILD_HW_PLATFORM_RADXA
 CENTRAL_RENDER_CODE := $(FOLDER_CENTRAL_RENDERER)/render_engine.o $(FOLDER_CENTRAL_RENDERER)/render_engine_cairo.o $(FOLDER_CENTRAL_RENDERER)/render_engine_ui.o $(FOLDER_CENTRAL_RENDERER)/drm_core.o
 
 else

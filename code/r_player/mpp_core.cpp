@@ -426,34 +426,34 @@ int mpp_init(bool bUseH265Decoder, int iMPPBuffersSize)
    g_pSemaphoreMPPDisplayFrameReadyWrite = sem_open(SEMAPHORE_MPP_DISPLAY_FRAME_READY, O_CREAT | O_RDWR, S_IWUSR | S_IRUSR, 0);
    if ( (NULL == g_pSemaphoreMPPDisplayFrameReadyWrite) || (SEM_FAILED == g_pSemaphoreMPPDisplayFrameReadyWrite) )
    {
-      log_error_and_alarm("[RadioRx] Failed to create write semaphore: %s, try alternative.", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
+      log_error_and_alarm("[MPP] Failed to create write semaphore: %s, try alternative.", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
       g_pSemaphoreMPPDisplayFrameReadyWrite = sem_open(SEMAPHORE_MPP_DISPLAY_FRAME_READY, O_CREAT, S_IWUSR | S_IRUSR, 0); 
       if ( (NULL == g_pSemaphoreMPPDisplayFrameReadyWrite) || (SEM_FAILED == g_pSemaphoreMPPDisplayFrameReadyWrite) )
       {
-         log_error_and_alarm("[RadioRx] Failed to create write semaphore: %s", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
+         log_error_and_alarm("[MPP] Failed to create write semaphore: %s", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
          return -1;
       }
    }
-   log_line("Opened semaphore for signaling display frame ready: (%s)", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
+   log_line("[MPP] Opened semaphore for signaling display frame ready: (%s)", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
 
    g_pSemaphoreMPPDisplayFrameReadyRead = sem_open(SEMAPHORE_MPP_DISPLAY_FRAME_READY, O_RDWR);
    if ( (NULL == g_pSemaphoreMPPDisplayFrameReadyRead) || (SEM_FAILED == g_pSemaphoreMPPDisplayFrameReadyRead) )
    {
-      log_error_and_alarm("[RadioRx] Failed to create read semaphore: %s, try alternative.", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
+      log_error_and_alarm("[MPP] Failed to create read semaphore: %s, try alternative.", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
       g_pSemaphoreMPPDisplayFrameReadyRead = sem_open(SEMAPHORE_MPP_DISPLAY_FRAME_READY, O_CREAT, S_IWUSR | S_IRUSR, 0); 
       if ( (NULL == g_pSemaphoreMPPDisplayFrameReadyRead) || (SEM_FAILED == g_pSemaphoreMPPDisplayFrameReadyRead) )
       {
-         log_error_and_alarm("[RadioRx] Failed to create read semaphore: %s", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
+         log_error_and_alarm("[MPP] Failed to create read semaphore: %s", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
          return -1;
       }
    }
-   log_line("Opened semaphore for checking display frame ready: (%s)", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
+   log_line("[MPP] Opened semaphore for checking display frame ready: (%s)", SEMAPHORE_MPP_DISPLAY_FRAME_READY);
 
    int iSemVal = 0;
    if ( 0 == sem_getvalue(g_pSemaphoreMPPDisplayFrameReadyRead, &iSemVal) )
-      log_line("Display frame ready semaphore initial value: %d", iSemVal);
+      log_line("[MPP] Display frame ready semaphore initial value: %d", iSemVal);
    else
-      log_softerror_and_alarm("Failed to get display frame ready semaphore value.");
+      log_softerror_and_alarm("[MPP] Failed to get display frame ready semaphore value.");
 
    // Set MPP configuration and params
 

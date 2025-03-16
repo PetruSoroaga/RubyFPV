@@ -84,7 +84,7 @@ void _hdmi_add_resolution(int group, int mode, int w, int h, int refresh_rate, i
 
 int _hdmi_detect_current_mode()
 {
-   log_line("Detecting current HDMI mode...");
+   log_line("[HDMI] Detecting current HDMI mode...");
 
    #if defined (HW_PLATFORM_RASPBERRY)
    char szBuff[1024];
@@ -212,11 +212,12 @@ int _hdmi_detect_current_mode()
    drmModeFreeConnector(pConnector);
    drmModeFreeResources(pAllDRMResources);
    close(fdDRM);
-   return -1;
+   return 0;
    #endif
+   return -1;
 }
 
-void hdmi_enum_modes()
+int hdmi_enum_modes()
 {
    s_nHDMI_ResolutionCount = 0;
    s_nHDMI_CurrentResolutionIndex = -1;
@@ -246,10 +247,11 @@ void hdmi_enum_modes()
 
    _hdmi_add_resolution(2,69,  1920, 1200, 60, HDMI_ASPECT_MODE_16_9);
    _hdmi_add_resolution(2,70,  1920, 1200, 75, HDMI_ASPECT_MODE_16_9);
+   return 0;
    #endif
 
    #if defined (HW_PLATFORM_RADXA)
-   _hdmi_detect_current_mode();
+   return _hdmi_detect_current_mode();
    #endif
 }
 

@@ -101,10 +101,14 @@ sem_t* s_pSemaphoreSMData = NULL;
 void _do_player_mode()
 {
    ControllerSettings* pCS = get_ControllerSettings();
-   if ( mpp_init(g_bUseH265Decoder, pCS->iVideoMPPBuffersSize) != 0 )
-      return;
 
-   hdmi_enum_modes();
+   ruby_drm_core_wait_for_display_connected(); 
+   
+   if ( hdmi_enum_modes() < 0 )
+   {
+      log_error_and_alarm("Failed to enumerate HDMI modes. Exit player.");
+      return;
+   }
    int iHDMIIndex = hdmi_load_current_mode();
    if ( iHDMIIndex < 0 )
       iHDMIIndex = hdmi_get_best_resolution_index_for(DEFAULT_RADXA_DISPLAY_WIDTH, DEFAULT_RADXA_DISPLAY_HEIGHT, DEFAULT_RADXA_DISPLAY_REFRESH);
@@ -113,6 +117,7 @@ void _do_player_mode()
    RenderEngine* pRenderEngine = NULL;
    if ( g_bInitUILayerToo || g_bPlayingIntro )
    {
+      log_line("Init display UI layer too.");
       ruby_drm_core_init(0, DRM_FORMAT_ARGB8888,  hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
       //ruby_drm_swap_mainback_buffers();
       ruby_drm_core_set_plane_properties_and_buffer(ruby_drm_core_get_main_draw_buffer_id());
@@ -128,6 +133,8 @@ void _do_player_mode()
          pRenderEngine->endFrame();
       }
    }
+
+   log_line("Init display video layer.");
    ruby_drm_core_init(1, DRM_FORMAT_NV12, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
 
    if ( g_bPlayingIntro )
@@ -136,6 +143,12 @@ void _do_player_mode()
          hardware_sleep_ms(100);
    }
 
+   if ( mpp_init(g_bUseH265Decoder, pCS->iVideoMPPBuffersSize) != 0 )
+   {
+      log_softerror_and_alarm("Failed to init MPP. Exit player.");
+      ruby_drm_core_uninit();
+      return;
+   }
    FILE* fp = fopen(g_szPlayFileName,"rb");
    if ( NULL == fp )
    {
@@ -248,12 +261,12 @@ void _do_player_mode()
       hw_execute_bash_command(szComm, NULL);
    }
    mpp_mark_end_of_stream();
+   mpp_uninit();
 
    if ( g_bInitUILayerToo )
       render_free_engine();
    if ( ! g_bPlayingIntro )
       ruby_drm_core_uninit();
-   mpp_uninit();
 }
 
 void* _thread_consume_pipe_buffer(void *param)
@@ -304,10 +317,13 @@ void* _thread_consume_pipe_buffer(void *param)
 void _do_stream_mode_pipe()
 {
    ControllerSettings* pCS = get_ControllerSettings();
-   if ( mpp_init(g_bUseH265Decoder, pCS->iVideoMPPBuffersSize) != 0 )
-      return;
 
-   hdmi_enum_modes();
+   if ( hdmi_enum_modes() < 0 )
+   {
+      log_error_and_alarm("Failed to enumerate HDMI modes. Exit pipe player.");
+      return;
+   }
+   
    int iHDMIIndex = hdmi_load_current_mode();
    if ( iHDMIIndex < 0 )
       iHDMIIndex = hdmi_get_best_resolution_index_for(DEFAULT_RADXA_DISPLAY_WIDTH, DEFAULT_RADXA_DISPLAY_HEIGHT, DEFAULT_RADXA_DISPLAY_REFRESH);
@@ -316,6 +332,11 @@ void _do_stream_mode_pipe()
 
    hw_increase_current_thread_priority("RubyPlayer", 10);
 
+   if ( mpp_init(g_bUseH265Decoder, pCS->iVideoMPPBuffersSize) != 0 )
+   {
+      ruby_drm_core_uninit();
+      return;
+   }
    //pthread_t pDecodeThread;
    //pthread_create(&pDecodeThread, NULL, _thread_consume_pipe_buffer, NULL);
    //log_line("Created thread to consume pipe input buffer");
@@ -324,8 +345,8 @@ void _do_stream_mode_pipe()
    if( -1 == readfd )
    {
       log_error_and_alarm("Failed to open video stream fifo.");
-      ruby_drm_core_uninit();
       mpp_uninit();
+      ruby_drm_core_uninit();
       return;
    }
 
@@ -492,9 +513,9 @@ void _do_stream_mode_pipe()
    //log_line("Ended thread to consume pipe input buffer");
 
    mpp_mark_end_of_stream();
+   mpp_uninit();
 
    ruby_drm_core_uninit();
-   mpp_uninit();
 }
 
 
@@ -502,8 +523,6 @@ void _do_stream_mode_pipe()
 void _do_stream_mode_sm()
 {
    ControllerSettings* pCS = get_ControllerSettings();
-   if ( mpp_init(g_bUseH265Decoder, pCS->iVideoMPPBuffersSize) != 0 )
-      return;
 
    s_pSemaphoreSMData = sem_open(SEMAPHORE_SM_VIDEO_DATA_AVAILABLE, O_RDONLY);
    if ( (NULL == s_pSemaphoreSMData) || (SEM_FAILED == s_pSemaphoreSMData) )
@@ -518,14 +537,32 @@ void _do_stream_mode_sm()
       log_softerror_and_alarm("Failed to get SM data sem value.");
 
 
-   hdmi_enum_modes();
+   if ( hdmi_enum_modes() < 0 )
+   {
+      log_error_and_alarm("Failed to enumerate HDMI modes. Exit SM player.");
+      if ( NULL != s_pSemaphoreSMData )
+           sem_close(s_pSemaphoreSMData);
+      s_pSemaphoreSMData = NULL;
+      return;
+   }
+
    int iHDMIIndex = hdmi_load_current_mode();
    if ( iHDMIIndex < 0 )
       iHDMIIndex = hdmi_get_best_resolution_index_for(DEFAULT_RADXA_DISPLAY_WIDTH, DEFAULT_RADXA_DISPLAY_HEIGHT, DEFAULT_RADXA_DISPLAY_REFRESH);
+   
    log_line("HDMI mode to use: %d (%d x %d @ %d)", iHDMIIndex, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh() );
    ruby_drm_core_init(1, DRM_FORMAT_NV12, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
 
    hw_increase_current_thread_priority("RubyPlayer", 10);
+
+   if ( mpp_init(g_bUseH265Decoder, pCS->iVideoMPPBuffersSize) != 0 )
+   {
+      if ( NULL != s_pSemaphoreSMData )
+           sem_close(s_pSemaphoreSMData);
+      s_pSemaphoreSMData = NULL;
+      ruby_drm_core_uninit();
+      return;
+   }
 
    int fdSMem = -1;
    unsigned char* pSMem = NULL;
@@ -540,6 +577,8 @@ void _do_stream_mode_sm()
       if ( NULL != s_pSemaphoreSMData )
            sem_close(s_pSemaphoreSMData);
       s_pSemaphoreSMData = NULL;
+      mpp_uninit();
+      ruby_drm_core_uninit();
       return;
    }
    
@@ -555,6 +594,8 @@ void _do_stream_mode_sm()
       if ( NULL != s_pSemaphoreSMData )
            sem_close(s_pSemaphoreSMData);
       s_pSemaphoreSMData = NULL;
+      mpp_uninit();
+      ruby_drm_core_uninit();
       return;
    }
    close(fdSMem); 
@@ -679,6 +720,7 @@ void _do_stream_mode_sm()
       log_line("Ending video stream play due to quit signal.");
 
    mpp_mark_end_of_stream();
+   mpp_uninit();
 
    if ( NULL != pSMem )
    {
@@ -689,22 +731,30 @@ void _do_stream_mode_sm()
         sem_close(s_pSemaphoreSMData);
    s_pSemaphoreSMData = NULL;
    ruby_drm_core_uninit();
-   mpp_uninit();
 }
 
 
 void _do_stream_mode_udp()
 {
    ControllerSettings* pCS = get_ControllerSettings();
-   if ( mpp_init(g_bUseH265Decoder, pCS->iVideoMPPBuffersSize) != 0 )
-      return;
 
-   hdmi_enum_modes();
+   if ( hdmi_enum_modes() < 0 )
+   {
+      log_error_and_alarm("Failed to enumerate HDMI modes. Exit udp player.");
+      return;
+   }
+
    int iHDMIIndex = hdmi_load_current_mode();
    if ( iHDMIIndex < 0 )
       iHDMIIndex = hdmi_get_best_resolution_index_for(DEFAULT_RADXA_DISPLAY_WIDTH, DEFAULT_RADXA_DISPLAY_HEIGHT, DEFAULT_RADXA_DISPLAY_REFRESH);
    log_line("HDMI mode to use: %d (%d x %d @ %d)", iHDMIIndex, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh() );
    ruby_drm_core_init(1, DRM_FORMAT_NV12, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh());
+
+   if ( mpp_init(g_bUseH265Decoder, pCS->iVideoMPPBuffersSize) != 0 )
+   {
+      ruby_drm_core_uninit();
+      return;
+   }
 
    int iSock = -1;
    struct sockaddr_in udpAddr;
@@ -713,8 +763,8 @@ void _do_stream_mode_udp()
    if ( iSock < 0 )
    {
       log_error_and_alarm("Failed to create socket");
-      ruby_drm_core_uninit();
       mpp_uninit();
+      ruby_drm_core_uninit();
       return;    
    }
 
@@ -739,8 +789,8 @@ void _do_stream_mode_udp()
    if ( iRes < 0 )
    {
       log_error_and_alarm("Failed to bind socket on port %d", DEFAULT_LOCAL_VIDEO_PLAYER_UDP_PORT);
-      ruby_drm_core_uninit();
       mpp_uninit();
+      ruby_drm_core_uninit();
       return;    
    }
 
@@ -825,9 +875,9 @@ void _do_stream_mode_udp()
 
    close(iSock);
    mpp_mark_end_of_stream();
+   mpp_uninit();
 
    ruby_drm_core_uninit();
-   mpp_uninit();
 }
 
 void handle_sigint(int sig) 

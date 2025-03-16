@@ -693,9 +693,10 @@ int ruby_drm_core_wait_for_display_connected()
    }
    do
    {
-      hardware_sleep_ms(500);
+      hardware_sleep_ms(400);
       log_line("[DRMCore] Waiting again for display to be conncted...");
    } while (ruby_drm_core_is_display_connected() <= 0 );
+   hardware_sleep_ms(100);
    log_line("[DRMCore] Display is connected.");
    return 1;
 }
