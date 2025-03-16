@@ -318,20 +318,17 @@ bool vehicle_runtime_has_received_fc_telemetry(u32 uVehicleId)
    if ( (NULL == pRuntimeInfo) || (NULL == pRuntimeInfo->pModel) )
       return false;
 
-   if ( (!pRuntimeInfo->bGotFCTelemetryFull) && (!pRuntimeInfo->bGotFCTelemetryShort) )
-      return false;
-
-   bool bNoTelemetryFromFC = false;
+   bool bHasTelemetryFromFC = false;
 
    if ( pRuntimeInfo->bGotRubyTelemetryInfo )
-   if ( ! (pRuntimeInfo->headerRubyTelemetryExtended.uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA) )
-      bNoTelemetryFromFC = true;
+   if ( pRuntimeInfo->headerRubyTelemetryExtended.uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA )
+      bHasTelemetryFromFC = true;
 
    if ( pRuntimeInfo->bGotRubyTelemetryInfoShort )
-   if ( ! (pRuntimeInfo->headerRubyTelemetryShort.uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA) )
-      bNoTelemetryFromFC = true;
+   if ( pRuntimeInfo->headerRubyTelemetryShort.uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA )
+      bHasTelemetryFromFC = true;
 
-   return ! bNoTelemetryFromFC;
+   return bHasTelemetryFromFC;
 }
 
 u32 vehicle_runtime_get_time_last_received_ruby_telemetry(u32 uVehicleId)

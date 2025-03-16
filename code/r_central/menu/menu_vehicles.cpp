@@ -49,7 +49,6 @@ MenuVehicles::MenuVehicles(void)
 {
    m_Width = 0.33;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.2;
-   m_IndexSelectedVehicle = -1;
    m_iLastSelectedVehicle = -1;
 
    log_line("[Menu] MenuVehicles: On open, this is the current radio interfaces configuration:");
@@ -73,7 +72,6 @@ void MenuVehicles::onShow()
 
    log_line("[Menu] MenuVehicles: %d controller vehicles, %d spectator vehicles", getControllerModelsCount(), getControllerModelsSpectatorCount());
    log_line("[Menu] MenuVehicles: Last selected vehicle index: %d", m_iLastSelectedVehicle);
-   m_IndexSelectedVehicle = -1;
 
    addTopLine("Select the vehicle to control:");
    bool bCurrentVehicleFound = false;
@@ -383,9 +381,8 @@ void MenuVehicles::onSelectItem()
       return;
    }
 
-   m_IndexSelectedVehicle = m_SelectedIndex;
    m_iLastSelectedVehicle = m_SelectedIndex;
-   log_line("[Menu] MenuVehicles: Adding menu selector for vehicle index %d", m_IndexSelectedVehicle);
+   log_line("[Menu] MenuVehicles: Adding menu selector for vehicle index %d", m_iLastSelectedVehicle);
    
    MenuVehicleSelector* pMenu = new MenuVehicleSelector();
    pMenu->m_IndexSelectedVehicle = m_SelectedIndex;

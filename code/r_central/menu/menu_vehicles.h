@@ -15,6 +15,5 @@ class MenuVehicles: public Menu
       bool m_bShowSpectator;
       int m_IndexImport;
       int m_IndexDeleteAll;
-      int m_IndexSelectedVehicle;
       int m_iLastSelectedVehicle;
 };

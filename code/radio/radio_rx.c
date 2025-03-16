@@ -954,7 +954,10 @@ void * _thread_radio_rx(void *argument)
          iMaxRepeatCount--;
          iMaxedInterface = -1;
          int kIndex = 0;
-         for(int iInterfaceIndex=0; iInterfaceIndex<hardware_get_radio_interfaces_count(); iInterfaceIndex++)
+         int iInterfacesCount = hardware_get_radio_interfaces_count();
+         if ( iInterfacesCount > MAX_RADIO_INTERFACES )
+            iInterfacesCount = MAX_RADIO_INTERFACES;
+         for(int iInterfaceIndex=0; iInterfaceIndex<iInterfacesCount; iInterfaceIndex++)
          {
             radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iInterfaceIndex);
             if ( (NULL == pRadioHWInfo) || (! pRadioHWInfo->openedForRead) )

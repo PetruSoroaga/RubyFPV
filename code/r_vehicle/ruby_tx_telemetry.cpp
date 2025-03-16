@@ -996,6 +996,7 @@ void check_send_telemetry_to_controller()
          sPHRTE.uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA;
       else
          sPHRTE.uRubyFlags &= ~(FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA);
+
       #ifdef FEATURE_ENABLE_RC
       if ( g_pCurrentModel->rc_params.rc_enabled && NULL != s_pPHDownstreamInfoRC )
       {

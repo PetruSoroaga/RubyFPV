@@ -46,6 +46,7 @@ void menu_render();
 u32 menu_get_loop_counter();
 
 void menu_discard_all();
+void menu_discard_all_except(Menu* pMenu);
 void add_menu_to_stack(Menu* pMenu);
 void remove_menu_from_stack(Menu* pMenu);
 void replace_menu_on_stack(Menu* pMenuSrc, Menu* pMenuNew);

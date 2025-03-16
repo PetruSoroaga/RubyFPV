@@ -149,9 +149,15 @@ int menu_init()
 
 void menu_discard_all()
 {
+   menu_discard_all_except(NULL);
+}
+
+void menu_discard_all_except(Menu* pMenu)
+{
+   log_line("[Menu] Discarding all menus...");
    for( int i=MAX_MENU_STACK-1; i>=0; i-- )
    {
-      if ( NULL != g_pMenuStack[i] )
+      if ( (NULL != g_pMenuStack[i]) && (g_pMenuStack[i] != pMenu) )
       {
          g_pMenuStack[i]->setParent(NULL);
          delete g_pMenuStack[i];
@@ -161,7 +167,8 @@ void menu_discard_all()
       g_iMenuReturnValue[i] = -1;
       g_iMenuDisableStackingFlag[i] = 0;
    }
-   g_iMenuStackTopIndex = 0;
+   g_iMenuStackTopIndex = 0; 
+   log_line("[Menu] Discarded all menus.");
 }
 
 

@@ -153,7 +153,7 @@ void MenuVehicleSelector::onSelectItem()
 
    if ( NULL == pModel )
    {
-      log_softerror_and_alarm("[Menu] VehicleSelector: NULL model for vehicle index %d.", m_IndexSelectedVehicle);
+      log_softerror_and_alarm("[MenuVehicleSelector] NULL model for vehicle index %d.", m_IndexSelectedVehicle);
       return;
    }
 
@@ -173,14 +173,18 @@ void MenuVehicleSelector::onSelectItem()
 
    if ( m_IndexSelect == m_SelectedIndex )
    {
+      log_line("[MenuVehicleSelector] Selecting VID %u", pModel->uVehicleId);
       if ( NULL != g_pCurrentModel )
-      if ( (g_uActiveControllerModelVID == pModel->uVehicleId) && (g_pCurrentModel->uVehicleId == pModel->uVehicleId) )
       {
-         menu_discard_all();
-         return;
+         log_line("[MenuVehicleSelector] Current VID before switching: %u / %u", g_pCurrentModel->uVehicleId, g_uActiveControllerModelVID);
+         if ( (g_uActiveControllerModelVID == pModel->uVehicleId) && (g_pCurrentModel->uVehicleId == pModel->uVehicleId) )
+         {
+            menu_discard_all_except(this);
+            return;
+         }
       }
       log_line("[MenuVehicleSelector] Switching to VID: %u (mode: %s)", pModel->uVehicleId, pModel->is_spectator?"spectator mode":"control mode");
-      menu_discard_all();
+      menu_discard_all_except(this);
       warnings_remove_all();
       render_all(get_current_timestamp_ms(), true);
       Popup* p = new Popup("Switching vehicles...",0.3,0.64, 0.26, 0.2);
@@ -188,12 +192,15 @@ void MenuVehicleSelector::onSelectItem()
       render_all(get_current_timestamp_ms(), true);
 
       pairing_stop();
-
+      log_line("[MenuVehicleSelector] Stopped current pairing.");
       hardware_sleep_ms(100);
-      pModel->is_spectator = false;
+
+      if ( ! m_bSpectatorMode )
+         pModel->is_spectator = false;
       setCurrentModel(pModel->uVehicleId);
       g_pCurrentModel = getCurrentModel();
-      g_pCurrentModel->is_spectator = false;
+      if ( ! m_bSpectatorMode )
+         g_pCurrentModel->is_spectator = false;
       log_line("[MenuVehicleSelector] New VID %u mode: %s", pModel->uVehicleId, pModel->is_spectator?"spectator mode":"control mode");
       setControllerCurrentModel(g_pCurrentModel->uVehicleId);
       saveControllerModel(g_pCurrentModel);
@@ -201,16 +208,24 @@ void MenuVehicleSelector::onSelectItem()
       ruby_set_active_model_id(g_pCurrentModel->uVehicleId);
       
       onMainVehicleChanged(true);
-      pairing_start_normal(); 
+      log_line("[MenuVehicleSelector] Starting new pairing...");
+      pairing_start_normal();
+      log_line("[MenuVehicleSelector] Started new pairing.");
+      return;
    }
 
    if ( m_IndexFavorite == m_SelectedIndex )
    {
       if ( vehicle_is_favorite(pModel->uVehicleId) )
+      {
+         log_line("[MenuVehicleSelector] Remove VID %u from favorites.", pModel->uVehicleId);
          remove_favorite(pModel->uVehicleId);
+      }
       else
+      {
+         log_line("[MenuVehicleSelector] Add VID %u to favorites.", pModel->uVehicleId);
          add_favorite(pModel->uVehicleId);
-
+      }
       MenuItem* pItem = NULL;
       if ( vehicle_is_favorite(pModel->uVehicleId) )
          pItem = new MenuItem("Remove from favorites", "Removes this vehicle from the list of favorite vehicles.");
@@ -220,5 +235,6 @@ void MenuVehicleSelector::onSelectItem()
 
       save_favorites();
       invalidate();
+      return;
    }
 }

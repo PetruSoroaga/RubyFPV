@@ -268,7 +268,7 @@ void _process_received_ruby_telemetry_extended(u8* pPacketBuffer)
       iTelemetryVersion = 4;
    if ( pPH->total_length == ((u16)sizeof(t_packet_header)+(u16)sizeof(t_packet_header_ruby_telemetry_extended_v4) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info) + (u16)sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
       iTelemetryVersion = 4;
-      
+
    if ( iTelemetryVersion == 0 )
    {
       log_softerror_and_alarm("Received unknown ruby telemetry version from vehicle id %u", pPH->vehicle_id_src);
@@ -288,7 +288,6 @@ void _process_received_ruby_telemetry_extended(u8* pPacketBuffer)
             break;
          }
       }
-      pRuntimeInfo->bGotRubyTelemetryInfo = true;
       if ( g_bSearching )
          log_line("Start receiving Ruby telemetry (version %d) from router for vehicle id %u, runtime index: search", iTelemetryVersion, pRuntimeInfo->uVehicleId);
       else
@@ -296,6 +295,7 @@ void _process_received_ruby_telemetry_extended(u8* pPacketBuffer)
       log_current_runtime_vehicles_info();
    }
 
+   pRuntimeInfo->bGotRubyTelemetryInfo = true;
    pRuntimeInfo->uTimeLastRecvRubyTelemetry = g_TimeNow;
    pRuntimeInfo->uTimeLastRecvRubyTelemetryExtended = g_TimeNow;
    pRuntimeInfo->uTimeLastRecvAnyRubyTelemetry = g_TimeNow;

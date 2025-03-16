@@ -50,7 +50,7 @@ int GPIOExport(int pin)
 
    char chipname[32];
    int linenumber = 0;
-   Convert_Pin_To_Chip_Line(pin, &chipname, &linenumber);
+   Convert_Pin_To_Chip_Line(pin, chipname, &linenumber);
    struct gpiod_chip *chip = gpiod_chip_open_by_name(chipname);
    if ( NULL == chip )
    {
@@ -122,7 +122,7 @@ int GPIODirection(int pin, int dir)
 
    char chipname[32];
    int linenumber = 0;
-   Convert_Pin_To_Chip_Line(pin, &chipname, &linenumber);
+   Convert_Pin_To_Chip_Line(pin, chipname, &linenumber);
    struct gpiod_chip *chip = gpiod_chip_open_by_name(chipname);
    if ( NULL == chip )
    {
@@ -200,7 +200,7 @@ int GPIORead(int pin)
 
    char chipname[32];
    int linenumber = 0;
-   Convert_Pin_To_Chip_Line(pin, &chipname, &linenumber);
+   Convert_Pin_To_Chip_Line(pin, chipname, &linenumber);
    struct gpiod_chip *chip = gpiod_chip_open_by_name(chipname);
    if ( NULL == chip )
    {
@@ -240,7 +240,7 @@ int GPIOWrite(int pin, int value)
 
    char chipname[32];
    int linenumber = 0;
-   Convert_Pin_To_Chip_Line(pin, &chipname, &linenumber);
+   Convert_Pin_To_Chip_Line(pin, chipname, &linenumber);
    struct gpiod_chip *chip = gpiod_chip_open_by_name(chipname);
    if ( NULL == chip )
    {

@@ -328,6 +328,8 @@ void onEventPairingStopped()
    g_bIsRouterReady = false;
    g_RouterIsReadyTimestamp = 0;
 
+   if ( NULL != g_pCurrentModel )
+      reset_model_settings_download_buffers(g_pCurrentModel->uVehicleId);
 
    shared_vars_state_reset_all_vehicles_runtime_info();
    link_reset_reconfiguring_radiolink();
