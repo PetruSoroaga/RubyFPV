@@ -142,7 +142,7 @@
 
 // --------------------------------------------------------------------------------
 
-#if defined(HW_PLATFORM_RADXA_ZERO3)
+#if defined(HW_PLATFORM_RADXA)
 
 #define FOLDER_BINARIES "/home/radxa/ruby/"
 #define FOLDER_DRIVERS "/home/radxa/ruby/drivers/"

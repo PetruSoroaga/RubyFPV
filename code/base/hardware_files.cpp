@@ -71,7 +71,7 @@ void hardware_mount_root()
    hw_execute_bash_command("sudo mount -o remount,rw /", NULL);
    #endif
 
-   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   #if defined(HW_PLATFORM_RADXA)
    hw_execute_bash_command("sudo mount -o remount,rw /", NULL);
    #endif
 }
@@ -92,7 +92,7 @@ int hardware_get_free_space_kb()
    if ( 1 != hw_execute_bash_command_raw("df . | grep root", szOutput) )
       return -1;
    #endif
-   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   #if defined(HW_PLATFORM_RADXA)
    if ( 1 != hw_execute_bash_command_raw("df / | grep dev/", szOutput) )
       return -1;
    #endif

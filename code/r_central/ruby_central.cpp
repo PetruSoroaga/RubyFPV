@@ -76,7 +76,7 @@
 #if defined (HW_PLATFORM_RASPBERRY)
 #include "../renderer/render_engine_raw.h"
 #endif
-#if defined (HW_PLATFORM_RADXA_ZERO3)
+#if defined (HW_PLATFORM_RADXA)
 #include "../renderer/drm_core.h"
 #include "../renderer/render_engine_cairo.h"
 #endif
@@ -209,7 +209,7 @@ void load_resources()
    osd_load_resources();
 }
 
-void _draw_background()
+void _draw_background_picture()
 {
    if ( g_TimeNow > s_uTimeLastChangeBgImage + 40000 )
    {
@@ -377,7 +377,7 @@ void _render_video_background()
       t_structure_vehicle_info* pRuntimeInfo = get_vehicle_runtime_info_for_vehicle_id(uVehicleIdFullVideo);
       if ( NULL != pRuntimeInfo )
       if ( pRuntimeInfo->bGotRubyTelemetryInfo )
-      if ( ! (pRuntimeInfo->headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA) )
+      if ( ! (pRuntimeInfo->headerRubyTelemetryExtended.uRubyFlags & FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA) )
          bVehicleHasCamera = false;
 
       Model* pModel = findModelWithId(uVehicleIdFullVideo, 60);
@@ -452,46 +452,36 @@ void _render_background_and_paddings(bool bForceBackground)
       g_bPlayIntro = false;
    }
 
-   bool showBg = true;
+   bool bShowBgPicture = false;
+   bool bShowBgVideo = true;
 
-   if ( ! g_bSearching )
-   if ( g_bIsRouterReady )
-   if ( link_has_received_main_vehicle_ruby_telemetry() )
-   if ( link_has_received_videostream(0) )
-      showBg = false;
-
-   if ( g_bSearching && (!g_bSearchFoundVehicle) )
+   if ( bForceBackground || g_bSearching || (! g_bIsRouterReady) || (! g_bFirstModelPairingDone) )
    {
-      showBg = true;
-      bForceBackground = true;
+      bShowBgPicture = true;
+      bShowBgVideo = false;
    }
 
-   if ( ! pairing_isStarted() )
-      showBg = true;
-   if ( link_has_received_main_vehicle_ruby_telemetry() && (g_TimeNow < pairing_getStartTime() + 1000) )
+   if ( (! pairing_isStarted()) || (! link_has_received_main_vehicle_ruby_telemetry()) || (g_TimeNow < pairing_getStartTime() + 1000) )
    {
-      bForceBackground = true;
-      showBg = true;
+      bShowBgPicture = true;
+      bShowBgVideo = false;
    }
-   if ( (!link_has_received_main_vehicle_ruby_telemetry()) && (g_TimeNow < pairing_getStartTime() + 3000) )
-   {
-      bForceBackground = true;
-      showBg = true;
-   }
-   if ( ! g_bFirstModelPairingDone )
-      bForceBackground = true;
-
    if ( NULL != g_pPopupLooking )
-      bForceBackground = true;
-
-   if ( showBg || bForceBackground || (! link_has_received_videostream(0)) )
    {
-      if ( bForceBackground || (! pairing_isStarted()) || (g_TimeNow < pairing_getStartTime() + 1000) )
-         _draw_background();
-      else
-         _render_video_background();
+      bShowBgPicture = true;
+      bShowBgVideo = false;
    }
 
+   if ( bShowBgPicture )
+   {
+      _draw_background_picture();
+      return;
+   }
+   if ( ! bShowBgVideo )
+      return;
+
+   _render_video_background();
+  
    float fScreenAspect = (float)(g_pRenderEngine->getScreenWidth())/(float)(g_pRenderEngine->getScreenHeight());
    if ( (!g_bSearching) || g_bSearchFoundVehicle )
    if ( (NULL != g_pCurrentModel) && (!bForceBackground) )
@@ -777,7 +767,7 @@ int ruby_start_recording()
    #ifdef HW_PLATFORM_RASPBERRY
    sprintf(szComm, "df -m %s | grep root", FOLDER_BINARIES);
    #endif
-   #ifdef HW_PLATFORM_RADXA_ZERO3
+   #ifdef HW_PLATFORM_RADXA
    sprintf(szComm, "df -m %s | grep mmc", FOLDER_BINARIES);
    #endif
    if ( 1 == hw_execute_bash_command_raw(szComm, szBuff) )
@@ -2191,7 +2181,7 @@ int main(int argc, char *argv[])
    hdmi_enum_modes();
    #endif
 
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RADXA)
    ruby_drm_core_wait_for_display_connected();
    hdmi_enum_modes();
    int iHDMIIndex = hdmi_load_current_mode();
@@ -2220,7 +2210,7 @@ int main(int argc, char *argv[])
          sprintf(szComm, "./%s res/intro.h264 15 -endexit&", VIDEO_PLAYER_OFFLINE);
          hw_execute_bash_command_nonblock(szComm, NULL);
          #endif
-         #ifdef HW_PLATFORM_RADXA_ZERO3
+         #ifdef HW_PLATFORM_RADXA
          //for( int i=0; i<25; i++ )
          //   hardware_sleep_ms(100);
          //sprintf(szComm, "./%s -f res/intro.h264 20 -endexit&", VIDEO_PLAYER_OFFLINE);
@@ -2267,7 +2257,7 @@ int main(int argc, char *argv[])
       
    save_ControllerInterfacesSettings();
 
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RADXA)
    log_line("Ruby OLED Init...");
    if ( hardware_i2c_has_oled_screen() )
    {
@@ -2358,7 +2348,7 @@ int main(int argc, char *argv[])
    if ( ! g_bIsReinit )
       pairing_stop();
 
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RADXA)
    oled_render_shutdown();
    #endif
    
@@ -2382,7 +2372,7 @@ int main(int argc, char *argv[])
 
    render_free_engine();
 
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RADXA)
    ruby_drm_core_uninit();
    #endif
 
@@ -2432,7 +2422,7 @@ void ruby_reinit_hdmi_display()
    free_all_fonts();
    render_free_engine();
    
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RADXA)
    ruby_drm_core_uninit();
    ruby_drm_core_wait_for_display_connected();
 

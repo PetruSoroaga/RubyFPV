@@ -652,6 +652,7 @@ const char* str_get_hardware_board_name(u32 board_type)
 
    static const char* s_szBoardTypeRadxaZero3 = "Radxa Zero 3";
    static const char* s_szBoardTypeRadxa3C = "Radxa 3C";
+   static const char* s_szBoardTypeRadxaRuncamVRx = "RunCam VRx";
 
    static const char* s_szBoardTypeOpenIPCGoke200 = "OpenIPC Goke200";
    static const char* s_szBoardTypeOpenIPCGoke210 = "OpenIPC Goke210";
@@ -691,6 +692,8 @@ const char* str_get_hardware_board_name(u32 board_type)
       return s_szBoardTypeRadxaZero3;
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_3C )
       return s_szBoardTypeRadxa3C;
+   if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_RUNCAM_VRX )
+      return s_szBoardTypeRadxaRuncamVRx;
 
    if ( (board_type & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_GOKE200 )
       return s_szBoardTypeOpenIPCGoke200;

@@ -46,7 +46,7 @@
 #define FC_TELE_FLAGS_POS_HOME 4    // received lon, lat are home position
 #define FC_TELE_FLAGS_HAS_GPS_FIX 8  // has a 3d gps fix
 #define FC_TELE_FLAGS_RC_FAILSAFE 16   // RC failsafe is triggered
-#define FC_TELE_FLAGS_NO_FC_TELEMETRY 32 // No telemetry from flight controller
+//#define FC_TELE_FLAGS_NO_FC_TELEMETRY 32 // No telemetry from flight controller
 #define FC_TELE_FLAGS_HAS_MESSAGE 64 // Set if there is also a message structure from flight controller;
 #define FC_TELE_FLAGS_HAS_ATTITUDE 128 // Set if the attitude was received
 #define FC_MESSAGE_MAX_LENGTH 101

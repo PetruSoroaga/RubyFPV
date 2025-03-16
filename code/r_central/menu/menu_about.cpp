@@ -118,7 +118,7 @@ MenuAbout::MenuAbout(void)
    #ifdef HW_PLATFORM_RASPBERRY
    sprintf(szComm, "df -m %s | grep root", FOLDER_BINARIES);
    #endif
-   #ifdef HW_PLATFORM_RADXA_ZERO3
+   #ifdef HW_PLATFORM_RADXA
    sprintf(szComm, "df -m %s | grep mmc", FOLDER_BINARIES);
    #endif
    if ( 1 == hw_execute_bash_command_raw(szComm, szBuff) )

@@ -48,7 +48,7 @@ int _gpio_reverse_find_pin_mapping(int iGPIOPin)
    if ( (iGPIOPin <= 0) || (iGPIOPin >= 50) )
       return -1;
 
-   #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+   #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
 
    char szComm[128];
    char szOutput[256];
@@ -82,7 +82,7 @@ int _gpio_reverse_find_pin_mapping(int iGPIOPin)
 
 void _gpio_load_custom_mapping()
 {
-   #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+   #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
    log_line("[GPIO] Loading custom GPIO mappings from file (%s%s)...", FOLDER_WINDOWS_PARTITION, FILE_CONFIG_GPIO);
    char szFile[MAX_FILE_PATH_SIZE];
    strcpy(szFile, FOLDER_WINDOWS_PARTITION);
@@ -122,7 +122,7 @@ void _gpio_load_custom_mapping()
    g_iGPIOPinPlus = iTmp3;
    g_iGPIOPinMinus = iTmp4;
 
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RADXA)
    g_iGPIOPinMenu = _gpio_reverse_find_pin_mapping(g_iGPIOPinMenu);
    g_iGPIOPinBack = _gpio_reverse_find_pin_mapping(g_iGPIOPinBack);
    g_iGPIOPinPlus = _gpio_reverse_find_pin_mapping(g_iGPIOPinPlus);
@@ -148,7 +148,7 @@ void _gpio_load_custom_mapping()
    g_iGPIOPinQA2 = iTmp2;
    g_iGPIOPinQA3 = iTmp3;
 
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RADXA)
    g_iGPIOPinQA1 = _gpio_reverse_find_pin_mapping(g_iGPIOPinQA1);
    g_iGPIOPinQA2 = _gpio_reverse_find_pin_mapping(g_iGPIOPinQA2);
    g_iGPIOPinQA3 = _gpio_reverse_find_pin_mapping(g_iGPIOPinQA3);
@@ -165,7 +165,7 @@ void _gpio_load_custom_mapping()
 #include "gpio_pi.c"
 #endif
 
-#ifdef HW_PLATFORM_RADXA_ZERO3
+#ifdef HW_PLATFORM_RADXA
 #include "gpio_radxa.c"
 #endif
 

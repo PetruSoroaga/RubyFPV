@@ -6,7 +6,7 @@
 #include "wiringPiI2C_radxa.h"
 
 
-#if defined (HW_PLATFORM_RADXA_ZERO3)
+#if defined (HW_PLATFORM_RADXA)
 #include <linux/i2c-dev.h>
 #include <i2c/smbus.h>
 

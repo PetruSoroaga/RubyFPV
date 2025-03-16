@@ -609,8 +609,8 @@ void link_watch_loop_telemetry()
          // RC failsafe changed ?
 
          #ifdef FEATURE_ENABLE_RC
-         if ( ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags & FC_TELE_FLAGS_RC_FAILSAFE ) ||
-              (g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo && (g_VehiclesRuntimeInfo[i].headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_RC_FAILSAFE) ) )
+         if ( ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.uFCFlags & FC_TELE_FLAGS_RC_FAILSAFE ) ||
+              (g_VehiclesRuntimeInfo[i].bGotRubyTelemetryInfo && (g_VehiclesRuntimeInfo[i].headerRubyTelemetryExtended.uRubyFlags & FLAG_RUBY_TELEMETRY_RC_FAILSAFE) ) )
          {
             if ( ! g_VehiclesRuntimeInfo[i].bRCFailsafeState )
                notification_add_rc_failsafe(g_VehiclesRuntimeInfo[i].uVehicleId);
@@ -624,22 +624,22 @@ void link_watch_loop_telemetry()
          #endif
 
          // FC telemetry flags changed ?
-         if ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags != g_VehiclesRuntimeInfo[i].uLastFCFlags )
+         if ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.uFCFlags != g_VehiclesRuntimeInfo[i].uLastFCFlags )
          {
             if ( 0 != g_VehiclesRuntimeInfo[i].uLastFCFlags )
             {
-               if ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
+               if ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.uFCFlags & FC_TELE_FLAGS_ARMED )
                if ( !(g_VehiclesRuntimeInfo[i].uLastFCFlags & FC_TELE_FLAGS_ARMED) )
                {
                   onEventArmed(g_VehiclesRuntimeInfo[i].uVehicleId);
                }
-               if ( !(g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED) )
+               if ( !(g_VehiclesRuntimeInfo[i].headerFCTelemetry.uFCFlags & FC_TELE_FLAGS_ARMED) )
                if ( g_VehiclesRuntimeInfo[i].uLastFCFlags & FC_TELE_FLAGS_ARMED )
                {
                   onEventDisarmed(g_VehiclesRuntimeInfo[i].uVehicleId);
                }
             }
-            g_VehiclesRuntimeInfo[i].uLastFCFlags = g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags;
+            g_VehiclesRuntimeInfo[i].uLastFCFlags = g_VehiclesRuntimeInfo[i].headerFCTelemetry.uFCFlags;
          }
       }
 

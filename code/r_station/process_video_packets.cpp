@@ -142,6 +142,9 @@ int process_received_video_packet(int iInterfaceIndex, u8* pPacket, int iPacketL
    if ( (NULL == pModel) || (get_sw_version_build(pModel) < 242) )
       return -1;
 
+   if ( ! is_sw_version_atleast(pModel, 10, 6) )
+      return -1;
+
    int nRet = 0;
   
    if ( pPH->packet_type == PACKET_TYPE_VIDEO_DATA )

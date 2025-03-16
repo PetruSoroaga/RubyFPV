@@ -40,7 +40,7 @@
 #include "tx_powers.h"
 #include "../common/string_utils.h"
 
-#if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+#if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
 
 ControllerInterfacesSettings s_CIS;
 bool s_bAddedNewRadioInterfaces = false;

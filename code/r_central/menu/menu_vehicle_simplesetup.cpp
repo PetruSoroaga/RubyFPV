@@ -459,6 +459,7 @@ void MenuVehicleSimpleSetup::addRadioItems()
       selectMenuItemTxPowersValue(m_pItemsSelect[40+iLink], false, bBoost2W, bBoost4W, &(iLinkPowersMw[0]), iCountLinkInterfaces, iVehicleLinkPowerMaxMw);
 
    }
+   /*
    char szText[256];
    strcpy(szText, L("The Tx power is for the radio downlink(s).\nMaximum selectable Tx power is computed based on detected radio interfaces on the vehicle: "));
    szBuff[0] = 0;
@@ -475,7 +476,8 @@ void MenuVehicleSimpleSetup::addRadioItems()
    strcat(szText, szBuff);
    MenuItemLegend* pLegend = new MenuItemLegend(L("Note"), szText, 0);
    pLegend->setExtraHeight(0.4*g_pRenderEngine->textHeight(g_idFontMenu));
-   addMenuItem(pLegend);   
+   addMenuItem(pLegend);
+   */
 }
 
 void MenuVehicleSimpleSetup::addItems()
@@ -629,10 +631,10 @@ bool MenuVehicleSimpleSetup::periodicLoop()
    if ( g_TimeNow > m_uTimeStartCurrentTelemetrySearch + 500 )
    {
       bool bHasFCTelemetry = vehicle_runtime_has_received_fc_telemetry(g_pCurrentModel->uVehicleId);
-      u32 uTimeLastFCTelemetry = vehicle_runtime_get_time_last_received_fc_telemetry(g_pCurrentModel->uVehicleId);
-      log_line("MenuVehicleSimpleSetup: Has FC telemetry? %s, last FC telemetry time: %u ms ago",
-         bHasFCTelemetry?"yes":"no", g_TimeNow - uTimeLastFCTelemetry);
-      if ( bHasFCTelemetry && (uTimeLastFCTelemetry > m_uTimeStartCurrentTelemetrySearch + 500) )
+      u32 uTimeLastRubyTelemetry = vehicle_runtime_get_time_last_received_ruby_telemetry(g_pCurrentModel->uVehicleId);
+      log_line("MenuVehicleSimpleSetup: Has FC telemetry? %s, last Ruby telemetry time: %u ms ago",
+         bHasFCTelemetry?"yes":"no", g_TimeNow - uTimeLastRubyTelemetry);
+      if ( bHasFCTelemetry && (uTimeLastRubyTelemetry > m_uTimeStartCurrentTelemetrySearch + 500) )
       {
          log_line("MenuVehicleSimpleSetup: Received vehicle FC telemetry.");
          m_bSearchingTelemetry = false;

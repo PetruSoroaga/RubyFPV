@@ -60,7 +60,7 @@
 #include <pthread.h>
 #include <sys/ioctl.h>
 
-#ifndef HW_PLATFORM_RADXA_ZERO3
+#ifndef HW_PLATFORM_RADXA
 #error "ONLY FOR RADXA PLATFORM!"
 #endif
 

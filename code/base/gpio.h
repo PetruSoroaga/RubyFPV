@@ -33,7 +33,7 @@
 #define GPIO_PIN_BUZZER 26
 #endif
 
-#ifdef HW_PLATFORM_RADXA_ZERO3
+#ifdef HW_PLATFORM_RADXA
 #define GPIO_PIN_MENU 97 // PIN_11: bank 3 (x32), index 1 (+1)
 #define GPIO_PIN_BACK 98 // PIN_13
 #define GPIO_PIN_PLUS 105 // PIN_16

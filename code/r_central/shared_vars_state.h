@@ -81,6 +81,7 @@ typedef struct
 
    bool bGotFCTelemetry;
    bool bGotFCTelemetryShort;
+   bool bGotFCTelemetryFull;
    bool bGotFCTelemetryExtra;
    bool bFCTelemetrySourcePresent;
    int  iFrequencyFCTelemetryFull;
@@ -187,5 +188,5 @@ t_structure_vehicle_info* get_vehicle_runtime_info_for_vehicle_id(u32 uVehicleId
 t_packet_header_ruby_telemetry_extended_v4* get_received_relayed_vehicle_telemetry_info();
 void log_current_runtime_vehicles_info();
 bool vehicle_runtime_has_received_fc_telemetry(u32 uVehicleId);
-u32  vehicle_runtime_get_time_last_received_fc_telemetry(u32 uVehicleId);
+u32  vehicle_runtime_get_time_last_received_ruby_telemetry(u32 uVehicleId);
 void vehicle_runtime_reset_has_received_fc_telemetry_info(u32 uVehicleId);

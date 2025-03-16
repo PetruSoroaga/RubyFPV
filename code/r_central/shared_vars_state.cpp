@@ -180,6 +180,7 @@ void reset_vehicle_telemetry_runtime_info(t_structure_vehicle_info* pInfo)
    pInfo->bGotRubyTelemetryInfoShort = false;
 
    pInfo->bGotFCTelemetry = false;
+   pInfo->bGotFCTelemetryFull = false;
    pInfo->bGotFCTelemetryShort = false;
    pInfo->bGotFCTelemetryExtra = false;
    pInfo->bFCTelemetrySourcePresent = false;
@@ -196,7 +197,8 @@ void reset_vehicle_telemetry_runtime_info(t_structure_vehicle_info* pInfo)
    memset( &(pInfo->headerFCTelemetryExtra), 0, sizeof(t_packet_header_fc_extra));
    memset( &(pInfo->headerFCTelemetryRCChannels), 0, sizeof(t_packet_header_fc_rc_channels));
 
-   pInfo->headerFCTelemetry.flags |= FC_TELE_FLAGS_NO_FC_TELEMETRY;
+   pInfo->headerRubyTelemetryExtended.uRubyFlags &= ~(FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA);
+   pInfo->headerRubyTelemetryShort.uRubyFlags &= ~(FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA);
 
    pInfo->uTimeLastMessageFromFC = 0;
    pInfo->szLastMessageFromFC[0] = 0;
@@ -316,26 +318,23 @@ bool vehicle_runtime_has_received_fc_telemetry(u32 uVehicleId)
    if ( (NULL == pRuntimeInfo) || (NULL == pRuntimeInfo->pModel) )
       return false;
 
+   if ( (!pRuntimeInfo->bGotFCTelemetryFull) && (!pRuntimeInfo->bGotFCTelemetryShort) )
+      return false;
+
    bool bNoTelemetryFromFC = false;
 
-   if ( (pRuntimeInfo->pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MAVLINK) ||
-       (pRuntimeInfo->pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_LTM) )
-   if ( pRuntimeInfo->bGotFCTelemetry )
-   if ( pRuntimeInfo->headerFCTelemetry.flags & FC_TELE_FLAGS_NO_FC_TELEMETRY )
-      bNoTelemetryFromFC = true;
-
    if ( pRuntimeInfo->bGotRubyTelemetryInfo )
-   if ( ! (pRuntimeInfo->headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA) )
+   if ( ! (pRuntimeInfo->headerRubyTelemetryExtended.uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA) )
       bNoTelemetryFromFC = true;
 
    if ( pRuntimeInfo->bGotRubyTelemetryInfoShort )
-   if ( ! (pRuntimeInfo->headerRubyTelemetryShort.uFlags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA) )
+   if ( ! (pRuntimeInfo->headerRubyTelemetryShort.uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA) )
       bNoTelemetryFromFC = true;
 
    return ! bNoTelemetryFromFC;
 }
 
-u32 vehicle_runtime_get_time_last_received_fc_telemetry(u32 uVehicleId)
+u32 vehicle_runtime_get_time_last_received_ruby_telemetry(u32 uVehicleId)
 {
    if ( (0 == uVehicleId) || (MAX_U32 == uVehicleId) )
       return 0;
@@ -344,15 +343,9 @@ u32 vehicle_runtime_get_time_last_received_fc_telemetry(u32 uVehicleId)
    if ( (NULL == pRuntimeInfo) || (NULL == pRuntimeInfo->pModel) )
       return 0;
 
-   bool bNoTelemetryFromFC = false;
-
-   if ( pRuntimeInfo->pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
-      return pRuntimeInfo->mspState.uLastMSPCommandReceivedTime;
-
-   if ( (pRuntimeInfo->pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MAVLINK) ||
-       (pRuntimeInfo->pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_LTM) )
-      return pRuntimeInfo->uTimeLastRecvFCTelemetryFull;
-   return 0;
+   if ( ! pRuntimeInfo->bGotRubyTelemetryInfo )
+      return 0;
+   return pRuntimeInfo->uTimeLastRecvRubyTelemetry;
 }
 
 void vehicle_runtime_reset_has_received_fc_telemetry_info(u32 uVehicleId)
@@ -368,4 +361,7 @@ void vehicle_runtime_reset_has_received_fc_telemetry_info(u32 uVehicleId)
    pRuntimeInfo->uTimeLastRecvFCTelemetry = 0;
    pRuntimeInfo->uTimeLastRecvFCTelemetryFull = 0;
    pRuntimeInfo->uTimeLastRecvFCTelemetryShort =0;
+   pRuntimeInfo->bGotFCTelemetryShort = false;
+   pRuntimeInfo->bGotFCTelemetryFull = false;
+   pRuntimeInfo->bGotFCTelemetryExtra = false;
 }

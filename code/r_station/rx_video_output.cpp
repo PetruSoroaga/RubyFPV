@@ -205,7 +205,7 @@ void rx_video_output_start_video_streamer()
    strcpy(szStreamerParams, "2>&1 1>/dev/null");
    #endif
 
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RADXA)
    char szCodec[32];
    szCodec[0] = 0;
    if ( g_pCurrentModel->video_params.uVideoExtraFlags & VIDEO_FLAG_GENERATE_H265 )
@@ -276,7 +276,7 @@ void rx_video_output_start_video_streamer()
       shared_mem_process_stats_close(SHARED_MEM_WATCHDOG_MPP_PLAYER, s_pSMProcessStatsMPPPlayer);
    s_pSMProcessStatsMPPPlayer = NULL;
 
-   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   #if defined(HW_PLATFORM_RADXA)
    uTimeStart = g_TimeNow;
    while ( g_TimeNow < uTimeStart + 2000 )
    {
@@ -1277,7 +1277,7 @@ void rx_video_output_periodic_loop()
 {
    rx_video_recording_periodic_loop();
 
-   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   #if defined(HW_PLATFORM_RADXA)
    _rx_video_output_watchdog_mpp_player();
    #endif
 

@@ -195,7 +195,7 @@ void _check_ruby_ipc_consistency()
 
 int ruby_init_ipc_channels()
 {
-   #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+   #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
    char szBuff[256];
    sprintf(szBuff, "mkfifo %s", FIFO_RUBY_CAMERA1);
    hw_execute_bash_command(szBuff, NULL);

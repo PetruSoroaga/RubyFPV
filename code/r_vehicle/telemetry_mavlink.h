@@ -9,5 +9,4 @@ void telemetry_mavlink_on_second_lapse();
 
 // Returns true if a new message was found
 bool telemetry_mavlink_on_new_serial_data(u8* pData, int iDataLength);
-
 void telemetry_mavlink_send_to_controller();

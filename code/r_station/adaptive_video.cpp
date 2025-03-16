@@ -388,6 +388,9 @@ void adaptive_video_periodic_loop(bool bForceSyncNow)
       if ( (NULL == pModel) || pModel->isVideoLinkFixedOneWay() || (! pModel->hasCamera()) || (get_sw_version_build(pModel) < 242) )
          continue;
 
+      if ( ! is_sw_version_atleast(pModel, 10, 6) )
+         continue;
+        
       shared_mem_video_stream_stats* pSMVideoStreamInfo = get_shared_mem_video_stream_stats_for_vehicle(&g_SM_VideoDecodeStats, g_State.vehiclesRuntimeInfo[i].uVehicleId);
       ProcessorRxVideo* pProcessorRxVideo = ProcessorRxVideo::getVideoProcessorForVehicleId(pModel->uVehicleId, 0);
 

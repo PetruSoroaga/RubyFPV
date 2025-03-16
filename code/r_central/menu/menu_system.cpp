@@ -151,7 +151,7 @@ void MenuSystem::onReturnFromChild(int iChildMenuId, int returnValue)
       hw_execute_bash_command("touch /home/pi/ruby/config/firstboot.txt", NULL);
       #endif
 
-      #if defined(HW_PLATFORM_RADXA_ZERO3)
+      #if defined(HW_PLATFORM_RADXA)
       hw_execute_bash_command("rm -rf /home/radxa/ruby/logs", NULL);
       hw_execute_bash_command("rm -rf /home/radxa/ruby/media", NULL);
       hw_execute_bash_command("rm -rf /home/radxa/ruby/config", NULL);

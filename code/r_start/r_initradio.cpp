@@ -37,7 +37,7 @@
 #include "../base/hardware_radio_txpower.h"
 #include "../base/hw_procs.h"
 #include "../base/radio_utils.h"
-#if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
+#if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA)
 #include "../base/ctrl_interfaces.h"
 #include "../base/ctrl_settings.h"
 #endif
@@ -79,7 +79,7 @@ int init_Radios()
    u32 uDelayMS = DEFAULT_DELAY_WIFI_CHANGE;
    s_bIsStation = hardware_is_station();
 
-   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA)
 
    if ( s_bIsStation )
    {

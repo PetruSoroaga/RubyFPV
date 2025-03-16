@@ -548,7 +548,7 @@ void log_arguments(int argc, char *argv[])
    strcpy(szHWPlatform, "Linux");
    #elif defined(HW_PLATFORM_RASPBERRY)
    strcpy(szHWPlatform, "PI");
-   #elif defined(HW_PLATFORM_RADXA_ZERO3)
+   #elif defined(HW_PLATFORM_RADXA)
    strcpy(szHWPlatform, "RadxaZero3");
    #endif
    log_line_forced_to_file("Process version: %d.%d (b%d) HW: %s", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR/10, SYSTEM_SW_BUILD_NUMBER, szHWPlatform);

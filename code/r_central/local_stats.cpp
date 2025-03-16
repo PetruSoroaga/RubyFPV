@@ -128,7 +128,7 @@ void local_stats_update_loop()
       if ( NULL == g_VehiclesRuntimeInfo[i].pModel )
          continue;
 
-      if ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
+      if ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.uFCFlags & FC_TELE_FLAGS_ARMED )
       if ( ! g_VehiclesRuntimeInfo[i].bIsArmed )
          g_VehiclesRuntimeInfo[i].bIsArmed = true;
 

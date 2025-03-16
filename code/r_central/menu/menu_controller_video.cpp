@@ -282,7 +282,7 @@ void MenuControllerVideo::onReturnFromChild(int iChildMenuId, int returnValue)
 {
    Menu::onReturnFromChild(iChildMenuId, returnValue);
 
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RADXA)
    if ( 2 == iChildMenuId/1000 )
    {
       ruby_mark_reinit_hdmi_display();
@@ -302,7 +302,7 @@ void MenuControllerVideo::onReturnFromChild(int iChildMenuId, int returnValue)
 
 int MenuControllerVideo::onBack()
 {
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RADXA)
    if ( m_hdmigroupOrg != hdmi_get_current_resolution_group() ||
         m_hdmimodeOrg != hdmi_get_current_resolution_mode() )
    {

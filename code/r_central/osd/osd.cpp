@@ -386,7 +386,7 @@ float osd_show_flight_mode(float x, float y)
    else
       osd_set_colors();
    
-   if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED) )
+   if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.uFCFlags & FC_TELE_FLAGS_ARMED) )
    {
       float yPos = y + 0.5*(osd_getBarHeight()-2.0*osd_getSpacingV()-osd_getFontHeight());
       osd_show_value_centered(x+0.5*w,yPos, szBuff, g_idFontOSD);
@@ -701,12 +701,12 @@ float _osd_show_rc_rssi(float xPos, float yPos, float fScale)
       int val = 0;
       if ( bHasRubyRC )
          val = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.uplink_rc_rssi;
-      else if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI )
+      else if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI )
          val = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.uplink_mavlink_rc_rssi;
       
       //if ( ! bHasRubyRC )
       //if ( val == 0 || val == 255 )
-      //if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RX_RSSI )
+      //if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RX_RSSI )
       //   val = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.uplink_mavlink_rx_rssi;
 
       if ( val != 255 )
@@ -1815,7 +1815,7 @@ void osd_debug()
 {
    g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry = true;
    g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bFCTelemetrySourcePresent = true;
-   g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.flags = FC_TELE_FLAGS_ARMED | FC_TELE_FLAGS_HAS_ATTITUDE;
+   g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.uFCFlags = FC_TELE_FLAGS_ARMED | FC_TELE_FLAGS_HAS_ATTITUDE;
    g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.flight_mode = FLIGHT_MODE_STAB | FLIGHT_MODE_ARMED;
    g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.gps_fix_type = GPS_FIX_TYPE_3D_FIX;
    g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.hdop = 111;
@@ -1835,7 +1835,7 @@ void osd_debug()
       // Current pos: 47.14378586227096, 27.583722513468402
       g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.latitude = 47.136136 * 10000000 + 20000 * sin(s_RenderCount/50.0);
       g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.longitude = 27.5777667 * 10000000 + 20000 * cos(s_RenderCount/50.0);
-      g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.flags |= FC_TELE_FLAGS_POS_CURRENT;
+      g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.uFCFlags |= FC_TELE_FLAGS_POS_CURRENT;
       g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.distance = 100 * distance_meters_between( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].fHomeLat, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].fHomeLon, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.latitude/10000000.0, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.longitude/10000000.0 );
    }
    else
@@ -1843,7 +1843,7 @@ void osd_debug()
       // Home:  47.13607918623999, 27.577757896625428
       g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.latitude = 47.136136 * 10000000;
       g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.longitude = 27.5777667 * 10000000;
-      g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.flags |= FC_TELE_FLAGS_POS_HOME;     
+      g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.uFCFlags |= FC_TELE_FLAGS_POS_HOME;     
    }
 
    g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.satelites++;
@@ -1912,12 +1912,12 @@ void osd_render_elements()
    if ( ( 0 < pActiveModel->iGPSCount) && g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry )
    if ( (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.latitude > 5) || (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.latitude < -5) )
    {
-      if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.flags & FC_TELE_FLAGS_POS_CURRENT )
+      if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.uFCFlags & FC_TELE_FLAGS_POS_CURRENT )
       {
          g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].fHomeLastLat = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.latitude/10000000.0f;
          g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].fHomeLastLon = g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.longitude/10000000.0f;
       }
-      if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.flags & FC_TELE_FLAGS_POS_HOME )
+      if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.uFCFlags & FC_TELE_FLAGS_POS_HOME )
       {
          if ( ! g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bHomeSet )
             warnings_add(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].uVehicleId, "Home Position Aquired and Stored", g_idIconHome);
@@ -2517,7 +2517,7 @@ void osd_render_instruments()
    set_Color_OSDOutline( p->iColorOSDOutline[0], p->iColorOSDOutline[1], p->iColorOSDOutline[2], ((float)p->iColorOSDOutline[3])/100.0);
    osd_set_colors();
 
-   if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.flags & FC_TELE_FLAGS_HAS_ATTITUDE )
+   if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.uFCFlags & FC_TELE_FLAGS_HAS_ATTITUDE )
       osd_show_ahi(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.roll/100.0-180.0, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.pitch/100.0-180.0);
    else
       osd_show_ahi(0,0);

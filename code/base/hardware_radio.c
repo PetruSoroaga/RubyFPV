@@ -1288,7 +1288,7 @@ int hardware_radio_load_radio_modules(int iEchoToConsole)
    #if defined(HW_PLATFORM_OPENIPC_CAMERA)
    log_line("[HardwareRadio] Adding radio modules on OpenIPC for detected radio cards...");
    #endif
-   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   #if defined(HW_PLATFORM_RADXA)
    log_line("[HardwareRadio] Adding radio modules on Radxa for detected radio cards...");
    #endif
 
@@ -1496,7 +1496,7 @@ int hardware_install_driver_rtl8812au(int iEchoToConsole)
 
    #endif
 
-   #if defined HW_PLATFORM_RADXA_ZERO3
+   #if defined HW_PLATFORM_RADXA
    char szDriverFile[128];
    strcpy(szDriverFile, "88XXau-radxa.ko");
    return _hardware_try_install_rtl8812au(szDriverFile);
@@ -1596,7 +1596,7 @@ int hardware_install_driver_rtl8812eu(int iEchoToConsole)
    return _hardware_try_install_rtl8812eu(szDriverFile);
    #endif
 
-   #if defined HW_PLATFORM_RADXA_ZERO3
+   #if defined HW_PLATFORM_RADXA
    char szDriverFile[128];
    strcpy(szDriverFile, "8812eu-radxa.ko");
    return _hardware_try_install_rtl8812eu(szDriverFile);
@@ -1722,7 +1722,7 @@ void hardware_install_drivers(int iEchoToConsole)
       }
    }
 
-   #if defined HW_PLATFORM_RADXA_ZERO3
+   #if defined HW_PLATFORM_RADXA
 
    hw_execute_bash_command("lsusb", NULL);
    hw_execute_bash_command("sudo modprobe -r aic8800_fdrv 2>&1 1>/dev/null", NULL);

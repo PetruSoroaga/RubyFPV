@@ -291,7 +291,7 @@ void osd_warnings_render()
       if ( g_VehiclesRuntimeInfo[i].pModel->alarms_params.uAlarmMotorCurrentThreshold & (1<<7) )
       if ( g_VehiclesRuntimeInfo[i].pModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MAVLINK )
       if ( g_VehiclesRuntimeInfo[i].bGotFCTelemetry )
-      if ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
+      if ( g_VehiclesRuntimeInfo[i].headerFCTelemetry.uFCFlags & FC_TELE_FLAGS_ARMED )
       if ( s_fOSDWarningsAverageThrottle > 30 )
       if ( s_fOSDWarningsAverageCurrent < ((float)(g_VehiclesRuntimeInfo[i].pModel->alarms_params.uAlarmMotorCurrentThreshold & 0x7F))/10.0 )
          bShowMotorAlarm = true;

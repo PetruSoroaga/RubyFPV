@@ -210,10 +210,10 @@ bool _parse_ltm_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_ru
 
       if ( NULL != pPHRTE )
       {
-         if ( ! (pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) )
+         if ( ! (pPHRTE->uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) )
          {
             log_line("Received RC RSSI from FC through LTM, value: %d", pdpfct->rc_rssi);
-            pPHRTE->flags |= FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI;
+            pPHRTE->uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI;
          }
          pPHRTE->uplink_mavlink_rc_rssi = pdpfct->rc_rssi;
       }
@@ -263,12 +263,12 @@ bool _parse_ltm_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_ru
       if ( tmp8 & 0b00000001 )
       {
          pdpfct->flight_mode |= FLIGHT_MODE_ARMED;
-         pdpfct->flags |= FC_TELE_FLAGS_ARMED;
+         pdpfct->uFCFlags |= FC_TELE_FLAGS_ARMED;
       }
       else
       {
          pdpfct->flight_mode &= ~FLIGHT_MODE_ARMED;
-         pdpfct->flags &= ~FC_TELE_FLAGS_ARMED;
+         pdpfct->uFCFlags &= ~FC_TELE_FLAGS_ARMED;
       }
       s_bHasReceivedHeartbeat = true;
       s_iHeartbeatMsgCount++;

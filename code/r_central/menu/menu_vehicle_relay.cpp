@@ -180,7 +180,7 @@ void MenuVehicleRelay::onShow()
 
    if ( g_pCurrentModel->rc_params.rc_enabled )
    if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotFCTelemetry )
-   if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
+   if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerFCTelemetry.uFCFlags & FC_TELE_FLAGS_ARMED )
       addMessage("RC Link is enabled and vehicle is Armed. We do not recomend chaning the relay settings while Armed. It has an impact on your radio links.");
 }
 

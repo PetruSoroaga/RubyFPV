@@ -11,7 +11,7 @@
 #if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RASPBERRY)
 #include <wiringPiI2C.h>
 #endif
-#if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RADXA_ZERO3)
+#if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RADXA)
 #include "../../base/wiringPiI2C_radxa.h"
 #endif
 
@@ -46,7 +46,7 @@ int ssd1306_iic_write(uint8_t addr, uint8_t reg, uint8_t *buf, uint16_t len)
     return 0;
 
 #endif
-#if defined (HW_PLATFORM_RADXA_ZERO3)
+#if defined (HW_PLATFORM_RADXA)
     if (len == 1)
     {
        return wiringPiI2CWriteReg8(i2c_fd, reg, *buf);

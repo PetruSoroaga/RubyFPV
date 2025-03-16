@@ -310,7 +310,7 @@ void _process_received_ruby_telemetry_extended(u8* pPacketBuffer)
       int dx = sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v3);
       int totalLength = sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v3);
    
-      if ( pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_EXTENDED_INFO )
+      if ( pPHRTE->uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_EXTENDED_INFO )
       {
          t_packet_header_ruby_telemetry_extended_extra_info* pPHRTExtraInfo = (t_packet_header_ruby_telemetry_extended_extra_info*)(pPacketBuffer + dx);
          dx += sizeof(t_packet_header_ruby_telemetry_extended_extra_info);
@@ -345,7 +345,7 @@ void _process_received_ruby_telemetry_extended(u8* pPacketBuffer)
       int dx = sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v4);
       int totalLength = sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v4);
    
-      if ( pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_EXTENDED_INFO )
+      if ( pPHRTE->uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_EXTENDED_INFO )
       {
          t_packet_header_ruby_telemetry_extended_extra_info* pPHRTExtraInfo = (t_packet_header_ruby_telemetry_extended_extra_info*)(pPacketBuffer + dx);
          dx += sizeof(t_packet_header_ruby_telemetry_extended_extra_info);
@@ -374,7 +374,7 @@ void _process_received_ruby_telemetry_extended(u8* pPacketBuffer)
    if ( bFirstTimeGotTelemetry )
    {
       log_line("Received telemetry has camera flag set? %s",
-          (pRuntimeInfo->headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA)?"yes":"no");
+          (pRuntimeInfo->headerRubyTelemetryExtended.uRubyFlags & FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA)?"yes":"no");
       onEventPairingStartReceivingData();
    }
    
@@ -867,11 +867,12 @@ int _process_received_message_from_router(u8* pPacketBuffer)
       pRuntimeInfo->tmp_iCountFCTelemetryPacketsShort++;
 
       t_packet_header_fc_telemetry PHFCT;
-      if ( pRuntimeInfo->bGotFCTelemetry )
+      if ( pRuntimeInfo->bGotFCTelemetryFull )
          memcpy((u8*)&PHFCT, &(pRuntimeInfo->headerFCTelemetry), sizeof(t_packet_header_fc_telemetry));
       else
          memset((u8*)&PHFCT, 0, sizeof(t_packet_header_fc_telemetry));
 
+      PHFCT.uFCFlags = pPHRTS->uFCFlags;
       PHFCT.flight_mode = pPHRTS->flight_mode;
       PHFCT.throttle = pPHRTS->throttle;
       PHFCT.voltage = pPHRTS->voltage; // 1/1000 volts
@@ -930,6 +931,7 @@ int _process_received_message_from_router(u8* pPacketBuffer)
          log_line("Start receiving FC telemetry from router for vehicle id %u.", pRuntimeInfo->uVehicleId);
          log_current_runtime_vehicles_info();
       }
+      pRuntimeInfo->bGotFCTelemetryFull = true;
       pRuntimeInfo->uTimeLastRecvFCTelemetry = g_TimeNow;
       pRuntimeInfo->uTimeLastRecvFCTelemetryFull = g_TimeNow;
       pRuntimeInfo->tmp_iCountFCTelemetryPacketsFull++;
@@ -949,12 +951,13 @@ int _process_received_message_from_router(u8* pPacketBuffer)
          log_line("Start receiving FC telemetry extended from router for vehicle id %u.", pRuntimeInfo->uVehicleId);
          log_current_runtime_vehicles_info();
       }
+      pRuntimeInfo->bGotFCTelemetryFull = true;
       pRuntimeInfo->uTimeLastRecvFCTelemetry = g_TimeNow;
       pRuntimeInfo->uTimeLastRecvFCTelemetryFull = g_TimeNow;
       pRuntimeInfo->tmp_iCountFCTelemetryPacketsFull++;      
       memcpy(&(pRuntimeInfo->headerFCTelemetry), pPacketBuffer+sizeof(t_packet_header), sizeof(t_packet_header_fc_telemetry) );
       
-      if ( pRuntimeInfo->headerFCTelemetry.flags & FC_TELE_FLAGS_HAS_MESSAGE )
+      if ( pRuntimeInfo->headerFCTelemetry.uFCFlags & FC_TELE_FLAGS_HAS_MESSAGE )
       {
          memcpy(&(pRuntimeInfo->headerFCTelemetryExtra), pPacketBuffer+sizeof(t_packet_header) + sizeof(t_packet_header_fc_telemetry), sizeof(t_packet_header_fc_extra) );
          pRuntimeInfo->bGotFCTelemetryExtra = true;

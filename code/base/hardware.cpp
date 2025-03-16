@@ -177,7 +177,7 @@ void _hardware_detectSystemType()
    }
    #endif
    
-   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA)
    if( access( FILE_FORCE_VEHICLE, R_OK ) != -1 )
    {
       log_line("[Hardware] Detected file %s to force start as vehicle or relay.", FILE_FORCE_VEHICLE);
@@ -580,7 +580,7 @@ u32 hardware_getOnlyBoardType()
    if ( strcmp(szBoardId, "2a22042") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV12;}
    #endif
 
-   #ifdef HW_PLATFORM_RADXA_ZERO3
+   #ifdef HW_PLATFORM_RADXA
    s_uHardwareBoardType = BOARD_TYPE_RADXA_ZERO3;
    char szOutput[1024];
    hw_execute_bash_command_raw("uname -a", szOutput);
@@ -1828,7 +1828,7 @@ int hardware_get_cpu_speed()
    return atoi(p);
    #endif
 
-   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   #if defined(HW_PLATFORM_RADXA)
    char szOutput[1024];
    hw_execute_bash_command_raw_silent("cat /sys/devices/system/cpu/cpufreq/policy0/cpuinfo_cur_freq 2>/dev/null", szOutput);
    return atoi(szOutput)/1000;
@@ -1891,7 +1891,7 @@ int hardware_get_gpu_speed()
         p[len-6] = 0;
    }
    return atoi(p);
-   #elif defined(HW_PLATFORM_RADXA_ZERO3)
+   #elif defined(HW_PLATFORM_RADXA)
    char szOutput[1024];
    hw_execute_bash_command_raw_silent("cat /sys/devices/system/cpu/cpufreq/policy0/cpuinfo_cur_freq 2>/dev/null", szOutput);
    return atoi(szOutput)/1000;

@@ -37,7 +37,7 @@
 #include "local_packets.h"
 #include "radiopackets_short.h"
 
-#if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
+#if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA)
 #define MAX_RXTX_BLOCKS_BUFFER 200
 #define MAX_TOTAL_PACKETS_IN_BLOCK 64
 #define MAX_DATA_PACKETS_IN_BLOCK 32
@@ -419,7 +419,8 @@ typedef struct
 
 typedef struct
 {
-   u16 uFlags;    // see above
+   u16 uRubyFlags;    // see above
+   u8  uFCFlags;
    u8  rubyVersion;  // version x.y 4bits each        
    u8  radio_links_count;
    u32 uRadioFrequenciesKhz[3]; // lowest 31 bits: frequency. highest bit: 0 - regular link, 1 - relay link
@@ -441,7 +442,7 @@ typedef struct
 
 typedef struct // introduced in version 7.4
 {
-   u16 flags;    // see above
+   u16 uRubyFlags;    // see above
    u8  rubyVersion;  // version x.y 4bits each
    u32 uVehicleId; // to which vehicle this telemetry refers to
    u8  vehicle_type;
@@ -481,7 +482,7 @@ typedef struct // introduced in version 7.4
 
 typedef struct // introduced in version 10.4
 {
-   u16 flags;    // see above
+   u16 uRubyFlags;    // see above
    u8  rubyVersion;  // version x.y 4bits each        
    u32 uVehicleId; // to which vehicle this telemetry refers to
    u8  vehicle_type;
@@ -525,7 +526,7 @@ typedef struct // introduced in version 10.4
 
 typedef struct
 {
-   u32 flags;
+   u32 uExtraFlags;
    u32 uTimeNow; // Vehicle time
    u32 uRelayedVehicleId;
    u16 uThrottleInput; // usually 1000...2000
@@ -556,7 +557,7 @@ typedef struct
 //
 typedef struct
 {
-   u8 flags;
+   u8 uFCFlags;
    u8 fc_telemetry_type; // type of telemetry sent by the FC. The ones defined in models.h
    u8 flight_mode;
    u32 arm_time;

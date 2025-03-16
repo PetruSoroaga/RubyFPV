@@ -4613,9 +4613,9 @@ void Model::populateVehicleTelemetryData_v4(t_packet_header_ruby_telemetry_exten
       }
    }
    if ( telemetry_params.flags & TELEMETRY_FLAGS_SPECTATOR_ENABLE )
-      pPHRTE->flags |= FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY;
+      pPHRTE->uRubyFlags |= FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY;
    else
-      pPHRTE->flags &= ~FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY;
+      pPHRTE->uRubyFlags &= ~FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY;
 }
 
 void Model::populateFromVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_extended_v3* pPHRTE)
@@ -4625,7 +4625,7 @@ void Model::populateFromVehicleTelemetryData_v3(t_packet_header_ruby_telemetry_e
    vehicle_name[MAX_VEHICLE_NAME_LENGTH-1] = 0;
    vehicle_type = pPHRTE->vehicle_type;
 
-   if ( pPHRTE->flags & FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY )
+   if ( pPHRTE->uRubyFlags & FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY )
       telemetry_params.flags |= TELEMETRY_FLAGS_SPECTATOR_ENABLE;
    else
       telemetry_params.flags &= ~TELEMETRY_FLAGS_SPECTATOR_ENABLE;
@@ -4750,7 +4750,7 @@ void Model::populateFromVehicleTelemetryData_v4(t_packet_header_ruby_telemetry_e
    vehicle_name[MAX_VEHICLE_NAME_LENGTH-1] = 0;
    vehicle_type = pPHRTE->vehicle_type;
 
-   if ( pPHRTE->flags & FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY )
+   if ( pPHRTE->uRubyFlags & FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY )
       telemetry_params.flags |= TELEMETRY_FLAGS_SPECTATOR_ENABLE;
    else
       telemetry_params.flags &= ~TELEMETRY_FLAGS_SPECTATOR_ENABLE;

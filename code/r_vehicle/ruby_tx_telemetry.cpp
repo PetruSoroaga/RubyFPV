@@ -362,7 +362,7 @@ void _store_reboot_info_cache()
       return;
 
    t_packet_header_fc_telemetry* pFCTelem = telemetry_get_fc_telemetry_header();
-   fprintf(fd, "%u ", pFCTelem->flags);
+   fprintf(fd, "%u ", pFCTelem->uFCFlags);
    fprintf(fd, "%u ", pFCTelem->flight_mode);
    fprintf(fd, "%u ", pFCTelem->arm_time);
    fprintf(fd, "%u ", pFCTelem->distance);
@@ -377,7 +377,7 @@ void _store_reboot_info_cache()
    fclose(fd);
 
    log_line("Stored cached info before reboot: distance: %u, total_distance: %u, flags: %d, flight_mode: %d, arm_time: %u, home is set: %d, lat,lon: %li , %li",
-      pFCTelem->distance, pFCTelem->total_distance, pFCTelem->flags, pFCTelem->flight_mode, pFCTelem->arm_time, home_set, home_lat, home_lon);
+      pFCTelem->distance, pFCTelem->total_distance, pFCTelem->uFCFlags, pFCTelem->flight_mode, pFCTelem->arm_time, home_set, home_lat, home_lon);
 }
 
 void _process_cached_reboot_info()
@@ -399,7 +399,7 @@ void _process_cached_reboot_info()
    }
    int tmp1 = 0;
    t_packet_header_fc_telemetry* pFCTelem = telemetry_get_fc_telemetry_header();
-   fscanf(fd, "%d", &tmp1); pFCTelem->flags = (u8)tmp1;
+   fscanf(fd, "%d", &tmp1); pFCTelem->uFCFlags = (u8)tmp1;
    fscanf(fd, "%d", &tmp1); pFCTelem->flight_mode = (u8)tmp1;
    fscanf(fd, "%u", &pFCTelem->arm_time);
    fscanf(fd, "%u", &pFCTelem->distance);
@@ -419,7 +419,7 @@ void _process_cached_reboot_info()
    hw_execute_bash_command_silent(szComm, NULL);
 
    log_line("Restored cached info after reboot: distance: %u, total_distance: %u, flags: %d, flight_mode: %d, arm_time: %u, home is set: %d, lat,lon: %li , %li",
-      pFCTelem->distance, pFCTelem->total_distance, pFCTelem->flags, pFCTelem->flight_mode, pFCTelem->arm_time, home_set, home_lat, home_lon);
+      pFCTelem->distance, pFCTelem->total_distance, pFCTelem->uFCFlags, pFCTelem->flight_mode, pFCTelem->arm_time, home_set, home_lat, home_lon);
 
    g_pCurrentModel->m_Stats.uCurrentFlightTime = pFCTelem->arm_time;
    if ( g_pCurrentModel->m_Stats.uCurrentOnTime < g_pCurrentModel->m_Stats.uCurrentFlightTime )
@@ -976,66 +976,66 @@ void check_send_telemetry_to_controller()
       // Send Ruby Telemetry Extended
 
       if ( hardware_hasCamera() )
-         sPHRTE.flags |= FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA;
+         sPHRTE.uRubyFlags |= FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA;
       else
-         sPHRTE.flags &= (~FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA);
-      sPHRTE.flags &= ~(FLAG_RUBY_TELEMETRY_ENCRYPTED_DATA | FLAG_RUBY_TELEMETRY_ENCRYPTED_VIDEO);
+         sPHRTE.uRubyFlags &= (~FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA);
+      sPHRTE.uRubyFlags &= ~(FLAG_RUBY_TELEMETRY_ENCRYPTED_DATA | FLAG_RUBY_TELEMETRY_ENCRYPTED_VIDEO);
       if ( (g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_DATA) || (g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_ALL) )
-         sPHRTE.flags |= FLAG_RUBY_TELEMETRY_ENCRYPTED_DATA;
+         sPHRTE.uRubyFlags |= FLAG_RUBY_TELEMETRY_ENCRYPTED_DATA;
       if ( (g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_VIDEO) || (g_pCurrentModel->enc_flags & MODEL_ENC_FLAG_ENC_ALL) )
-         sPHRTE.flags |= FLAG_RUBY_TELEMETRY_ENCRYPTED_VIDEO;
+         sPHRTE.uRubyFlags |= FLAG_RUBY_TELEMETRY_ENCRYPTED_VIDEO;
 
       if ( g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SPECTATOR_ENABLE )
-         sPHRTE.flags |= FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY;
+         sPHRTE.uRubyFlags |= FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY;
       else
-         sPHRTE.flags &= ~FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY;
+         sPHRTE.uRubyFlags &= ~FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY;
 
-      sPHRTE.flags &= ~(FLAG_RUBY_TELEMETRY_RC_FAILSAFE | FLAG_RUBY_TELEMETRY_RC_ALIVE);
+      sPHRTE.uRubyFlags &= ~(FLAG_RUBY_TELEMETRY_RC_FAILSAFE | FLAG_RUBY_TELEMETRY_RC_ALIVE);
 
       if ( (g_TimeNow > TIMEOUT_FC_TELEMETRY_LOST) && (telemetry_time_last_telemetry_received() > g_TimeNow - TIMEOUT_FC_TELEMETRY_LOST) )
-         sPHRTE.flags |= FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA;
+         sPHRTE.uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA;
       else
-         sPHRTE.flags &= ~(FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA);
+         sPHRTE.uRubyFlags &= ~(FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA);
       #ifdef FEATURE_ENABLE_RC
       if ( g_pCurrentModel->rc_params.rc_enabled && NULL != s_pPHDownstreamInfoRC )
       {
          if ( s_pPHDownstreamInfoRC->is_failsafe )
-            sPHRTE.flags |= FLAG_RUBY_TELEMETRY_RC_FAILSAFE;
+            sPHRTE.uRubyFlags |= FLAG_RUBY_TELEMETRY_RC_FAILSAFE;
          else
-            sPHRTE.flags |= FLAG_RUBY_TELEMETRY_RC_ALIVE;
+            sPHRTE.uRubyFlags |= FLAG_RUBY_TELEMETRY_RC_ALIVE;
       }
       #endif
 
       t_packet_header_ruby_telemetry_extended_extra_info PHTExtraInfo;
 
       memset((u8*)&PHTExtraInfo, 0, sizeof(t_packet_header_ruby_telemetry_extended_extra_info));
-      PHTExtraInfo.flags = FLAG_RUBY_TELEMETRY_EXTRA_INFO_IS_VALID;
+      PHTExtraInfo.uExtraFlags = FLAG_RUBY_TELEMETRY_EXTRA_INFO_IS_VALID;
       PHTExtraInfo.uTimeNow = g_TimeNow;
       PHTExtraInfo.uRelayedVehicleId = g_pCurrentModel->relay_params.uRelayedVehicleId;
       PHTExtraInfo.uThrottleInput = get_mavlink_rc_channels()[2];
       PHTExtraInfo.uThrottleOutput = telemetry_get_fc_telemetry_header()->throttle;
 
-      sPHRTE.flags |= FLAG_RUBY_TELEMETRY_HAS_EXTENDED_INFO;
+      sPHRTE.uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_EXTENDED_INFO;
 
       // Add relaying flags
 
-      sPHRTE.flags &= ~FLAG_RUBY_TELEMETRY_HAS_RELAY_LINK;
+      sPHRTE.uRubyFlags &= ~FLAG_RUBY_TELEMETRY_HAS_RELAY_LINK;
 
       if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
       if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId < MAX_RADIO_INTERFACES )
       if ( g_pCurrentModel->relay_params.uRelayFrequencyKhz != 0 )
       if ( g_TimeNow > 500 )
       if ( g_SM_RadioStats.radio_interfaces[g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId].timeLastRxPacket+500 > g_TimeNow )
-         sPHRTE.flags |= FLAG_RUBY_TELEMETRY_HAS_RELAY_LINK;
+         sPHRTE.uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_RELAY_LINK;
       
-      sPHRTE.flags &= ~FLAG_RUBY_TELEMETRY_IS_RELAYING;
+      sPHRTE.uRubyFlags &= ~FLAG_RUBY_TELEMETRY_IS_RELAYING;
 
       if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0 )
       if ( g_pCurrentModel->relay_params.uRelayedVehicleId != 0 )
       if ( (g_pCurrentModel->relay_params.uCurrentRelayMode & RELAY_MODE_REMOTE) ||
            (g_pCurrentModel->relay_params.uCurrentRelayMode & RELAY_MODE_PIP_MAIN) ||
            (g_pCurrentModel->relay_params.uCurrentRelayMode & RELAY_MODE_PIP_REMOTE) )
-         sPHRTE.flags |= FLAG_RUBY_TELEMETRY_IS_RELAYING;
+         sPHRTE.uRubyFlags |= FLAG_RUBY_TELEMETRY_IS_RELAYING;
 
       // Gets populated by router
 
@@ -1106,7 +1106,8 @@ void check_send_telemetry_to_controller()
    {
       t_packet_header_ruby_telemetry_short PHRTShort;
 
-      PHRTShort.uFlags = sPHRTE.flags;
+      PHRTShort.uRubyFlags = sPHRTE.uRubyFlags;
+      PHRTShort.uFCFlags = 0;
       PHRTShort.rubyVersion = sPHRTE.rubyVersion;
       PHRTShort.radio_links_count = sPHRTE.radio_links_count;
       if ( PHRTShort.radio_links_count > 3 )
@@ -1117,6 +1118,7 @@ void check_send_telemetry_to_controller()
       t_packet_header_fc_telemetry* pFCTelem = telemetry_get_fc_telemetry_header();
       if ( NULL != pFCTelem )
       {
+         PHRTShort.uFCFlags = pFCTelem->uFCFlags;
          PHRTShort.flight_mode = pFCTelem->flight_mode;
          PHRTShort.throttle = pFCTelem->throttle;
          PHRTShort.voltage = pFCTelem->voltage; // 1/1000 volts
@@ -1430,9 +1432,9 @@ void _init_telemetry_structures()
 
    sPHRTE.rubyVersion = ((SYSTEM_SW_VERSION_MAJOR<<4) | SYSTEM_SW_VERSION_MINOR);
    if ( g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SPECTATOR_ENABLE )
-      sPHRTE.flags |= FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY;
+      sPHRTE.uRubyFlags |= FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY;
    else
-      sPHRTE.flags &= ~FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY;
+      sPHRTE.uRubyFlags &= ~FLAG_RUBY_TELEMETRY_ALLOW_SPECTATOR_TELEMETRY;
 
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
    {

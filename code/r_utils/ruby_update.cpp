@@ -612,7 +612,7 @@ void do_update_to_98()
       //Preferences* pP = get_Preferences();
       save_Preferences();
 
-      #if defined (HW_PLATFORM_RADXA_ZERO3)
+      #if defined (HW_PLATFORM_RADXA)
       hardware_set_default_radxa_cpu_freq();
       hw_execute_bash_command("sed -i '/98:03:cf/d' /etc/udev/rules.d/98-custom-wifi.rules", NULL);
       #endif
@@ -854,7 +854,7 @@ void do_update_to_94()
       pCS->iNiceRXVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_RX;
       save_ControllerSettings();
 
-      #ifdef HW_PLATFORM_RADXA_ZERO3
+      #ifdef HW_PLATFORM_RADXA
       char szOutput[2048];
       szOutput[0] = 0;
       hw_execute_bash_command_raw("cat /etc/NetworkManager/NetworkManager.conf | grep unmanaged-devices", szOutput);
@@ -1070,7 +1070,7 @@ void do_generic_update()
    #if defined (HW_PLATFORM_RASPBERRY)
    hw_execute_bash_command("cp -rf ruby_update.log /boot/", NULL);
    #endif
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RADXA)
    hw_execute_bash_command("cp -rf ruby_update.log /config/", NULL);
    #endif
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)

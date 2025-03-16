@@ -6,7 +6,7 @@
 extern "C" {
 #endif 
 
-#if defined (HW_PLATFORM_RADXA_ZERO3)
+#if defined (HW_PLATFORM_RADXA)
 int wiringPiI2CSetup(const int devId);
 int wiringPiI2CRead(int fd);
 int wiringPiI2CReadReg8(int fd, int reg);

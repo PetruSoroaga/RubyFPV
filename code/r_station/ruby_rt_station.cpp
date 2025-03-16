@@ -1722,7 +1722,7 @@ void video_processors_init()
       #ifdef HW_PLATFORM_RASPBERRY
       rx_video_output_enable_streamer_output();
       #endif
-      #ifdef HW_PLATFORM_RADXA_ZERO3
+      #ifdef HW_PLATFORM_RADXA
       //rx_video_output_enable_local_player_udp_output();
       rx_video_output_enable_streamer_output();
       #endif

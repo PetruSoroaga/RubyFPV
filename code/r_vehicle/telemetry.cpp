@@ -73,7 +73,7 @@ void telemetry_init()
    memset(&sPHFCT, 0, sizeof(sPHFCT));
    memset(&sPHFCE, 0, sizeof(sPHFCE));
 
-   sPHFCT.flags = 0;
+   sPHFCT.uFCFlags = 0;
    sPHFCT.arm_time = 0;
    sPHFCT.flight_mode = 0;
    sPHFCT.gps_fix_type = 0;

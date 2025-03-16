@@ -361,15 +361,10 @@ void _preprocess_fc_telemetry(t_packet_header_fc_telemetry* pPHFCT)
 {
    pPHFCT->fc_telemetry_type = g_pCurrentModel->telemetry_params.fc_telemetry_type;
 
-   if ( (g_TimeNow < TIMEOUT_FC_TELEMETRY_LOST) || (get_time_last_mavlink_message_from_fc() < g_TimeNow - TIMEOUT_FC_TELEMETRY_LOST) )
-      pPHFCT->flags |= FC_TELE_FLAGS_NO_FC_TELEMETRY;
-   else
-      pPHFCT->flags &= ~FC_TELE_FLAGS_NO_FC_TELEMETRY;
    if ( g_bDebug )
    {
-      pPHFCT->flags &= ~FC_TELE_FLAGS_NO_FC_TELEMETRY;
       if ( s_SentTelemetryCounter > 70 )
-         pPHFCT->flags |= FC_TELE_FLAGS_ARMED;
+         pPHFCT->uFCFlags |= FC_TELE_FLAGS_ARMED;
       pPHFCT->satelites = 15;
       pPHFCT->hdop = 110;
       pPHFCT->gps_fix_type = GPS_FIX_TYPE_3D_FIX;
@@ -385,12 +380,12 @@ void _preprocess_fc_telemetry(t_packet_header_fc_telemetry* pPHFCT)
       //log_line("pos %d", s_SentTelemetryCounter);
    }
 
-   pPHFCT->flags = pPHFCT->flags & (~FC_TELE_FLAGS_HAS_GPS_FIX);
+   pPHFCT->uFCFlags = pPHFCT->uFCFlags & (~FC_TELE_FLAGS_HAS_GPS_FIX);
    if ( pPHFCT->gps_fix_type >= GPS_FIX_TYPE_2D_FIX )
-      pPHFCT->flags = pPHFCT->flags | FC_TELE_FLAGS_HAS_GPS_FIX;
+      pPHFCT->uFCFlags = pPHFCT->uFCFlags | FC_TELE_FLAGS_HAS_GPS_FIX;
    else if ( (g_pCurrentModel->iGPSCount > 1) && ( pPHFCT->extra_info[2] != 0xFF )
              && ( pPHFCT->extra_info[1] > 0 ) && (pPHFCT->extra_info[1] != 0xFF) && ( pPHFCT->extra_info[2] >= GPS_FIX_TYPE_2D_FIX ) )
-      pPHFCT->flags = pPHFCT->flags | FC_TELE_FLAGS_HAS_GPS_FIX;        
+      pPHFCT->uFCFlags = pPHFCT->uFCFlags | FC_TELE_FLAGS_HAS_GPS_FIX;        
 
    bool bHasAnyGPSGoodInfo = false;
    if ( pPHFCT->satelites > 2 && pPHFCT->hdop < 9000 )
@@ -402,8 +397,8 @@ void _preprocess_fc_telemetry(t_packet_header_fc_telemetry* pPHFCT)
 
    if ( (!has_received_gps_info()) || (! has_received_flight_mode()) || (! bHasAnyGPSGoodInfo) )
    {
-      pPHFCT->flags = pPHFCT->flags & (~FC_TELE_FLAGS_POS_CURRENT);
-      pPHFCT->flags = pPHFCT->flags & (~FC_TELE_FLAGS_POS_HOME);
+      pPHFCT->uFCFlags = pPHFCT->uFCFlags & (~FC_TELE_FLAGS_POS_CURRENT);
+      pPHFCT->uFCFlags = pPHFCT->uFCFlags & (~FC_TELE_FLAGS_POS_HOME);
       return;
    }
 
@@ -463,15 +458,15 @@ void _preprocess_fc_telemetry(t_packet_header_fc_telemetry* pPHFCT)
 
    if ( s_SentTelemetryCounter%10 )
    {
-      pPHFCT->flags = pPHFCT->flags | FC_TELE_FLAGS_POS_CURRENT;
-      pPHFCT->flags = pPHFCT->flags & (~FC_TELE_FLAGS_POS_HOME);
+      pPHFCT->uFCFlags = pPHFCT->uFCFlags | FC_TELE_FLAGS_POS_CURRENT;
+      pPHFCT->uFCFlags = pPHFCT->uFCFlags & (~FC_TELE_FLAGS_POS_HOME);
    }
    else if ( home_set )
    {
       // Send home position every 10 frames
       //log_line("Send home pos lat: %u, lon: %u", home_lat, home_lon);
-      pPHFCT->flags = pPHFCT->flags & (~FC_TELE_FLAGS_POS_CURRENT);
-      pPHFCT->flags = pPHFCT->flags | FC_TELE_FLAGS_POS_HOME;
+      pPHFCT->uFCFlags = pPHFCT->uFCFlags & (~FC_TELE_FLAGS_POS_CURRENT);
+      pPHFCT->uFCFlags = pPHFCT->uFCFlags | FC_TELE_FLAGS_POS_HOME;
       pPHFCT->latitude = home_lat;
       pPHFCT->longitude = home_lon;
    }
@@ -511,7 +506,7 @@ void telemetry_mavlink_send_to_controller()
       if ( s_bLogNextMAVLinkMessage )
          log_line("Sending FC message from vehicle to station: [%s]", get_last_message());
       s_bLogNextMAVLinkMessage = false;
-      pFCTelem->flags = pFCTelem->flags | FC_TELE_FLAGS_HAS_MESSAGE;
+      pFCTelem->uFCFlags = pFCTelem->uFCFlags | FC_TELE_FLAGS_HAS_MESSAGE;
 
       pFCTelemExtra->chunk_index = 0;
       memset(pFCTelemExtra->text, 0, FC_MESSAGE_MAX_LENGTH);
@@ -520,15 +515,15 @@ void telemetry_mavlink_send_to_controller()
    else
    {
       s_bLogNextMAVLinkMessage = true;
-      pFCTelem->flags = pFCTelem->flags & (~FC_TELE_FLAGS_HAS_MESSAGE);
+      pFCTelem->uFCFlags = pFCTelem->uFCFlags & (~FC_TELE_FLAGS_HAS_MESSAGE);
    }
 
-   pFCTelem->flags = pFCTelem->flags & (~FC_TELE_FLAGS_RC_FAILSAFE);
+   pFCTelem->uFCFlags = pFCTelem->uFCFlags & (~FC_TELE_FLAGS_RC_FAILSAFE);
 
    #ifdef FEATURE_ENABLE_RC
    if ( g_pCurrentModel->rc_params.rc_enabled && NULL != s_pPHDownstreamInfoRC )
    if ( s_pPHDownstreamInfoRC->is_failsafe )
-      pFCTelem->flags = pFCTelem->flags | FC_TELE_FLAGS_RC_FAILSAFE;
+      pFCTelem->uFCFlags = pFCTelem->uFCFlags | FC_TELE_FLAGS_RC_FAILSAFE;
    #endif
 
    radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_FC_TELEMETRY, STREAM_ID_TELEMETRY);

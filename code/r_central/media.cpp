@@ -275,7 +275,7 @@ bool media_take_screenshot(bool bIncludeOSD)
    strcat(szFile, s_szMediaCurrentScreenshotFileName);
    strncpy(s_szMediaScreenShotFilename, szFile, MAX_FILE_PATH_SIZE);
 
-   #ifdef HW_PLATFORM_RADXA_ZERO3
+   #ifdef HW_PLATFORM_RADXA
    log_line("Media Storage: Try to take screenshot to file: %s", szFile);
    Popup* p = new Popup("Screenshot capability not available on Radxa board", 0.1,0.72, 2);
    popups_add_topmost(p);

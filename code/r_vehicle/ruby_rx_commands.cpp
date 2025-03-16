@@ -841,7 +841,7 @@ bool process_command(u8* pBuffer, int length)
       for( int i=0; i<5; i++ )
          hardware_sleep_ms(400);
 
-      #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
+      #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA)
       char szComm[256];
       if ( 0 < strlen(FOLDER_CONFIG) )
       {
@@ -2219,7 +2219,7 @@ bool process_command(u8* pBuffer, int length)
 
       char szComm[256];
 
-      #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
+      #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA)
       if ( 0 < strlen(FOLDER_CONFIG) )
       {
          snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s*", FOLDER_CONFIG);

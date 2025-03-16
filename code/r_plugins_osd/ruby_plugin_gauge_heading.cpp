@@ -290,7 +290,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
        static float heading_home = 0.0;
 
        // Received position is actual position, not home position
-       if ( !(pTelemetryInfo->flags & FC_TELE_FLAGS_POS_HOME) )
+       if ( !(pTelemetryInfo->uFCFlags & FC_TELE_FLAGS_POS_HOME) )
        {
           heading_home = _heading_course_to(pTelemetryInfo->latitude/10000000.0f, pTelemetryInfo->longitude/10000000.0f, pTelemetryInfo->home_latitude/10000000.0f, pTelemetryInfo->home_longitude/10000000.0f);
           //if ( invert )

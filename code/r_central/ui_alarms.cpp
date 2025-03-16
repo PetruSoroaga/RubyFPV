@@ -960,7 +960,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
             if ( (pModel->sw_version >>16) > 79 ) // 7.7
             if ( g_VehiclesRuntimeInfo[iIndexRuntime].bGotRubyTelemetryInfo )
             {
-               if ( !( g_VehiclesRuntimeInfo[iIndexRuntime].headerRubyTelemetryExtended.flags & FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA) )
+               if ( !( g_VehiclesRuntimeInfo[iIndexRuntime].headerRubyTelemetryExtended.uRubyFlags & FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA) )
                {
                   bHasCamera = false;
                   log_line("Vehicle has camera flag not set in received telemetry.");

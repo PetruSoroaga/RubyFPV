@@ -423,9 +423,9 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
          };
          }
          if ( pdpfct->flight_mode & FLIGHT_MODE_ARMED )
-            pdpfct->flags |= FC_TELE_FLAGS_ARMED;
+            pdpfct->uFCFlags |= FC_TELE_FLAGS_ARMED;
          else
-            pdpfct->flags &= ~FC_TELE_FLAGS_ARMED;
+            pdpfct->uFCFlags &= ~FC_TELE_FLAGS_ARMED;
 
          if ( s_bTelemetryForceAlwaysArmed )
             pdpfct->flight_mode |= FLIGHT_MODE_ARMED;
@@ -522,7 +522,7 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
          break;
 
       case MAVLINK_MSG_ID_ATTITUDE: 
-         pdpfct->flags = pdpfct->flags | FC_TELE_FLAGS_HAS_ATTITUDE;
+         pdpfct->uFCFlags |= FC_TELE_FLAGS_HAS_ATTITUDE;
          pdpfct->roll = (mavlink_msg_attitude_get_roll(&msgMav) + 3.141592653589793)*5700.2958;
          pdpfct->pitch = (mavlink_msg_attitude_get_pitch(&msgMav) + 3.141592653589793)*5700.2958;
          break;
@@ -533,14 +533,14 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
          if ( /*(tmpi != 255) &&*/ (NULL != pPHRTE) )
          {
             pdpfct->rc_rssi = (tmpi*100)/255;
-            if ( ! (pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) )
+            if ( ! (pPHRTE->uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) )
             {
                log_line("Received RC RSSI from FC through MAVLink, value: %d", pdpfct->rc_rssi);
-               pPHRTE->flags |= FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI;
+               pPHRTE->uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI;
             }
             pPHRTE->uplink_mavlink_rc_rssi = pdpfct->rc_rssi;
          }
-         //if ( NULL != pPHRTE && (pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) && (tmpi == 255) )
+         //if ( NULL != pPHRTE && (pPHRTE->uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) && (tmpi == 255) )
          //   pPHRTE->uplink_mavlink_rc_rssi = 255;
 
          s_MAVLinkRCChannels[0] = mavlink_msg_rc_channels_raw_get_chan1_raw(&msgMav);
@@ -559,14 +559,14 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
          if ( /*(tmpi != 255) &&*/ (NULL != pPHRTE) )
          {
             pdpfct->rc_rssi = (tmpi*100)/255;
-            if ( ! (pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) )
+            if ( ! (pPHRTE->uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) )
             {
                log_line("Received RC RSSI from FC through MAVLink, value: %d", pdpfct->rc_rssi);
-               pPHRTE->flags |= FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI;
+               pPHRTE->uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI;
             }
             pPHRTE->uplink_mavlink_rc_rssi = pdpfct->rc_rssi;
          }
-         //if ( NULL != pPHRTE && (pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) && (tmpi == 255) )
+         //if ( NULL != pPHRTE && (pPHRTE->uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RC_RSSI) && (tmpi == 255) )
          //   pPHRTE->uplink_mavlink_rc_rssi = 255;
 
          s_MAVLinkRCChannels[0] = mavlink_msg_rc_channels_get_chan1_raw(&msgMav);
@@ -592,10 +592,10 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
 
          if ( NULL != pPHRTE )
          {
-            if ( ! (pPHRTE->flags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RX_RSSI) )
+            if ( ! (pPHRTE->uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RX_RSSI) )
             {
                log_line("Received RX RSSI from FC through MAVLink, value: %d", tmp8);
-               pPHRTE->flags |= FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RX_RSSI;
+               pPHRTE->uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_MAVLINK_RX_RSSI;
             }
             pPHRTE->uplink_mavlink_rx_rssi = tmp8;
          }

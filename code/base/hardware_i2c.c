@@ -40,7 +40,7 @@
 #if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RASPBERRY)
 #include <wiringPiI2C.h>
 #endif
-#if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RADXA_ZERO3)
+#if defined(HW_CAPABILITY_I2C) && defined(HW_PLATFORM_RADXA)
 #include "wiringPiI2C_radxa.h"
 #endif
 
@@ -135,7 +135,7 @@ void hardware_enumerate_i2c_busses()
 #ifdef HW_CAPABILITY_I2C
    char szBuff[256];
    int iEnumerateCount = 4;
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RADXA)
    iEnumerateCount = 6;
    #endif
    for( int i=0; i<iEnumerateCount; i++ )

@@ -105,7 +105,7 @@ void MenuStorage::onShow()
    #ifdef HW_PLATFORM_RASPBERRY
    sprintf(szComm, "df -m %s | grep root", FOLDER_BINARIES);
    #endif
-   #ifdef HW_PLATFORM_RADXA_ZERO3
+   #ifdef HW_PLATFORM_RADXA
    sprintf(szComm, "df -m %s | grep mmc", FOLDER_BINARIES);
    #endif
 
@@ -1075,7 +1075,7 @@ void MenuStorage::playVideoFile(int iMenuItemIndex)
    snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "./%s %s%s %d&", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile, m_VideoFilesFPS[index]);
    #endif
 
-   #ifdef HW_PLATFORM_RADXA_ZERO3
+   #ifdef HW_PLATFORM_RADXA
    snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "./%s -f %s%s %d&", VIDEO_PLAYER_OFFLINE, FOLDER_MEDIA, szFile, m_VideoFilesFPS[index]);
    #endif
    hw_execute_bash_command_nonblock(szBuff, NULL);

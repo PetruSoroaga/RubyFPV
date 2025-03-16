@@ -102,7 +102,7 @@ void radio_populate_ruby_telemetry_v4_from_ruby_telemetry_v3(t_packet_header_rub
    if ( (NULL == pV4) || (NULL == pV3) )
       return;
 
-   pV4->flags = pV3->flags;
+   pV4->uRubyFlags = pV3->uRubyFlags;
    pV4->rubyVersion = pV3->rubyVersion;
    pV4->uVehicleId = pV3->uVehicleId;
    pV4->vehicle_type = pV3->vehicle_type;

@@ -118,7 +118,9 @@ void onMainVehicleChanged(bool bRemovePreviousVehicleState)
    }
 
    link_watch_reset();
-   
+   if ( NULL != g_pCurrentModel )
+      vehicle_runtime_reset_has_received_fc_telemetry_info(g_pCurrentModel->uVehicleId);
+
    // Remove all the custom popups (above), before removing all popups (so that pointers to custom popups are invalidated beforehand);
    static bool s_bEventsFirstTimeMainVehicleChanged = true;
 
@@ -676,7 +678,7 @@ bool _onEventCheckNewPairedModelForUIActionsToTake()
       bool bArmed = false;
       if ( -1 != iCurrentModelActiveRuntimeIndex )
       if ( g_VehiclesRuntimeInfo[iCurrentModelActiveRuntimeIndex].bGotFCTelemetry )
-      if ( g_VehiclesRuntimeInfo[iCurrentModelActiveRuntimeIndex].headerFCTelemetry.flags & FC_TELE_FLAGS_ARMED )
+      if ( g_VehiclesRuntimeInfo[iCurrentModelActiveRuntimeIndex].headerFCTelemetry.uFCFlags & FC_TELE_FLAGS_ARMED )
          bArmed = true;
 
       if ( ! s_bEventTookPairingUIActionUpdateVehicle )

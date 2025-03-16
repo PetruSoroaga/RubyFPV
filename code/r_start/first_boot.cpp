@@ -62,7 +62,7 @@ void do_first_boot_pre_initialization()
    fflush(stdout);
    #endif
 
-   #if defined HW_PLATFORM_RADXA_ZERO3
+   #if defined HW_PLATFORM_RADXA
 
    printf("\nRuby: Doing first time ever initialization on Radxa. Please wait...\n");
    fflush(stdout);
@@ -177,7 +177,7 @@ void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
    #ifdef HW_PLATFORM_RASPBERRY
    do_first_boot_initialization_raspberry(bIsVehicle, uBoardType);
    #endif
-   #ifdef HW_PLATFORM_RADXA_ZERO3
+   #ifdef HW_PLATFORM_RADXA
    do_first_boot_initialization_radxa(bIsVehicle, uBoardType);
    #endif
    #ifdef HW_PLATFORM_OPENIPC_CAMERA
@@ -232,7 +232,7 @@ void do_first_boot_initialization(bool bIsVehicle, u32 uBoardType)
       }
       #endif
 
-      #if defined (HW_PLATFORM_RADXA_ZERO3)
+      #if defined (HW_PLATFORM_RADXA)
       ControllerSettings* pcs = get_ControllerSettings();
       if ( NULL != pcs )
          pcs->iFreqARM = hardware_get_cpu_speed();

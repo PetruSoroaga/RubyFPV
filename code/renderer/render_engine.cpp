@@ -39,7 +39,7 @@
 #include "render_engine_raw.h"
 #endif
 
-#if defined (HW_PLATFORM_RADXA_ZERO3)
+#if defined (HW_PLATFORM_RADXA)
 #include "render_engine_cairo.h"
 #endif
 
@@ -58,7 +58,7 @@ RenderEngine* render_init_engine()
       s_bRenderEngineSupportsRawFonts = true;
       s_pRenderEngine = new RenderEngineRaw();
       #endif
-      #if defined (HW_PLATFORM_RADXA_ZERO3)
+      #if defined (HW_PLATFORM_RADXA)
       s_bRenderEngineSupportsRawFonts = true;
       s_pRenderEngine = new RenderEngineCairo();
       #endif

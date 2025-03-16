@@ -52,7 +52,7 @@
 #include "../base/ruby_ipc.h"
 #include "../base/tx_powers.h"
 
-#if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+#if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
 #include "../base/ctrl_settings.h"
 #include "../utils/utils_controller.h"
 #include "../base/ctrl_interfaces.h"
@@ -257,7 +257,7 @@ void detectSystemType()
    #ifdef HW_PLATFORM_RASPBERRY
    fd = fopen("/boot/ruby_systype.txt", "w");
    #endif
-   #ifdef HW_PLATFORM_RADXA_ZERO3
+   #ifdef HW_PLATFORM_RADXA
    fd = fopen("/config/ruby_systype.txt", "w");
    #endif
    
@@ -278,7 +278,7 @@ void _check_files()
    szFilesMissing[0] = 0;
    bool failed = false;
 
-   #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+   #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
    if( access( "ruby_controller", R_OK ) == -1 )
       { failed = true; strcat(szFilesMissing, " ruby_controller"); }
    if( access( "ruby_rt_station", R_OK ) == -1 )
@@ -316,7 +316,7 @@ void _check_files()
 
 void _check_update_drivers_on_update()
 {
-   #if defined (HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
    char szOutput[4098];
    bool bNeedsInstall = false;
    hw_execute_bash_command("lsmod | grep 88XXau", szOutput);
@@ -343,7 +343,7 @@ void _check_update_drivers_on_update()
 
 bool _check_for_update_from_boot()
 {
-   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA)
    char szComm[2048];
    char szFoundFile[1024];
    char szZipFile[1024];
@@ -603,7 +603,7 @@ void _check_power_levels_of_current_cards(radio_hw_info_t* pRadioInfoArrayPrev, 
    }
    else
    {
-      #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+      #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
       bool bUpdated = false;
       int iMaximumRawCanBeSet = 10000;
       for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
@@ -656,7 +656,7 @@ void _log_platform(bool bNewLine)
    printf("Built for Linux");
    #elif defined(HW_PLATFORM_RASPBERRY)
    printf("Built for Raspberry");
-   #elif defined(HW_PLATFORM_RADXA_ZERO3)
+   #elif defined(HW_PLATFORM_RADXA)
    printf("Built for Radxa Zero3");
    #else
    printf("Built for N/A");
@@ -757,7 +757,7 @@ int _step_find_console()
    hw_execute_bash_command_silent(szComm, NULL);
    #endif
 
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RADXA)
    sprintf(szComm, "echo 'Ruby execute for Radxa Zero 3 platform' >> /tmp/ruby_boot.log");
    hw_execute_bash_command_silent(szComm, NULL);
    #endif
@@ -804,7 +804,7 @@ int _step_find_console()
    hardware_sleep_ms(50);
    #endif
 
-   #if defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RADXA)
    system("sudo mount -o remount,rw /");
    system("cd /home/radxa/ruby");
    hardware_sleep_ms(50);
@@ -885,7 +885,7 @@ int _step_check_file_system()
       hardware_sleep_ms(100);
       #endif
 
-      #if defined(HW_PLATFORM_RADXA_ZERO3)
+      #if defined(HW_PLATFORM_RADXA)
       system("sudo mount -o remount,rw /");
       system("sudo mount -o remount,rw /config");
       system("cd /config; sudo mount -o remount,rw /config; cd /home/radxa/ruby");
@@ -971,7 +971,7 @@ int _step_check_file_system()
       sprintf(szComm, "chmod 777 %s%s*", FOLDER_UPDATES, SUBFOLDER_UPDATES_DRIVERS);
       hw_execute_bash_command_silent(szComm, NULL);
 
-      #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+      #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
       sprintf(szComm, "chmod 777 %sres/*", FOLDER_BINARIES);
       hw_execute_bash_command_silent(szComm, NULL);
       #endif
@@ -1064,7 +1064,7 @@ void _step_check_binaries_and_processes()
    sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_TEMP_UPDATE_IN_PROGRESS_APPLY);
    hw_execute_bash_command(szComm, NULL);
 
-   #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+   #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
    _check_files();
    #endif
 
@@ -1089,7 +1089,7 @@ void _step_check_binaries_and_processes()
    #if defined(HW_PLATFORM_RASPBERRY)
    strcat(szInfo, "Raspberry");
    #endif
-   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   #if defined(HW_PLATFORM_RADXA)
    strcat(szInfo, "Radxa");
    #endif
    #if defined(HW_PLATFORM_OPENIPC_CAMERA)
@@ -1120,7 +1120,7 @@ void _step_check_binaries_and_processes()
 
 void _step_load_init_devices()
 {
-   #ifdef HW_PLATFORM_RADXA_ZERO3
+   #ifdef HW_PLATFORM_RADXA
    hw_execute_bash_command("ip link set wlx down 2>&1 1>/dev/null", NULL);
    #endif
 
@@ -1504,7 +1504,7 @@ int main(int argc, char *argv[])
 
    _log_oipc_boot_step("Done init radios.");
 
-   #ifdef HW_PLATFORM_RADXA_ZERO3
+   #ifdef HW_PLATFORM_RADXA
    if ( ! g_bIsFirstBoot )
    {
       strcpy(szFile, FOLDER_RUBY_TEMP);
@@ -1539,7 +1539,7 @@ int main(int argc, char *argv[])
    hardware_getCameraType();
    hardware_getBoardType();
 
-   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA_ZERO3)
+   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA)
    hw_execute_ruby_process(NULL, "ruby_initdhcp", NULL, NULL);
    #endif
 
@@ -1582,7 +1582,7 @@ int main(int argc, char *argv[])
 #ifdef HW_PLATFORM_RASPBERRY
    log_line("Running on Raspberry Pi hardware");
 #endif
-#ifdef HW_PLATFORM_RADXA_ZERO3
+#ifdef HW_PLATFORM_RADXA
    log_line("Running on Radxa Zero 3 hardware");
 #endif
 #ifdef HW_PLATFORM_OPENIPC_CAMERA
@@ -1639,7 +1639,7 @@ int main(int argc, char *argv[])
    else
    {
        // Controller
-       #if defined (HW_PLATFORM_RADXA_ZERO3)
+       #if defined (HW_PLATFORM_RADXA)
        hw_execute_bash_command("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor", szOutput);
        if ( NULL == strstr(szOutput, "performance") )
           hardware_set_default_radxa_cpu_freq();
@@ -1650,7 +1650,7 @@ int main(int argc, char *argv[])
        hw_execute_bash_command("systemctl mask rknpu2.service 2>&1 1>/dev/null", NULL);
        #endif
 
-       #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+       #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
        bool allDisabled = true;
        for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
        {
@@ -1702,7 +1702,7 @@ int main(int argc, char *argv[])
 
    _check_for_update_from_boot();
 
-   #if defined(HW_PLATFORM_RADXA_ZERO3)
+   #if defined(HW_PLATFORM_RADXA)
    //hw_stop_process("wpa_supplicant");
    #endif
 
@@ -1817,7 +1817,7 @@ int main(int argc, char *argv[])
       hw_execute_bash_command("cp -rf /home/pi/ruby/logs/log_start.txt /home/pi/ruby/logs/log_firstboot_start.txt", NULL);
       hw_execute_bash_command("cp -rf /home/pi/ruby/logs/log_system.txt /home/pi/ruby/logs/log_firstboot.txt", NULL);
       #endif
-      #ifdef HW_PLATFORM_RADXA_ZERO3
+      #ifdef HW_PLATFORM_RADXA
       hw_execute_bash_command("cp -rf /home/radxa/ruby/logs/log_start.txt /home/radxa/ruby/logs/log_firstboot_start.txt", NULL);
       hw_execute_bash_command("cp -rf /home/radxa/ruby/logs/log_system.txt /home/radxa/ruby/logs/log_firstboot.txt", NULL);
       #endif
@@ -1956,7 +1956,7 @@ int main(int argc, char *argv[])
    }
    else
    {
-      #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA_ZERO3)
+      #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
 
       u32 uControllerId = controller_utils_getControllerId();
       log_line("Controller UID: %u", uControllerId);
@@ -2041,7 +2041,7 @@ int main(int argc, char *argv[])
       log_line("Starting controller...");
       fflush(stdout);
 
-      #ifdef HW_PLATFORM_RADXA_ZERO3
+      #ifdef HW_PLATFORM_RADXA
       hw_execute_ruby_process(NULL, "ruby_alive", NULL, NULL);
       #endif
    
@@ -2092,7 +2092,7 @@ int main(int argc, char *argv[])
       log_line("Copy boot log to /boot partition. Done.");
       #endif
 
-      #ifdef HW_PLATFORM_RADXA_ZERO3
+      #ifdef HW_PLATFORM_RADXA
       hw_execute_bash_command("rm -rf /config/last_ruby_boot.txt", NULL);
       hw_execute_bash_command("cp -rf logs/log_system.txt /config/last_ruby_boot.txt", NULL);
       log_line("Copy boot log to /config partition. Done.");
@@ -2181,7 +2181,7 @@ int main(int argc, char *argv[])
       log_line("Copy boot log to /boot partition. Done.");
       #endif
 
-      #ifdef HW_PLATFORM_RADXA_ZERO3
+      #ifdef HW_PLATFORM_RADXA
       hw_execute_bash_command("rm -rf /config/last_ruby_boot.txt", NULL);
       hw_execute_bash_command("cp -rf logs/log_system.txt /config/last_ruby_boot.txt", NULL);      
       log_line("Copy boot log to /config partition. Done.");
