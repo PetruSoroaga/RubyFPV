@@ -446,7 +446,7 @@ void start_audio_player_and_pipe()
    #if defined(HW_PLATFORM_RADXA)
    char szDevice[64];
    szDevice[0] = 0;
-   if ( hardware_getOnlyBoardType() == BOARD_TYPE_RADXA_3C )
+   if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_3C )
       strcpy(szDevice, "-D hw:CARD=rockchiphdmi0 ");
 
    sprintf(szComm, "aplay -q %s-N -R 10000 -c 1 --rate 44100 --format S16_LE %s", szDevice, FIFO_RUBY_AUDIO1);

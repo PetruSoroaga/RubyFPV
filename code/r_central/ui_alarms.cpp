@@ -375,6 +375,8 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
           s_bAlarmVehicleLowSpaceMenuShown = true;
           MenuConfirmationDeleteLogs* pMenu = new MenuConfirmationDeleteLogs(uFlags1, uFlags2);
           add_menu_to_stack(pMenu);
+          if ( hardware_is_running_on_runcam_vrx() )
+             hardware_led_red_set_blinking_fast(10000);
        }
    }
 
@@ -767,6 +769,8 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
    {
        sprintf(szAlarmText, "Controller is running low on free storage space. %u Mb free.", uFlags1);  
        strcpy(szAlarmText2, "Try to delete your controller logs or some media files or check your SD card."); 
+       if ( hardware_is_running_on_runcam_vrx() )
+          hardware_led_red_set_blinking_fast(10000);
    }
 
    if ( uAlarms & ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR )
@@ -811,16 +815,19 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
          if ( timeMax > 100 )
             bShow = true;
       }
-      if ( link_is_reconfiguring_radiolink() )
+      if ( link_is_reconfiguring_radiolink() || g_bSearching || g_bUpdateInProgress )
          bShow = false;
       if ( link_get_last_reconfiguration_end_time() != 0 )
       if ( g_TimeNow < link_get_last_reconfiguration_end_time() + 2000 )
          bShow = false;
 
+      if ( ! bShow )
+         return;
+
       static u32 s_TimeLastCPUOverloadAlarmController = 0;
-      if ( bShow && ( g_TimeNow > s_TimeLastCPUOverloadAlarmController + 10000 ) )
+
+      if ( g_TimeNow < s_TimeLastCPUOverloadAlarmController + 7000 )
       {
-         s_TimeLastCPUOverloadAlarmController = g_TimeNow;
          u32 timeAvg = uFlags1 & 0xFFFF;
          u32 timeMax = uFlags1 >> 16;
          if ( timeMax > 0 )
@@ -834,8 +841,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
             sprintf(szAlarmText2, "Increase your CPU overclocking speed or reduce your data processing load (video bitrate).");
          }
       }
-      else
-         return;
+      s_TimeLastCPUOverloadAlarmController = g_TimeNow;
    }
 
    if ( uAlarms & ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING )
@@ -843,7 +849,6 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
       if ( g_bUpdateInProgress )
          return;
 
-      ControllerSettings* pCS = get_ControllerSettings();
       bool bShow = true;
 
       if ( link_is_reconfiguring_radiolink() )

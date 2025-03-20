@@ -1359,6 +1359,8 @@ int main(int argc, char *argv[])
       
    log_init("Router");
    
+   hardware_detectBoardAndSystemType();
+
    g_bSearching = false;
    g_uSearchFrequency = 0;
    if ( argc >= 3 )
@@ -1762,7 +1764,7 @@ void _main_loop_try_recevive_video_data()
 
    u32 uTimeStart = g_TimeNow;
    u32 uMaxWait = 2;
-   u32 uReadTimeoutMicros = 400;
+   u32 uReadTimeoutMicros = 600;
    int iMaxCountToConsume = 5;
    int iTotalConsumedHighPriority = 0;
    int iTotalConsumedRegPriority = 0;
@@ -1910,17 +1912,21 @@ void _main_loop_simple(bool bDoBasicTxSync)
         bDoBasicTxSync?"basic":"simple", g_pProcessStats->uLoopCounter, tTime4 - tTime0, tTime1-tTime0, tTime2-tTime1, tTime3-tTime2, tTime4-tTime3,
         rx_video_is_recording()?"yes":"no", s_iCountCPULoopOverflows+1);
       if ( ! test_link_is_in_progress() )
+      if ( g_TimeNow > rx_video_recording_get_last_start_stop_time() + 2000 )
       {
          s_iCountCPULoopOverflows++;
          if ( rx_video_is_recording() )
          {
-            if ( s_iCountCPULoopOverflows >= 1 )
-            if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
-               send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING,(tTime4-tTime0), 0);
+            if ( (tTime4 > tTime0 + uMaxLoopTime*2) )
+            {
+               if ( s_iCountCPULoopOverflows >= 1 )
+               if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
+                  send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING,(tTime4-tTime0), 0);
 
-            if ( tTime4 >= tTime0 + 300 )
-            if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
-               send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING,(tTime4-tTime0)<<16, 0);
+               if ( tTime4 >= tTime0 + 300 )
+               if ( g_TimeNow > g_TimeLastSetRadioFlagsCommandSent + 5000 )
+                  send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING,(tTime4-tTime0)<<16, 0);
+            }
          }
          else
          {

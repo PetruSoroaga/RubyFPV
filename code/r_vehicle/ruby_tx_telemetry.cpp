@@ -54,6 +54,7 @@
 #include "../base/config.h"
 #include "../base/shared_mem.h"
 #include "../base/hw_procs.h"
+#include "../base/hardware.h"
 #include "../base/hardware_camera.h"
 #include "../base/models.h"
 #include "../base/models_list.h"
@@ -291,35 +292,7 @@ void _add_hardware_telemetry_info( t_packet_header_ruby_telemetry_extended_v4* p
 
    s_time_tx_telemetry_cpu = g_TimeNow;
 
-   int temp = 0;
-   
-   #ifdef HW_PLATFORM_RASPBERRY
-   fd = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
-   if ( NULL != fd )
-   {
-      fscanf(fd, "%d", &temp);
-      fclose(fd);
-      fd = NULL;
-   }
-   #endif
-
-   #ifdef HW_PLATFORM_OPENIPC_CAMERA
-   char szBuff[1024];
-   szBuff[0] = 0;
-   hw_execute_bash_command("ipcinfo -t", szBuff);
-   for( int i=0; i<(int)strlen(szBuff); i++ )
-   {
-      if ( szBuff[i] == '.' || szBuff[i] == 10 )
-      {
-         szBuff[i] = 0;
-         break;
-      }
-   }
-   temp = 1000 * atoi(szBuff);
-   #endif
-
-   pPHRTE->temperature = temp/1000;
-
+   pPHRTE->temperature = hardware_get_cpu_temp();
    pPHRTE->throttled = hardware_get_flags();
    pPHRTE->cpu_mhz = (u16) hardware_get_cpu_speed();
 }
@@ -1484,7 +1457,8 @@ int main(int argc, char *argv[])
    log_init("TXTelemetry");
    log_arguments(argc, argv);
 
-   //log_add_file("logs/log_tx_telemetry.log"); 
+   hardware_detectBoardAndSystemType();
+
 
    if ( strcmp(argv[argc-1], "-debug") == 0 )
       g_bDebug = true;

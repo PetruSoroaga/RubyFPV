@@ -202,7 +202,7 @@ void MenuVehicleSimpleSetup::addRegularItems()
    m_pItemsSelect[2]->addSelection("Minimal");
    m_pItemsSelect[2]->addSelection("Compact");
    m_pItemsSelect[2]->addSelection("Default");
-   if ( (! m_bPairingSetup) || (g_pCurrentModel->osd_params.osd_layout_preset[iScreenIndex] == OSD_PRESET_CUSTOM) )
+   if ( (! m_bPairingSetup) && (g_pCurrentModel->osd_params.osd_layout_preset[iScreenIndex] == OSD_PRESET_CUSTOM) )
       m_pItemsSelect[2]->addSelection("Custom");
    if ( m_bPairingSetup )
       m_pItemsSelect[2]->setUseMultiViewLayout();

@@ -176,7 +176,7 @@ int hardware_audio_play_file(const char* szFile)
    #if defined (HW_PLATFORM_RADXA)
    char szDevice[64];
    szDevice[0] = 0;
-   if ( hardware_getOnlyBoardType() == BOARD_TYPE_RADXA_3C )
+   if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_3C )
       strcpy(szDevice, "-D hw:CARD=rockchiphdmi0 ");
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "aplay -q %s%s 2>/dev/null 1>/dev/null", szDevice, szFile);
    #endif
@@ -199,7 +199,7 @@ void* _thread_audio_play_async(void *argument)
    #if defined (HW_PLATFORM_RADXA)
    char szDevice[64];
    szDevice[0] = 0;
-   if ( hardware_getOnlyBoardType() == BOARD_TYPE_RADXA_3C )
+   if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_3C )
       strcpy(szDevice, "-D hw:CARD=rockchiphdmi0 ");
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "aplay -q %s%s 2>/dev/null 1>/dev/null &", szDevice, s_szAudioFilePlayAsync);
    #endif

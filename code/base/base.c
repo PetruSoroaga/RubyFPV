@@ -1189,7 +1189,7 @@ void log_dword_bits(const char* szText, u32 value)
 
 void log_error_and_alarm(const char* format, ...)
 {
-   //hardware_setCriticalErrorFlag();
+   //hardware_led_red_set_blinking_fast(2000);
 
    if ( s_logDisabled )
       return;
@@ -1289,7 +1289,7 @@ void log_error_and_alarm(const char* format, ...)
 
 void log_softerror_and_alarm(const char* format, ...)
 {
-   //hardware_setRecoverableErrorFlag();
+   //hardware_led_red_set_blinking(2000);
 
    if ( s_logDisabled )
       return;

@@ -67,7 +67,7 @@ int GPIOExport(int pin)
    
    gpiod_chip_close(chip);
    gpiod_line_release(line);
-   log_line("[GPIO] Exported pin %d", pin);
+   log_line("[GPIO] Exported pin %d on chip %s, line %d", pin, chipname, linenumber);
    return 0;
 }
 
@@ -142,7 +142,7 @@ int GPIODirection(int pin, int dir)
       int mode = gpiod_line_request_input(line, "Ruby");
       if ( mode < 0 )
       {
-         log_error_and_alarm("[GPIO] Dir: Failed to set input mode on GPIO (%s) line %d, pin %d", chipname, linenumber, pin);
+         log_error_and_alarm("[GPIO] Dir: Failed to set input mode direction on GPIO (%s) line %d, pin %d", chipname, linenumber, pin);
          return 0;
       }
 

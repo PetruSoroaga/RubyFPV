@@ -106,20 +106,24 @@ static u32 s_long_press_repeat_time = 120;
 int s_bBlockCurrentPressedKeys = 0;
 
 bool s_bHardwareWasSetup = false;
-u32 initSequenceTimeStart = 0;
+u32 s_uTimeInitHardware = 0;
+bool s_bDoHardwareInitializationLedSequence = false;
 
-int hasCriticalError = 0;
-int hasRecoverableError = 0;
-u32 recoverableErrorStopTime = 0;
-int flashGreenLed = 0;
-u32 flashGreenLedStopTime = 0;
+bool s_bIsLedRedOn = false;
+bool s_bIsLedRedBlinking = false;
+bool s_bIsLedRedBlinkingFast = false;
+u32 s_uTimeLedRedBlinkUntil = 0;
+u32 s_uTimeLedRedLastBlink = 0;
 
-int s_isRecordingLedOn = 0;
-int s_isRecordingLedBlinking = 0;
-u32 s_TimeLastRecordingLedBlink = 0;
+bool s_bIsLedGreenOn = false;
+bool s_bIsLedGreenBlinking = false;
+bool s_bIsLedGreenBlinkingFast = false;
+u32 s_uTimeLedGreenBlinkUntil = 0;
+u32 s_uTimeLedGreenLastBlink = 0;
 
-bool s_bHarwareHasDetectedSystemType = false;
+bool s_bHardwareDetectedBoardType = false;
 u32  s_uHardwareBoardType = 0;
+bool s_bHarwareHasDetectedSystemType = false;
 int  s_iHardwareSystemIsVehicle = 0;
 
 int s_iHardwareJoystickCount = 0;
@@ -149,11 +153,20 @@ void _hardware_detectSystemType()
       log_softerror_and_alarm("[Hardware] Failed to parse system type config file [%s]", szFile); 
       fclose(fd);
    }
+   log_line("[Hardware] Do full detection of board and system type...");
+   hw_execute_bash_command_raw("cat /proc/device-tree/model", szBuff);
+   log_line("[Hardware] Board description string: %s", szBuff);
+
+   s_uHardwareBoardType = hardware_getBoardType();
+   strncpy(szBuff, str_get_hardware_board_name(s_uHardwareBoardType), 255);
+   if ( szBuff[0] == 0 )
+      strcpy(szBuff, "N/A");
+   log_line("[Hardware] Detected board type: %s", szBuff);
 
    int iDoAditionalChecks = 1;
    s_iHardwareSystemIsVehicle = 0;
 
-   #ifdef HW_CAPABILITY_GPIO
+   #if defined (HW_CAPABILITY_GPIO)
    int val = GPIORead(GPIOGetPinDetectVehicle());
    if ( val == 1 )
    {
@@ -161,13 +174,7 @@ void _hardware_detectSystemType()
       s_iHardwareSystemIsVehicle = 1;
       iDoAditionalChecks = 0;
    }
-   val = GPIORead(GPIOGetPinMenu());
-   if ( val == 1 )
-   {
-      log_line("[Hardware] Detected GPIO signal to start as controller (Menu key).");
-      s_iHardwareSystemIsVehicle = 0;
-      iDoAditionalChecks = 0;
-   }
+   
    val = GPIORead(GPIOGetPinDetectController());
    if ( val == 1 )
    {
@@ -200,6 +207,39 @@ void _hardware_detectSystemType()
    }   
    #endif
 
+   #if defined (HW_CAPABILITY_I2C)
+   hw_execute_bash_command("modprobe i2c-dev", NULL);
+
+   #if defined (HW_PLATFORM_RASPBERRY)
+   // Initialize I2C bus 0 for different boards types
+   log_line("[Hardware] Initialize I2C busses...");
+   char szComm[256];
+   char szOutput[4096];
+   sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config 2>/dev/null; cd $current_dir", VEYE_COMMANDS_FOLDER);
+   hw_execute_bash_command(szComm, szOutput);
+   strcat(szOutput, "\n*END*\n");
+   log_line("[Hardware] I2C config output:");
+   log_line(szOutput);
+   if ( ((s_uHardwareBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI3APLUS) ||
+        ((s_uHardwareBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI3B) ||
+        ((s_uHardwareBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI3BPLUS) ||
+        ((s_uHardwareBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_PI4B) )
+   {
+      log_line("[Hardware] Initializing I2C busses for Pi 3/4...");
+      hw_execute_bash_command("raspi-gpio set 0 ip", NULL);
+      hw_execute_bash_command("raspi-gpio set 1 ip", NULL);
+      hw_execute_bash_command("raspi-gpio set 44 ip", NULL);
+      hw_execute_bash_command("raspi-gpio set 44 a1", NULL);
+      hw_execute_bash_command("raspi-gpio set 45 ip", NULL);
+      hw_execute_bash_command("raspi-gpio set 45 a1", NULL);
+      hardware_sleep_ms(200);
+      hw_execute_bash_command("i2cdetect -y 0 0x0F 0x0F", NULL);
+      hardware_sleep_ms(200);
+      log_line("[Hardware] Done initializing I2C busses for Pi 3/4.");
+   }
+   #endif
+   #endif
+
    if ( iDoAditionalChecks )
    if( access( FILE_FORCE_VEHICLE_NO_CAMERA, R_OK ) != -1 )
    {
@@ -226,15 +266,6 @@ void _hardware_detectSystemType()
    else
       log_line("[Hardware] Detected system as controller.");
 
-   hw_execute_bash_command_raw("cat /proc/device-tree/model", szBuff);
-   log_line("[Hardware] Board description string: %s", szBuff);
-
-   s_uHardwareBoardType = hardware_getOnlyBoardType();
-   strncpy(szBuff, str_get_hardware_board_name(s_uHardwareBoardType), 255);
-   if ( szBuff[0] == 0 )
-      strcpy(szBuff, "N/A");
-   log_line("[Hardware] Detected board type: %s", szBuff);
-
    strcpy(szFile, FOLDER_RUBY_TEMP);
    strcat(szFile, FILE_CONFIG_SYSTEM_TYPE);
    fd = fopen(szFile, "w");
@@ -256,7 +287,7 @@ void _hardware_detectSystemType()
    }
 
 
-   #ifdef HW_PLATFORM_RASPBERRY
+   #if defined (HW_PLATFORM_RASPBERRY)
    fd = fopen("/boot/ruby_board.txt", "w");
    if ( NULL != fd )
    {
@@ -266,7 +297,7 @@ void _hardware_detectSystemType()
    hw_execute_bash_command("cat /proc/device-tree/model > /boot/ruby_board_desc.txt", NULL);
    #endif
 
-   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
    hw_execute_bash_command("cat /proc/device-tree/model > /root/ruby/config/ruby_board_desc.txt", NULL);
    #endif
 
@@ -278,7 +309,7 @@ void _hardware_detectSystemType()
 int init_hardware()
 {
    log_line("[Hardware] Start Initialization...");
-   initSequenceTimeStart = get_current_timestamp_ms();
+   s_uTimeInitHardware = get_current_timestamp_ms();
 
    s_szUSBMountName[0] = 0;
 
@@ -333,18 +364,20 @@ int init_hardware()
       failed = 1;
    }
 
-   if (-1 == GPIOExport(GPIOGetPinLedError()) ||
-       -1 == GPIOExport(GPIOGetPinLedRecording()))
+   if ( -1 == GPIODirection(GPIOGetPinLedRed(), OUT) )
    {
-      log_line("[Hardware] Failed to get GPIO access to pin for LEDs.");
+      log_line("[Hardware] Failed set GPIO configuration for pin for LED red.");
       failed = 1;
    }
-   if (-1 == GPIODirection(GPIOGetPinLedError(), OUT) ||
-       -1 == GPIODirection(GPIOGetPinLedRecording(), OUT))
+   else
+      log_line("[Hardware] Did set GPIO configuration for pin for LED red.");
+   if ( -1 == GPIODirection(GPIOGetPinLedGreen(), OUT) )
    {
-      log_line("[Hardware] Failed set GPIO configuration for pin for LEDs.");
+      log_line("[Hardware] Failed set GPIO configuration for pin for LED green.");
       failed = 1;
    }
+   else
+      log_line("[Hardware] Did set GPIO configuration for pin for LED green.");
 
    #ifdef HW_PLATFORM_RASPBERRY
    char szBuff[64];
@@ -365,8 +398,6 @@ int init_hardware()
    #endif
 
    GPIOWrite(GPIOGetPinBuzzer(), LOW);
-   GPIOWrite(GPIOGetPinLedError(), LOW);
-   GPIOWrite(GPIOGetPinLedRecording(), LOW);
 
    log_line("[Hardware] GPIO setup successfully.");
 
@@ -386,6 +417,7 @@ int init_hardware()
 
    s_iHardwareJoystickCount = 0;
    s_bHardwareWasSetup = true;
+   s_bDoHardwareInitializationLedSequence = true;
 
    log_line("[Hardware] Initialization complete. %s.", failed?"Failed":"No errors");
 
@@ -394,9 +426,9 @@ int init_hardware()
    return 1;
 }
 
-int init_hardware_only_status_led()
+int init_hardware_only_detection_pins()
 {
-   initSequenceTimeStart = get_current_timestamp_ms();
+   s_uTimeInitHardware = get_current_timestamp_ms();
 
    #ifdef HW_CAPABILITY_GPIO
    if (-1 == GPIOExport(GPIOGetPinDetectVehicle()))
@@ -491,8 +523,8 @@ void hardware_release()
    GPIOUnexport(GPIOGetPinQAPlus());
    GPIOUnexport(GPIOGetPinQAMinus());
    GPIOUnexport(GPIOGetPinBuzzer());
-   GPIOUnexport(GPIOGetPinLedError());
-   GPIOUnexport(GPIOGetPinLedRecording());
+   GPIOUnexport(GPIOGetPinLedRed());
+   GPIOUnexport(GPIOGetPinLedGreen());
    GPIOUnexport(GPIOGetPinDetectVehicle());
    GPIOUnexport(GPIOGetPinDetectController());
    #endif
@@ -504,16 +536,76 @@ void hardware_swap_buttons(int swap)
    s_ihwSwapButtons = swap;
 }
 
-u32 hardware_getOnlyBoardType()
+void _hardware_detect_board_openipc(char* szBoardId)
 {
-   static int s_iGetBoardTypeOnlyExecuted = 0;
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE200;
+   hw_execute_bash_command_raw("ipcinfo -c 2>/dev/null", szBoardId);
+   log_line("[Hardware] Detected board type: (%s)", szBoardId);
+   if ( NULL != strstr(szBoardId, "gk72") )
+   {
+      s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE200;
+      if ( NULL != strstr(szBoardId, "v210") )
+         s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE210;
+      if ( NULL != strstr(szBoardId, "v300") )
+         s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE300;
+   }
+   if ( NULL != strstr(szBoardId, "ssc338") )
+      s_uHardwareBoardType = BOARD_TYPE_OPENIPC_SIGMASTAR_338Q;
+   if ( NULL != strstr(szBoardId, "ssc33x") )
+      s_uHardwareBoardType = BOARD_TYPE_OPENIPC_SIGMASTAR_338Q;
+   #endif
+}
 
-   if ( s_iGetBoardTypeOnlyExecuted )
+void _hardware_detect_board_radxa(char* szBoardId)
+{
+   #if defined (HW_PLATFORM_RADXA)
+   s_uHardwareBoardType = BOARD_TYPE_RADXA_ZERO3;
+   char szOutput[4096];
+   hw_execute_bash_command_raw("uname -a", szOutput);
+   removeTrailingNewLines(szOutput);
+   if ( NULL != strstr(szOutput, "radxa3c") )
+      s_uHardwareBoardType = BOARD_TYPE_RADXA_3C;
+
+   hw_execute_bash_command_raw("lscpu | grep Model", szOutput);
+   if ( NULL != strstr(szOutput, "Cortex-A55") )
+   {
+      bool bVRx = false;
+      if ( access("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq", R_OK) == -1 )
+         bVRx = true;
+      if ( access("/home/radxa/ruby", R_OK) != -1 )
+      if ( access("/home/8812eu_radxa.ko", R_OK) != -1 )
+      if ( (access("/home/radxa/ruby/drivers", R_OK) == -1) || bVRx )
+      {
+         hw_execute_bash_command_raw("lsusb | grep 0bda:a81a", szOutput);
+         char* pId = strstr(szOutput, "0bda:a81a");
+         if ( NULL != pId )
+         {
+            pId += 8;
+            pId = strstr(pId, "0bda:a81a");
+            if ( NULL != pId )
+            {
+               log_line("[Hardware] Detected RunCam VRx board.");
+               s_uHardwareBoardType = BOARD_TYPE_RADXA_RUNCAM_VRX;
+            }
+         }
+      }
+   }
+   #endif
+}
+
+u32 hardware_detectBoardType()
+{
+   if ( s_bHardwareDetectedBoardType )
+   {
+      log_line("[Hardware] Detected board %d (%s)", s_uHardwareBoardType, str_get_hardware_board_name(s_uHardwareBoardType));
       return s_uHardwareBoardType;
+   }
+   s_bHardwareDetectedBoardType = true;
 
-   s_iGetBoardTypeOnlyExecuted = 1;
    char szBoardId[64];
-   #ifdef HW_PLATFORM_RASPBERRY
+   szBoardId[0] = 0;
+   #if defined (HW_PLATFORM_RASPBERRY)
    hw_execute_bash_command("cat /proc/cpuinfo | grep 'Revision' | awk '{print $3}'", szBoardId);
    removeTrailingNewLines(szBoardId);
    log_line("[Hardware] Detected board Id: (%s)", szBoardId);
@@ -580,46 +672,44 @@ u32 hardware_getOnlyBoardType()
    if ( strcmp(szBoardId, "2a22042") == 0 ) { s_uHardwareBoardType = BOARD_TYPE_PI2BV12;}
    #endif
 
-   #ifdef HW_PLATFORM_RADXA
-   s_uHardwareBoardType = BOARD_TYPE_RADXA_ZERO3;
-   char szOutput[1024];
-   hw_execute_bash_command_raw("uname -a", szOutput);
-   removeTrailingNewLines(szOutput);
-   if ( NULL != strstr(szOutput, "radxa3c") )
-      s_uHardwareBoardType = BOARD_TYPE_RADXA_3C;
+   #if defined (HW_PLATFORM_RADXA)
+   _hardware_detect_board_radxa(szBoardId);
    #endif
 
-   #ifdef HW_PLATFORM_OPENIPC_CAMERA
-   s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE200;
-   hw_execute_bash_command_raw("ipcinfo -c 2>/dev/null", szBoardId);
-   log_line("[Hardware] Detected board type: (%s)", szBoardId);
-   if ( NULL != strstr(szBoardId, "gk72") )
-   {
-      s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE200;
-      if ( NULL != strstr(szBoardId, "v210") )
-         s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE210;
-      if ( NULL != strstr(szBoardId, "v300") )
-         s_uHardwareBoardType = BOARD_TYPE_OPENIPC_GOKE300;
-   }
-   if ( NULL != strstr(szBoardId, "ssc338") )
-      s_uHardwareBoardType = BOARD_TYPE_OPENIPC_SIGMASTAR_338Q;
-   if ( NULL != strstr(szBoardId, "ssc33x") )
-      s_uHardwareBoardType = BOARD_TYPE_OPENIPC_SIGMASTAR_338Q;
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   _hardware_detect_board_openipc(szBoardId);
    #endif
 
    char szBoardName[128];
    strncpy(szBoardName, str_get_hardware_board_name(s_uHardwareBoardType), 127);
    if ( szBoardName[0] == 0 )
       strcpy(szBoardName, "N/A");
-   log_line("[Hardware] Detected board type for id %s (int: %d): %s", szBoardId, s_uHardwareBoardType, szBoardName);
+   log_line("[Hardware] Detected board first time, board type for id %s (int: %d): %s", szBoardId, s_uHardwareBoardType, szBoardName);
    return s_uHardwareBoardType;
 }
 
 u32 hardware_getBoardType()
 {
+   if ( ! s_bHardwareDetectedBoardType )
+      hardware_detectBoardType();
+   log_line("[Hardware] Board type is %d (%s)", s_uHardwareBoardType & BOARD_TYPE_MASK, str_get_hardware_board_name(s_uHardwareBoardType));
+   return s_uHardwareBoardType;
+}
+
+void hardware_detectBoardAndSystemType()
+{
    if ( ! s_bHarwareHasDetectedSystemType )
       _hardware_detectSystemType();
-   return s_uHardwareBoardType;
+   
+   if ( s_iHardwareSystemIsVehicle )
+   {
+      if ( 0 == hardware_hasCamera() )
+         log_line("[Hardware] Detected system as vehicle/relay without camera.");
+      else
+         log_line("[Hardware] Detected system as vehicle/relay with camera.");
+   }
+   else
+      log_line("[Hardware] Detected system as controller.");
 }
 
 int hardware_board_is_raspberry(u32 uBoardType)
@@ -1192,6 +1282,104 @@ void gpio_read_buttons_loop()
    #endif
 }
 
+void _hardware_leds_loop()
+{
+   if ( 0 == s_uTimeInitHardware )
+      return;
+
+   u32 uTimeNow = get_current_timestamp_ms();
+
+   if ( s_bDoHardwareInitializationLedSequence )
+   {
+      if ( uTimeNow < (s_uTimeInitHardware + 5000 ) )
+      {
+         int delta = (uTimeNow - s_uTimeInitHardware)/200;
+         int step = delta % 4;
+         switch (step)
+         {
+             case 0: hardware_led_red_set_on(); hardware_led_green_set_on(); break;
+             case 1: hardware_led_red_set_off(); hardware_led_green_set_off(); break;
+             case 2: hardware_led_red_set_on(); hardware_led_green_set_on(); break;
+             case 3: hardware_led_red_set_off(); hardware_led_green_set_off(); break;
+         }
+         log_line("[Hardware] Blinking boot leds, step %d", step);
+         return;
+      }
+      log_line("[Hardware] Done doing initialization LEDs sequence.");
+      s_bDoHardwareInitializationLedSequence = false;
+      GPIOWrite(GPIOGetPinBuzzer(), LOW);
+      hardware_led_red_set_off();
+      hardware_led_green_set_off();
+      if ( hardware_is_running_on_runcam_vrx() )
+      {
+         hardware_led_red_set_on();
+         hardware_led_green_set_off();
+      }
+   }
+
+   if ( s_bIsLedRedBlinking || s_bIsLedRedBlinkingFast )
+   {
+      if ( uTimeNow >= s_uTimeLedRedBlinkUntil )
+      {
+         if ( hardware_is_running_on_runcam_vrx() )
+            hardware_led_red_set_on();
+         else
+            hardware_led_red_set_off();
+      }
+      else if ( (s_bIsLedRedBlinking && (uTimeNow >= s_uTimeLedRedLastBlink + 700)) ||
+                (s_bIsLedRedBlinkingFast && (uTimeNow >= s_uTimeLedRedLastBlink + 200)) )
+      {
+          if ( s_bIsLedRedOn )
+          {
+             if ( hardware_is_running_on_runcam_vrx() )
+                GPIOWrite(GPIOGetPinLedRed(), HIGH);
+             else
+                GPIOWrite(GPIOGetPinLedRed(), LOW);
+          }
+          else
+          {
+             if ( hardware_is_running_on_runcam_vrx() )
+                GPIOWrite(GPIOGetPinLedRed(), LOW);
+             else
+                GPIOWrite(GPIOGetPinLedRed(), HIGH);
+          }
+          s_bIsLedRedOn = ! s_bIsLedRedOn;
+          s_uTimeLedRedLastBlink = uTimeNow;
+      }
+   }
+
+   if ( s_bIsLedGreenBlinking || s_bIsLedGreenBlinkingFast )
+   {
+      if ( uTimeNow >= s_uTimeLedGreenBlinkUntil )
+      {
+         if ( hardware_is_running_on_runcam_vrx() )
+            hardware_led_green_set_on();
+         else
+            hardware_led_green_set_off();
+      }
+      else if ( (s_bIsLedGreenBlinking && (uTimeNow >= s_uTimeLedGreenLastBlink + 700)) ||
+                (s_bIsLedGreenBlinkingFast && (uTimeNow >= s_uTimeLedGreenLastBlink + 200)) )
+      {
+          if ( s_bIsLedGreenOn )
+          {
+             if ( hardware_is_running_on_runcam_vrx() )
+                GPIOWrite(GPIOGetPinLedGreen(), HIGH);
+             else
+                GPIOWrite(GPIOGetPinLedGreen(), LOW);
+          }
+          else
+          {
+             if ( hardware_is_running_on_runcam_vrx() )
+                GPIOWrite(GPIOGetPinLedGreen(), LOW);
+             else
+                GPIOWrite(GPIOGetPinLedGreen(), HIGH);
+          }
+          s_bIsLedGreenOn = ! s_bIsLedGreenOn;
+          s_uTimeLedGreenLastBlink = uTimeNow;
+      }
+   }
+}
+
 void hardware_loop()
 {
    if ( ! s_bHardwareWasSetup )
@@ -1199,88 +1387,8 @@ void hardware_loop()
 
    #ifdef HW_CAPABILITY_GPIO
    gpio_read_buttons_loop();
-
-   u32 t = get_current_timestamp_ms();
-
-   if ( t < (initSequenceTimeStart + 1200 ) )
-   {
-      int delta = (t - initSequenceTimeStart)/200;
-      int step = delta % 4;
-      switch (step)
-      {
-          case 0: GPIOWrite(GPIOGetPinLedError(), HIGH);
-                  break;
-          case 1: GPIOWrite(GPIOGetPinLedError(), LOW);
-                  break;
-          case 2: GPIOWrite(GPIOGetPinLedError(), HIGH);
-                  break;
-          case 3: GPIOWrite(GPIOGetPinLedError(), LOW);
-                  break;
-      }
-   }
-   else if ( initSequenceTimeStart > 0 )
-   {
-      initSequenceTimeStart = 0;
-      GPIOWrite(GPIOGetPinBuzzer(), LOW);
-      GPIOWrite(GPIOGetPinLedError(), LOW);
-   }
-
-   if ( hasRecoverableError )
-   {
-      if ( (t/150) % 2 )
-         GPIOWrite(GPIOGetPinLedError(), LOW);
-      else
-         GPIOWrite(GPIOGetPinLedError(), HIGH);
-
-      if ( t>recoverableErrorStopTime )
-      {
-         GPIOWrite(GPIOGetPinLedError(), LOW);
-         hasRecoverableError = 0;
-         recoverableErrorStopTime = 0;
-      }
-   }
-
-   if ( s_isRecordingLedBlinking )
-   {
-      if ( s_isRecordingLedOn && t > s_TimeLastRecordingLedBlink+500 )
-      {
-         GPIOWrite(GPIOGetPinLedRecording(), LOW);
-         s_isRecordingLedOn = 0;
-         s_TimeLastRecordingLedBlink = get_current_timestamp_ms();
-      }
-      if ( (!s_isRecordingLedOn) && t > s_TimeLastRecordingLedBlink+500 )
-      {
-         GPIOWrite(GPIOGetPinLedRecording(), HIGH);
-         s_isRecordingLedOn = 1;
-         s_TimeLastRecordingLedBlink = get_current_timestamp_ms();
-      }
-   }
+   _hardware_leds_loop();
    #endif
-}
-
-void hardware_setCriticalErrorFlag()
-{
-   if ( ! s_bHardwareWasSetup )
-      return;
-
-   #ifdef HW_CAPABILITY_GPIO
-   GPIOWrite(GPIOGetPinLedError(), HIGH);
-   hasCriticalError = 1;
-   #endif
-}
-
-void hardware_setRecoverableErrorFlag()
-{
-   if ( ! s_bHardwareWasSetup )
-      return;
-   hasRecoverableError = 1;
-   recoverableErrorStopTime = get_current_timestamp_ms()+1250;
-}
-
-void hardware_flashGreenLed()
-{
-   flashGreenLed = 1;
-   flashGreenLedStopTime = get_current_timestamp_ms()+280;
 }
 
 int isKeyMenuPressed() { return sKeyMenuPressed > 0; }
@@ -1699,35 +1807,170 @@ int hardware_is_running_on_openipc()
    return hardware_board_is_openipc(hardware_getBoardType());
 }
 
-
-void hardware_recording_led_set_off()
+int hardware_is_running_on_runcam_vrx()
 {
-   #ifdef HW_CAPABILITY_GPIO
-   GPIOWrite(GPIOGetPinLedRecording(), LOW);
-   #endif
-   s_isRecordingLedOn = 0;
-   s_isRecordingLedBlinking = 0;
-   s_TimeLastRecordingLedBlink = get_current_timestamp_ms();
+   if ( ! s_bHarwareHasDetectedSystemType )
+      _hardware_detectSystemType();
+
+   return (hardware_getBoardType() == BOARD_TYPE_RADXA_RUNCAM_VRX)?1:0;
 }
 
-void hardware_recording_led_set_on()
+void hardware_led_red_set_on()
 {
    #ifdef HW_CAPABILITY_GPIO
-   GPIOWrite(GPIOGetPinLedRecording(), HIGH);
+   if ( hardware_is_running_on_runcam_vrx() )
+      GPIOWrite(GPIOGetPinLedRed(), LOW);
+   else
+      GPIOWrite(GPIOGetPinLedRed(), HIGH);
+
+   s_bIsLedRedOn = true;
+   s_bIsLedRedBlinking = false;
+   s_bIsLedRedBlinkingFast = false;
+   s_uTimeLedRedBlinkUntil = 0;
+   s_uTimeLedRedLastBlink = 0;
    #endif
-   s_isRecordingLedOn = 1;
-   s_isRecordingLedBlinking = 0;
-   s_TimeLastRecordingLedBlink = get_current_timestamp_ms();
 }
 
-void hardware_recording_led_set_blinking()
+void hardware_led_red_set_off()
 {
    #ifdef HW_CAPABILITY_GPIO
-   GPIOWrite(GPIOGetPinLedRecording(), HIGH);
+   if ( hardware_is_running_on_runcam_vrx() )
+      GPIOWrite(GPIOGetPinLedRed(), HIGH);
+   else
+      GPIOWrite(GPIOGetPinLedRed(), LOW);
+
+   s_bIsLedRedOn = false;
+   s_bIsLedRedBlinking = false;
+   s_bIsLedRedBlinkingFast = false;
+   s_uTimeLedRedBlinkUntil = 0;
+   s_uTimeLedRedLastBlink = 0;
    #endif
-   s_isRecordingLedOn = 1;
-   s_isRecordingLedBlinking = 1;
-   s_TimeLastRecordingLedBlink = get_current_timestamp_ms();
+}
+
+void hardware_led_red_set_blinking(u32 uPeriodToBlink)
+{
+   if ( s_bIsLedRedBlinking || s_bIsLedRedBlinkingFast )
+   {
+      s_bIsLedRedBlinking = true;
+      s_bIsLedRedBlinkingFast = false;
+      if ( uPeriodToBlink == MAX_U32 )
+         s_uTimeLedRedBlinkUntil = MAX_U32;
+      else
+         s_uTimeLedRedBlinkUntil = s_uTimeLedRedLastBlink + uPeriodToBlink;
+      return;
+   }
+
+   hardware_led_red_set_on();
+
+   s_bIsLedRedBlinking = true;
+   s_bIsLedRedBlinkingFast = false;
+   s_uTimeLedRedLastBlink = get_current_timestamp_ms();
+   if ( uPeriodToBlink == MAX_U32 )
+      s_uTimeLedRedBlinkUntil = MAX_U32;
+   else
+      s_uTimeLedRedBlinkUntil = s_uTimeLedRedLastBlink + uPeriodToBlink;
+}
+
+void hardware_led_red_set_blinking_fast(u32 uPeriodToBlink)
+{
+   if ( s_bIsLedRedBlinking || s_bIsLedRedBlinkingFast )
+   {
+      s_bIsLedRedBlinking = false;
+      s_bIsLedRedBlinkingFast = true;
+      if ( uPeriodToBlink == MAX_U32 )
+         s_uTimeLedRedBlinkUntil = MAX_U32;
+      else
+         s_uTimeLedRedBlinkUntil = s_uTimeLedRedLastBlink + uPeriodToBlink;
+      return;
+   }
+
+   hardware_led_red_set_on();
+
+   s_bIsLedRedBlinking = false;
+   s_bIsLedRedBlinkingFast = true;
+   s_uTimeLedRedLastBlink = get_current_timestamp_ms();
+   if ( uPeriodToBlink == MAX_U32 )
+      s_uTimeLedRedBlinkUntil = MAX_U32;
+   else
+      s_uTimeLedRedBlinkUntil = s_uTimeLedRedLastBlink + uPeriodToBlink;
+}
+
+void hardware_led_green_set_on()
+{
+   #ifdef HW_CAPABILITY_GPIO
+   if ( hardware_is_running_on_runcam_vrx() )
+      GPIOWrite(GPIOGetPinLedGreen(), LOW);
+   else
+      GPIOWrite(GPIOGetPinLedGreen(), HIGH);
+   #endif
+   s_bIsLedGreenOn = true;
+   s_bIsLedGreenBlinking = false;
+   s_bIsLedGreenBlinkingFast = false;
+   s_uTimeLedGreenBlinkUntil = 0;
+   s_uTimeLedGreenLastBlink = 0;
+}
+
+void hardware_led_green_set_off()
+{
+   #ifdef HW_CAPABILITY_GPIO
+   if ( hardware_is_running_on_runcam_vrx() )
+      GPIOWrite(GPIOGetPinLedGreen(), HIGH);
+   else
+      GPIOWrite(GPIOGetPinLedGreen(), LOW);
+   #endif
+   s_bIsLedGreenOn = false;
+   s_bIsLedGreenBlinking = false;
+   s_bIsLedGreenBlinkingFast = false;
+   s_uTimeLedGreenBlinkUntil = 0;
+   s_uTimeLedGreenLastBlink = 0;
+}
+
+void hardware_led_green_set_blinking(u32 uPeriodToBlink)
+{
+   if ( s_bIsLedGreenBlinking || s_bIsLedGreenBlinkingFast )
+   {
+      s_bIsLedGreenBlinking = true;
+      s_bIsLedGreenBlinkingFast = false;
+      if ( uPeriodToBlink == MAX_U32 )
+         s_uTimeLedGreenBlinkUntil = MAX_U32;
+      else
+         s_uTimeLedGreenBlinkUntil = s_uTimeLedGreenLastBlink + uPeriodToBlink;
+      return;
+   }
+
+   hardware_led_green_set_on();
+
+   s_bIsLedGreenBlinking = true;
+   s_bIsLedGreenBlinkingFast = false;
+   s_uTimeLedGreenLastBlink = get_current_timestamp_ms();
+   if ( uPeriodToBlink == MAX_U32 )
+      s_uTimeLedGreenBlinkUntil = MAX_U32;
+   else
+      s_uTimeLedGreenBlinkUntil = s_uTimeLedGreenLastBlink + uPeriodToBlink;
+}
+
+void hardware_led_green_set_blinking_fast(u32 uPeriodToBlink)
+{
+   if ( s_bIsLedGreenBlinking || s_bIsLedGreenBlinkingFast )
+   {
+      s_bIsLedGreenBlinking = false;
+      s_bIsLedGreenBlinkingFast = true;
+      if ( uPeriodToBlink == MAX_U32 )
+         s_uTimeLedGreenBlinkUntil = MAX_U32;
+      else
+         s_uTimeLedGreenBlinkUntil = s_uTimeLedGreenLastBlink + uPeriodToBlink;
+      return;
+   }
+
+   hardware_led_green_set_on();
+
+   s_bIsLedGreenBlinking = false;
+   s_bIsLedGreenBlinkingFast = true;
+   s_uTimeLedGreenLastBlink = get_current_timestamp_ms();
+   if ( uPeriodToBlink == MAX_U32 )
+      s_uTimeLedGreenBlinkUntil = MAX_U32;
+   else
+      s_uTimeLedGreenBlinkUntil = s_uTimeLedGreenLastBlink + uPeriodToBlink;
 }
 
 static char s_szHardwareETHName[64];
@@ -1742,6 +1985,8 @@ char* hardware_has_eth()
       hw_execute_bash_command_raw("ls /sys/class/net/ | grep eth1", szETHName);
    if ( strlen(szETHName) < 4 )
       hw_execute_bash_command_raw("ls /sys/class/net/ | grep etx", szETHName);
+   if ( strlen(szETHName) < 4 )
+      hw_execute_bash_command_raw("ls /sys/class/net/ | grep enx", szETHName);
 
    if ( strlen(szETHName) < 4 )
    {
@@ -1780,6 +2025,8 @@ void hardware_set_default_sigmastar_cpu_freq()
 
 void hardware_set_default_radxa_cpu_freq()
 {
+   if ( hardware_is_running_on_runcam_vrx() )
+      return;
    hw_execute_bash_command_raw("echo 'performance' | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
    char szBuff[256];
    snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "echo %d | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq", DEFAULT_FREQ_RADXA*1000);
@@ -1829,6 +2076,8 @@ int hardware_get_cpu_speed()
    #endif
 
    #if defined(HW_PLATFORM_RADXA)
+   if ( hardware_is_running_on_runcam_vrx() )
+      return 1000;
    char szOutput[1024];
    hw_execute_bash_command_raw_silent("cat /sys/devices/system/cpu/cpufreq/policy0/cpuinfo_cur_freq 2>/dev/null", szOutput);
    return atoi(szOutput)/1000;
@@ -1900,10 +2149,58 @@ int hardware_get_gpu_speed()
    #endif
 }
 
+int hardware_get_cpu_temp()
+{
+   int iTemp1 = 0, iTemp2 = 0;
+
+   #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
+   FILE* fd = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
+   if ( NULL != fd )
+   {
+      fscanf(fd, "%d", &iTemp1);
+      fclose(fd);
+      fd = NULL;
+   }
+   else
+      iTemp1 = 0;
+   if ( access("/sys/class/thermal/thermal_zone1/temp", R_OK) != -1 )
+   {
+      fd = fopen("/sys/class/thermal/thermal_zone1/temp", "r");
+      if ( NULL != fd )
+      {
+         fscanf(fd, "%d", &iTemp2);
+         fclose(fd);
+         fd = NULL;
+      }
+      else
+         iTemp2 = 0;
+   }
+   if ( iTemp2 > iTemp1 )
+      iTemp1 = iTemp2;
+   #endif
+
+   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   char szBuff[1024];
+   szBuff[0] = 0;
+   hw_execute_bash_command("ipcinfo -t", szBuff);
+   for( int i=0; i<(int)strlen(szBuff); i++ )
+   {
+      if ( szBuff[i] == '.' || szBuff[i] == 10 )
+      {
+         szBuff[i] = 0;
+         break;
+      }
+   }
+   iTemp1 = 1000 * atoi(szBuff);
+   #endif
+
+   return iTemp1/1000;    
+}
+
 void hardware_set_oipc_freq_boost(int iFreqCPUMhz, int iGPUBoost)
 {
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
-   if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType() & BOARD_TYPE_MASK) )
+   if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
    {
       hw_execute_bash_command_raw("echo 'performance' | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
       char szComm[256];
@@ -1919,7 +2216,7 @@ void hardware_set_oipc_freq_boost(int iFreqCPUMhz, int iGPUBoost)
 void hardware_set_oipc_gpu_boost(int iGPUBoost)
 {
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
-   if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType() & BOARD_TYPE_MASK) )
+   if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
    {
       if ( 0 == iGPUBoost )
       {

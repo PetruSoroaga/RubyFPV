@@ -266,7 +266,9 @@ int main (int argc, char *argv[])
    }
    
    log_init("TX RC");
-   //log_add_file("logs/log_tx_rc.log"); 
+
+   hardware_detectBoardAndSystemType();
+
    if ( strcmp(argv[argc-1], "-search") == 0 )
       g_bSearching = true;
 

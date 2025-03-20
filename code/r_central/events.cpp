@@ -86,11 +86,11 @@ void onModelAdded(u32 uModelId)
    Model* pModel = findModelWithId(uModelId, 115);
    if ( NULL != pModel )
       log_line("The newly added model controller's id: %u (this controller: %u), has negociated radio? %s",
-         pModel->uControllerId, g_uControllerId, (pModel->radioLinksParams.uGlobalRadioLinksFlags &MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
+         pModel->uControllerId, g_uControllerId, (pModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
 
    if ( NULL != g_pCurrentModel )
       log_line("Current model (VID: %u) has negocated radio? %s",
-         g_pCurrentModel->uVehicleId, (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags &MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
+         g_pCurrentModel->uVehicleId, (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
 
    log_line("[Events] Handled event new model added (vehicle UID: %u). Done.", uModelId);
 }

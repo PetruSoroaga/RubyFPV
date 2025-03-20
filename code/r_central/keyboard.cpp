@@ -357,7 +357,7 @@ int _read_keyboard_input_events()
                uEvent = INPUT_EVENT_PRESS_QA1;
             else if ( (events[k].code == 3) )
                uEvent = INPUT_EVENT_PRESS_QA2;
-            else if ( (events[k].code == 4) || (events[k].code == 81) )
+            else if ( (events[k].code == 4) || (events[k].code == 81) || (events[k].code == 76) )
                uEvent = INPUT_EVENT_PRESS_QA3;
             else if ( events[k].code != 69 )
             {

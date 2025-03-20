@@ -28,8 +28,8 @@
 #define GPIO_PIN_DETECT_TYPE_VEHICLE 19
 #define GPIO_PIN_DETECT_TYPE_CONTROLLER 26
 
-#define GPIO_PIN_LED_ERROR 5
-#define GPIO_PIN_RECORDING_LED 21
+#define GPIO_PIN_LED_RED 5
+#define GPIO_PIN_LED_GREEN 21
 #define GPIO_PIN_BUZZER 26
 #endif
 
@@ -51,8 +51,8 @@
 #define GPIO_PIN_DETECT_TYPE_VEHICLE -1
 #define GPIO_PIN_DETECT_TYPE_CONTROLLER -1
 
-#define GPIO_PIN_LED_ERROR 107 // PIN_29
-#define GPIO_PIN_RECORDING_LED 108 // PIN_31
+#define GPIO_PIN_LED_RED 108 // PIN_31
+#define GPIO_PIN_LED_GREEN 107 // PIN_29
 #define GPIO_PIN_BUZZER -1
 #endif
 
@@ -74,8 +74,8 @@
 #define GPIO_PIN_DETECT_TYPE_VEHICLE -1
 #define GPIO_PIN_DETECT_TYPE_CONTROLLER -1
 
-#define GPIO_PIN_LED_ERROR -1
-#define GPIO_PIN_RECORDING_LED -1
+#define GPIO_PIN_LED_RED -1
+#define GPIO_PIN_LED_GREEN -1
 #define GPIO_PIN_BUZZER -1
 #endif
 
@@ -83,8 +83,8 @@
 extern "C" {
 #endif 
 
-int GPIOGetPinLedError();
-int GPIOGetPinLedRecording();
+int GPIOGetPinLedRed();
+int GPIOGetPinLedGreen();
 int GPIOGetPinBuzzer();
 int GPIOGetPinMenu();
 int GPIOGetPinBack();

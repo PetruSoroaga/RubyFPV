@@ -10,7 +10,7 @@ void str_sanitize_filename(char* szFileName);
 char* str_capitalize_first_letter(char* szText);
 
 char* str_format_time(u32 miliseconds);
-
+char* str_format_binary_number(u32 uNumber);
 
 void str_getDataRateDescription(int dataRateBPS, int iHT40, char* szOutput);
 void str_getDataRateDescriptionNoSufix(int dataRateBPS, char* szOutput);

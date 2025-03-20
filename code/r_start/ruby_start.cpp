@@ -59,6 +59,7 @@
 #endif
 
 #include "../common/string_utils.h"
+#include "../common/strings_table.h"
 #include "r_start_vehicle.h"
 #include "r_initradio.h"
 #include "../r_vehicle/ruby_rx_commands.h"
@@ -1096,7 +1097,7 @@ void _step_check_binaries_and_processes()
    strcat(szInfo, "OpenIPC");
    #endif
 
-   u32 uBoardType = hardware_getOnlyBoardType();
+   u32 uBoardType = hardware_getBoardType();
    strcat(szInfo, ", Board: ");
    strcat(szInfo, str_get_hardware_board_name(uBoardType));
 
@@ -1144,36 +1145,6 @@ void _step_load_init_devices()
    strcat(szOutput, "\n*END*\n");
    log_line("I2C buses:");
    log_line(szOutput);      
-   #endif
-
-   #ifdef HW_CAPABILITY_I2C
-
-   board_type = (hardware_getOnlyBoardType() & BOARD_TYPE_MASK);
-
-   #if defined HW_PLATFORM_RASPBERRY
-   // Initialize I2C bus 0 for different boards types
-   log_line("Initialize I2C busses...");
-   char szComm[256];
-   sprintf(szComm, "current_dir=$PWD; cd %s/; ./camera_i2c_config 2>/dev/null; cd $current_dir", VEYE_COMMANDS_FOLDER);
-   hw_execute_bash_command(szComm, szOutput);
-   strcat(szOutput, "\n*END*\n");
-   log_line("I2C config output:");
-   log_line(szOutput);
-   if ( (board_type == BOARD_TYPE_PI3APLUS) || (board_type == BOARD_TYPE_PI3B) || (board_type == BOARD_TYPE_PI3BPLUS) || (board_type == BOARD_TYPE_PI4B) )
-   {
-      log_line("Initializing I2C busses for Pi 3/4...");
-      hw_execute_bash_command("raspi-gpio set 0 ip", NULL);
-      hw_execute_bash_command("raspi-gpio set 1 ip", NULL);
-      hw_execute_bash_command("raspi-gpio set 44 ip", NULL);
-      hw_execute_bash_command("raspi-gpio set 44 a1", NULL);
-      hw_execute_bash_command("raspi-gpio set 45 ip", NULL);
-      hw_execute_bash_command("raspi-gpio set 45 a1", NULL);
-      hardware_sleep_ms(200);
-      hw_execute_bash_command("i2cdetect -y 0 0x0F 0x0F", NULL);
-      hardware_sleep_ms(200);
-      log_line("Done initializing I2C busses for Pi 3/4.");
-   }
-   #endif
 
    log_line("Ruby: Finding external I2C devices add-ons...");
    printf("Ruby: Finding external I2C devices add-ons...\n");
@@ -1483,7 +1454,15 @@ int main(int argc, char *argv[])
       return 0;
    }
 
+   //#if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
+   //initLocalizationData();
+   //#endif
+   
    _log_oipc_boot_step("Done check files.");
+
+   init_hardware_only_detection_pins();
+   hardware_detectBoardAndSystemType();
+   
    _step_check_binaries_and_processes();
    _log_oipc_boot_step("Done check binaries.");
 
@@ -1507,12 +1486,17 @@ int main(int argc, char *argv[])
    #ifdef HW_PLATFORM_RADXA
    if ( ! g_bIsFirstBoot )
    {
-      strcpy(szFile, FOLDER_RUBY_TEMP);
-      strcat(szFile, FILE_TEMP_INTRO_PLAYING);
-      sprintf(szComm, "touch %s", szFile);
-      hw_execute_bash_command(szComm, NULL);
-      sprintf(szComm, "./%s -b -f res/intro.h264 15 -endexit&", VIDEO_PLAYER_OFFLINE);
-      hw_execute_bash_command_nonblock(szComm, NULL);
+      strcpy(szFile, FOLDER_BINARIES);
+      strcat(szFile, "res/intro.h264");
+      if ( access(szFile, R_OK) != -1 )
+      {
+         strcpy(szFile, FOLDER_RUBY_TEMP);
+         strcat(szFile, FILE_TEMP_INTRO_PLAYING);
+         sprintf(szComm, "touch %s", szFile);
+         hw_execute_bash_command(szComm, NULL);
+         sprintf(szComm, "./%s -b -f res/intro.h264 15 -endexit&", VIDEO_PLAYER_OFFLINE);
+         hw_execute_bash_command_nonblock(szComm, NULL);
+      }
    }
    #endif
 
@@ -1520,8 +1504,6 @@ int main(int argc, char *argv[])
    hw_execute_bash_command_silent(szComm, NULL);
    sprintf(szComm, "rm -rf %s%s", FOLDER_RUBY_TEMP, FILE_CONFIG_CAMERA_TYPE);
    hw_execute_bash_command_silent(szComm, NULL);
-
-   init_hardware_only_status_led();
 
    if ( access( FILE_FORCE_RESET, R_OK ) != -1 )
    {
@@ -1533,11 +1515,10 @@ int main(int argc, char *argv[])
       hardware_sleep_ms(900);
    }
 
-   board_type = (hardware_getOnlyBoardType() & BOARD_TYPE_MASK);
+   board_type = (hardware_getBoardType() & BOARD_TYPE_MASK);
 
-   // Detect hardware
+   // Detect hardware camera
    hardware_getCameraType();
-   hardware_getBoardType();
 
    #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA)
    hw_execute_ruby_process(NULL, "ruby_initdhcp", NULL, NULL);

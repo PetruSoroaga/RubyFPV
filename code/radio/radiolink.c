@@ -398,7 +398,7 @@ int radio_set_out_datarate(int rate_bps)
       char szBuff2[64];
       str_getDataRateDescription(rate_bps, 0, szBuff);
       str_getDataRateDescription(sRadioDataRate_bps, 0, szBuff2);
-      log_line("Radio: Set TX DR (%d) to: %s (prev was: %s, %u pckts sent on it)", s_iLogCount_RadioRate, szBuff, szBuff2, s_uPacketsSentUsingCurrent_RadioRate);
+      log_line("Radio: Set TX DR (%d) to: %s (prev was: %s, %u pckts sent on it), current radio frame flags: %s = %s", s_iLogCount_RadioRate, szBuff, szBuff2, s_uPacketsSentUsingCurrent_RadioRate, str_format_binary_number(sRadioFrameFlags), str_get_radio_frame_flags_description2(sRadioFrameFlags));
       if ( s_iLogCount_RadioRate == 3 )
          log_line("Radio: Too many radio datarate changes, pausing log.");
       s_iLogCount_RadioRate++;
@@ -441,6 +441,27 @@ int radio_set_out_datarate(int rate_bps)
    }
 
    return nReturn;
+}
+
+u32 radio_get_current_frames_flags()
+{
+   return sRadioFrameFlags;
+}
+
+u32 radio_get_current_frames_flags_datarate()
+{
+   if ( s_iUseTemporaryRadioFrameFlags )
+   {
+      if ( s_uTemporaryRadioFrameFlags & RADIO_FLAGS_USE_LEGACY_DATARATES )
+         return RADIO_FLAGS_USE_LEGACY_DATARATES;
+      if ( s_uTemporaryRadioFrameFlags & RADIO_FLAGS_USE_MCS_DATARATES )
+         return RADIO_FLAGS_USE_MCS_DATARATES;    
+   }
+   if ( sRadioFrameFlags & RADIO_FLAGS_USE_LEGACY_DATARATES )
+      return RADIO_FLAGS_USE_LEGACY_DATARATES;
+   if ( sRadioFrameFlags & RADIO_FLAGS_USE_MCS_DATARATES )
+      return RADIO_FLAGS_USE_MCS_DATARATES;
+   return 0;
 }
 
 void radio_set_frames_flags(u32 frameFlags)
@@ -511,8 +532,8 @@ void radio_set_frames_flags(u32 frameFlags)
       char szBuff2[128];
       str_get_radio_frame_flags_description(uFrameFlagsToSet, szBuff);
       str_get_radio_frame_flags_description(sRadioFrameFlags, szBuff2);
-      log_line("Radio: Set radio frames flags to 0x%04X: %s (previous was: %s, %u packets sent on it)",
-         uFrameFlagsToSet, szBuff, szBuff2, s_uPacketsSentUsingCurrent_RadioFlags);
+      log_line("Radio: Set radio frames flags to %s = %s (previous was: %s, %u packets sent on it)",
+         str_format_binary_number(uFrameFlagsToSet), szBuff, szBuff2, s_uPacketsSentUsingCurrent_RadioFlags);
       if ( s_iLogCount_RadioFlags == 9 )
          log_line("Radio: Too many radio flags changes, pausing log.");
       s_iLogCount_RadioFlags++;
@@ -529,19 +550,29 @@ void radio_set_frames_flags(u32 frameFlags)
    }
 }
 
+int  radio_has_temporary_frames_flags()
+{
+   return s_iUseTemporaryRadioFrameFlags;
+}
+
+u32  radio_get_temporary_frames_flags()
+{
+   return s_uTemporaryRadioFrameFlags;
+}
+
 void radio_set_temporary_frames_flags(u32 uFrameFlags)
 {
    s_uTemporaryRadioFrameFlags = uFrameFlags;
    s_iUseTemporaryRadioFrameFlags = 1;
-   log_line("Radio: Set temporary radio flags to: %s", str_get_radio_frame_flags_description2(s_uTemporaryRadioFrameFlags));
-   log_line("Radio: Current radio flags where: %s", str_get_radio_frame_flags_description2(sRadioFrameFlags));
+   log_line("Radio: Set temporary radio flags to: %s = %s", str_format_binary_number(s_uTemporaryRadioFrameFlags), str_get_radio_frame_flags_description2(s_uTemporaryRadioFrameFlags));
+   log_line("Radio: Current radio flags where: %s = %s", str_format_binary_number(sRadioFrameFlags), str_get_radio_frame_flags_description2(sRadioFrameFlags));
    radio_set_frames_flags(sRadioFrameFlags);
 }
 
 void radio_remove_temporary_frames_flags()
 {
-   log_line("Radio: Remove temporary radio flags: %s", str_get_radio_frame_flags_description2(s_uTemporaryRadioFrameFlags));
-   log_line("Radio: Current radio flags are now: %s", str_get_radio_frame_flags_description2(sRadioFrameFlags));
+   log_line("Radio: Remove temporary radio flags: %s = %s", str_format_binary_number(s_uTemporaryRadioFrameFlags), str_get_radio_frame_flags_description2(s_uTemporaryRadioFrameFlags));
+   log_line("Radio: Current radio flags are now: %s = %s", str_format_binary_number(sRadioFrameFlags), str_get_radio_frame_flags_description2(sRadioFrameFlags));
    s_uTemporaryRadioFrameFlags = 0;
    s_iUseTemporaryRadioFrameFlags = 0;
    radio_set_frames_flags(sRadioFrameFlags);
@@ -1364,6 +1395,7 @@ int radio_write_raw_ieee_packet(int interfaceIndex, u8* pData, int dataLength, i
    }
 
    // Extract packet header based on ieee headers
+   /*
    t_packet_header* pPH = NULL;
    if ( pData[2] == 0x0C )
      pPH = (t_packet_header*)(pData + sizeof(s_uRadiotapHeaderLegacy) + sizeof(s_uIEEEHeaderData));
@@ -1371,6 +1403,7 @@ int radio_write_raw_ieee_packet(int interfaceIndex, u8* pData, int dataLength, i
      pPH = (t_packet_header*)(pData + sizeof(s_uRadiotapHeaderMCS) + sizeof(s_uIEEEHeaderData));
    else
      pPH = NULL;
+   */
 
    #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
    if ( 1 == s_iMutexRadioSyncRxTxThreadsInitialized )

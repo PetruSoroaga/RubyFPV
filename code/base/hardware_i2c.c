@@ -196,7 +196,7 @@ void hardware_enumerate_i2c_busses()
    int countDevicesTotal = 0;
 
 #ifdef HW_CAPABILITY_I2C
-   u32 uBoardType = hardware_getOnlyBoardType();
+   u32 uBoardType = hardware_getBoardType();
    char szOutput[1024];
    for( int i=0; i<s_iHardwareI2CBusCount; i++ )
    {

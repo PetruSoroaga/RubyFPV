@@ -11,8 +11,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-int g_iGPIOPinLedError = GPIO_PIN_LED_ERROR;
-int g_iGPIOPinLedRecording = GPIO_PIN_RECORDING_LED;
+int g_iGPIOPinLedRed = GPIO_PIN_LED_RED;
+int g_iGPIOPinLedGreen = GPIO_PIN_LED_GREEN;
 int g_iGPIOPinBuzzer = GPIO_PIN_BUZZER;
 int g_iGPIOPinMenu = GPIO_PIN_MENU;
 int g_iGPIOPinBack = GPIO_PIN_BACK;
@@ -27,8 +27,8 @@ int g_iGPIOPinQAMinus = GPIO_PIN_QACTIONMINUS;
 int g_iGPIOPinDetectVehicle = GPIO_PIN_DETECT_TYPE_VEHICLE;
 int g_iGPIOPinDetectController = GPIO_PIN_DETECT_TYPE_CONTROLLER;
 
-int GPIOGetPinLedError() { return g_iGPIOPinLedError; }
-int GPIOGetPinLedRecording() { return g_iGPIOPinLedRecording; }
+int GPIOGetPinLedRed() { return g_iGPIOPinLedRed; }
+int GPIOGetPinLedGreen() { return g_iGPIOPinLedGreen; }
 int GPIOGetPinBuzzer() { return g_iGPIOPinBuzzer; }
 int GPIOGetPinMenu()   { return g_iGPIOPinMenu; }
 int GPIOGetPinBack()   { return g_iGPIOPinBack; }

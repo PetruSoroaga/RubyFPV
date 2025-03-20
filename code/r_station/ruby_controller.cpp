@@ -93,6 +93,8 @@ int main(int argc, char *argv[])
 
    log_init("RubyController");
 
+   hardware_detectBoardAndSystemType();
+
    hw_launch_process("./ruby_central");
    
    for( int i=0; i<5; i++ )

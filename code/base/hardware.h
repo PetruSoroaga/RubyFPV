@@ -91,8 +91,7 @@ typedef struct
 
 
 int init_hardware();
-int init_hardware_only_status_led();
-void _hardware_load_system_type();
+int init_hardware_only_detection_pins();
 
 void hardware_reboot();
 
@@ -100,7 +99,8 @@ void hardware_release();
 void hardware_loop();
 void hardware_swap_buttons(int swap);
 
-u32 hardware_getOnlyBoardType();
+void hardware_detectBoardAndSystemType();
+u32 hardware_detectBoardType();
 u32 hardware_getBoardType();
 
 int hardware_board_is_raspberry(u32 uBoardType);
@@ -118,10 +118,6 @@ int hardware_read_joystick(int joystickIndex, int miliSec);
 int hardware_is_joystick_opened(int joystickIndex);
 
 u16 hardware_get_flags();
-
-void hardware_setCriticalErrorFlag();
-void hardware_setRecoverableErrorFlag();
-void hardware_flashGreenLed();
 
 int isKeyMenuPressed();
 int isKeyBackPressed();
@@ -150,10 +146,16 @@ char* hardware_get_mounted_usb_name();
 int hardware_is_station();
 int hardware_is_vehicle();
 int hardware_is_running_on_openipc();
+int hardware_is_running_on_runcam_vrx();
 
-void hardware_recording_led_set_off();
-void hardware_recording_led_set_on();
-void hardware_recording_led_set_blinking();
+void hardware_led_red_set_on();
+void hardware_led_red_set_off();
+void hardware_led_red_set_blinking(u32 uPeriodToBlink);
+void hardware_led_red_set_blinking_fast(u32 uPeriodToBlink);
+void hardware_led_green_set_on();
+void hardware_led_green_set_off();
+void hardware_led_green_set_blinking(u32 uPeriodToBlink);
+void hardware_led_green_set_blinking_fast(u32 uPeriodToBlink);
 
 char* hardware_has_eth();
 
@@ -161,6 +163,8 @@ void hardware_set_default_sigmastar_cpu_freq();
 void hardware_set_default_radxa_cpu_freq();
 int hardware_get_cpu_speed(); // in Mhz
 int hardware_get_gpu_speed(); // in Mhz
+
+int hardware_get_cpu_temp();
 
 void hardware_set_oipc_freq_boost(int iFreqCPUMhz, int iGPUBoost);
 void hardware_set_oipc_gpu_boost(int iGPUBoost);

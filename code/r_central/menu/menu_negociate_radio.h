@@ -36,7 +36,7 @@ class MenuNegociateRadio: public Menu
       void _switch_to_step(int iStep);
       void _advance_to_next_step();
       void _compute_datarate_settings_to_apply();
-      void _apply_new_settings();
+      void _apply_new_settings(bool bVehicleOnly);
       void _onCancel();
       MenuItemSelect* m_pItemsSelect[10];
       int m_MenuIndexCancel;

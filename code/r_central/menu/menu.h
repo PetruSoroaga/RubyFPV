@@ -52,6 +52,7 @@ void remove_menu_from_stack(Menu* pMenu);
 void replace_menu_on_stack(Menu* pMenuSrc, Menu* pMenuNew);
 
 void menu_stack_pop(int returnValue);
+void menu_stack_pop_no_delete(int returnValue);
 bool menu_is_menu_on_top(Menu* pMenu);
 bool menu_has_children(Menu* pMenu);
 bool menu_has_menu(int menuId);

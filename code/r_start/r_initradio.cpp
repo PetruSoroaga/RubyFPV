@@ -201,6 +201,8 @@ int r_initradio(int argc, char *argv[])
    log_init("RubyRadioInit");
    log_arguments(argc, argv);
 
+   hardware_detectBoardAndSystemType();
+
    char szOutput[1024];
    hw_execute_bash_command_raw("ls /sys/class/net/", szOutput);
    log_line("Network devices found: [%s]", szOutput);

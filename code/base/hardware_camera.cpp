@@ -117,7 +117,7 @@ void* _thread_hardware_camera_detect_on_raspbery(void *argument)
    log_line("[Hardware] Started thread to detect camera...");
    hw_execute_bash_command_raw("vcgencmd get_camera", s_szThreadToDetectCameraBuffer);
    hardware_sleep_ms(10);
-   log_line("[Hardware] Finished thread to detect camera.");
+   log_line("[Hardware] Finished thread to detect camera. Output: (%s)", s_szThreadToDetectCameraBuffer);
    s_bThreadToDetectCameraIsRunning = false;
    return NULL;
 }
@@ -150,7 +150,7 @@ u32 _hardware_detect_camera_type()
    s_uHardwareCameraType = CAMERA_TYPE_NONE;
    s_iHardwareCameraI2CBus = -1;
 
-   #ifdef HW_PLATFORM_RASPBERRY
+   #if defined (HW_PLATFORM_RASPBERRY)
    char szOutput[512];
    char szComm[256];
 
@@ -278,7 +278,7 @@ u32 _hardware_detect_camera_type()
    }
    #endif
 
-   #ifdef HW_PLATFORM_OPENIPC_CAMERA
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
 
    char szOutput[4096];
    memset(szOutput, 0, sizeof(szOutput)/sizeof(szOutput[0]));

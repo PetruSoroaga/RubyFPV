@@ -963,6 +963,8 @@ int main(int argc, char *argv[])
    log_line("Using Radxa custom wiringPi library.");
    #endif
 
+   hardware_detectBoardAndSystemType();
+   
    hardware_enumerate_i2c_busses();
 
    for( int i=0; i<MAX_I2C_DEVICES; i++ )

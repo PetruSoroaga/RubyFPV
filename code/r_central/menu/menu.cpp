@@ -304,6 +304,21 @@ void menu_stack_pop(int returnValue)
    g_pMenuStack[g_iMenuStackTopIndex] = NULL;
 }
 
+void menu_stack_pop_no_delete(int returnValue)
+{
+   if ( g_iMenuStackTopIndex <= 0 )
+      return;
+
+   log_line("[Menu] (loop %u): doing stack pop. %d menus in stack. Top menu id before pop: %d-%d, name: [%s]", s_uMenuLoopCounter%100, g_iMenuStackTopIndex, g_pMenuStack[g_iMenuStackTopIndex-1]->m_MenuId%1000, g_pMenuStack[g_iMenuStackTopIndex-1]->m_MenuId/1000, g_pMenuStack[g_iMenuStackTopIndex-1]->m_szTitle);
+   g_iMenuStackTopIndex--;
+
+   g_iMenuDisableStackingFlag[g_iMenuStackTopIndex] = g_pMenuStack[g_iMenuStackTopIndex]->m_bDisableStacking;
+   g_iMenuReturnValue[g_iMenuStackTopIndex] = returnValue;
+   g_pMenuStack[g_iMenuStackTopIndex]->setParent(NULL);
+   g_pMenuStack[g_iMenuStackTopIndex] = NULL;
+}
+
+
 void _menu_check_rotary_encoders_buttons( bool* pbSelect, bool* pbCancel, bool* pbRotatedCW, bool* pbRotatedCCW, bool* pbRotatedFastCW, bool* pbRotatedFastCCW, bool* pbSelect2, bool* pbCancel2, bool* pbRotatedCW2, bool* pbRotatedCCW2, bool* pbRotatedFastCW2, bool* pbRotatedFastCCW2)
 {
    ControllerSettings* pCS = get_ControllerSettings();

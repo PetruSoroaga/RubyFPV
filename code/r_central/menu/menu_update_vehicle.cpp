@@ -104,6 +104,7 @@ void MenuUpdateVehiclePopup::onSelectItem()
          pm->m_xPos = 0.4; pm->m_yPos = 0.4;
          pm->m_Width = 0.36;
          pm->m_bDisableStacking = true;
+         pm->disablePairingUIActions();
          pm->setTimeoutMs(6000);
          replace_menu_on_stack(this, pm);
       }

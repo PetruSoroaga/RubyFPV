@@ -54,7 +54,5 @@ u32 g_uTimeLastCommandSowftwareUpload = 0;
 u32 g_uTimeLastVideoTxOverload = 0;
 
 u32 g_uTimeToSaveVeyeCameraParams = 0;
-u32 g_uTimeStartNegociatingRadioLinks = 0;
-u32 g_uTimeLastNegociateRadioLinksCommand = 0;
 
 u32 g_uTimeRequestedReboot = 0;

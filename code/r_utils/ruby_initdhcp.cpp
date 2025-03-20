@@ -149,6 +149,8 @@ int main(int argc, char *argv[])
 
    log_line("Finished waiting. Checking DHCP...");
 
+   hardware_detectBoardAndSystemType();
+
    char szOutput[4096];
    hw_execute_bash_command_raw("ls /sys/class/net/", szOutput);
    log_line("Network devices found: [%s]", szOutput);

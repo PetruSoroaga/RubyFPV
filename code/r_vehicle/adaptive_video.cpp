@@ -44,6 +44,7 @@
 #include "video_source_majestic.h"
 #include "test_link_params.h"
 #include "packets_utils.h"
+#include "negociate_radio.h"
 
 u8 s_uLastVideoProfileRequestedByController = 0xFF;
 u32 s_uTimeLastVideoProfileRequestedByController = 0;
@@ -250,7 +251,7 @@ void adaptive_video_periodic_loop()
 {
    if ( g_TimeNow < s_uTimeLastTimeAdaptivePeriodicLoop + 10 )
       return;
-   if ( g_bNegociatingRadioLinks || test_link_is_in_progress() )
+   if ( negociate_radio_link_is_in_progress() || test_link_is_in_progress() )
       return;
    
    s_uTimeLastTimeAdaptivePeriodicLoop = g_TimeNow;

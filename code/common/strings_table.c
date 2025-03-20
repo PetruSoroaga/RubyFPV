@@ -34,56 +34,75 @@
 #include <ctype.h>
 #include "strings_table.h"
 
-static const char* s_szStringTableUnknown = "[Missing Text]";
+static const char* s_szLanguages[] = { "English", "Spanish", "French" };
 static const char* s_szStringTableEmptyText = "";
-static const char* s_szStringTableEN[] =
+static int s_iActiveLanguage = 0;
+static int s_iLocalizationInited = 0;
+
+typedef struct 
 {
-// 0
-"Firmware Instalation",
-"Your controller needs to be fully flashed with the latest version of Ruby.",
-"Your vehicle needs to be fully flashed with the latest version of Ruby. An OTA update is not sufficient.",
-"Instead of a regular OTA update, a full firmware instalation is required as there where changes in latest Ruby that require a complete update of the system.",
-"Computed based on current vehicle radio Tx power settings",
-// 5
-"Baseline",
-"Main",
-"Extended",
-"High",
-"High10",
-// 10
-"High422",
-"High444",
-"High10Intra",
-"High422Intra",
-"High444Intra",
-// 15
-"CAVL444Intra",
-"Constrained Baseline",
-"Constrained Main",
-"Constrained Extended",
-"Scalable Baseline",
-// 20
-"Scalable High",
-"Your vehicle will not function properly until you do a full firmware flash on it."
+   const char* szEnglish;
+   const char* szTranslated;
+   u32 uHash;
+} type_localize_string;
+
+type_localize_string s_ListFrenchTexts[] = 
+{
+  {"Yes", "Oui", 0},
+  {"No", "No", 0}
 };
 
-const char* getString(u32 uStringId)
+int getLanguagesCount()
 {
-   if ( uStringId >= sizeof(s_szStringTableEN)/sizeof(s_szStringTableEN[0]) )
-      return s_szStringTableUnknown;
+   return sizeof(s_szLanguages)/sizeof(s_szLanguages[0]);
+}
 
-   return s_szStringTableEN[uStringId];
+const char* getLanguageName(int iIndex)
+{
+   if ( (iIndex < 0) || (iIndex >= getLanguagesCount()) )
+      return s_szStringTableEmptyText;
+   return s_szLanguages[iIndex];
+}
+
+void setActiveLanguage(int iLanguage)
+{
+   s_iActiveLanguage = iLanguage;
+}
+
+u32 _loc_string_compute_hash(const char* szString)
+{
+   if ( (NULL == szString) || (0 == szString[0]) )
+      return MAX_U32;
+   return 0;
+}
+
+void initLocalizationData()
+{
+   s_iLocalizationInited = 1;
 }
 
 const char* L(const char* szString)
 {
+   if ( (s_iActiveLanguage == 0) || (!s_iLocalizationInited) )
+      return szString;
+
    if ( (NULL == szString) || (0 == szString[0] ) )
       return s_szStringTableEmptyText;
 
-   for( int i=0; i<sizeof(s_szStringTableEN)/sizeof(s_szStringTableEN[0]); i++ )
+   type_localize_string* pArray = NULL;
+
+   if ( s_iActiveLanguage == 1 )
+      pArray = s_ListFrenchTexts;
+
+   if ( NULL == pArray )
+      return szString;
+
+   /*
+   for( int i=0; i<sizeof(pArray); i++ )
    {
-      if ( 0 == strcmp(szString, s_szStringTableEN[i]) )
-         return s_szStringTableEN[i];
+      if ( 0 == strcmp(szString, pArray[i].szEnglish) )
+         return pArray[i].szTranslated;
    }
+   */
    return szString;
 }

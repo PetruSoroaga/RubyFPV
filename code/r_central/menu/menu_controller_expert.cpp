@@ -375,7 +375,7 @@ void MenuControllerExpert::addTopInfo()
 
    log_line("Menu Controller Expert: adding info...");
 
-   int board_type = hardware_getBoardType();
+   u32 board_type = hardware_getBoardType();
    const char* szBoard = str_get_hardware_board_name(board_type);
    ruby_signal_alive();
 

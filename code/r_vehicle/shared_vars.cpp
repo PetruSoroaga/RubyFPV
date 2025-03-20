@@ -51,7 +51,6 @@ bool g_bReceivedPairingRequest = false;
 bool g_bHasLinkToController = false;
 bool g_bHadEverLinkToController = false;
 bool g_bHasSentVehicleSettingsAtLeastOnce = false;
-bool g_bNegociatingRadioLinks = false;
 
 u32  g_uControllerId = 0;
 

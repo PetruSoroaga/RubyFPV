@@ -115,6 +115,7 @@
 #include "events.h"
 #include "menu_info_booster.h"
 #include "menu_confirmation_import.h"
+#include "menu_confirmation_sdcard_update.h"
 #include "process_router_messages.h"
 #include "quickactions.h"
 #include "oled/oled_render.h"
@@ -657,16 +658,7 @@ void* _thread_check_controller_cpu_state(void *argument)
    log_line("Started thread to check CPU state...");
    g_uControllerCPUFlags = hardware_get_flags();
    g_iControllerCPUSpeedMhz = hardware_get_cpu_speed();
-
-   int temp = 0;
-   FILE* fd = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
-   if ( NULL != fd )
-   {
-      fscanf(fd, "%d", &temp);
-      fclose(fd);
-      fd = NULL;
-   }
-   g_iControllerCPUTemp = temp/1000;
+   g_iControllerCPUTemp = hardware_get_cpu_temp();
    log_line("Finished thread to check CPU state.");
    return NULL;
 }
@@ -712,8 +704,19 @@ void compute_cpu_state()
    if ( g_TimeNow > s_TimeLastCPUComputeState + 10000 )
    {
       s_TimeLastCPUComputeState = g_TimeNow;
+
       pthread_t pth;
-      pthread_create(&pth, NULL, &_thread_check_controller_cpu_state, NULL);
+      pthread_attr_t attr;
+      struct sched_param params;
+
+      pthread_attr_init(&attr);
+      pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+      pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+      pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
+      params.sched_priority = 0;
+      pthread_attr_setschedparam(&attr, &params);
+      pthread_create(&pth, &attr, &_thread_check_controller_cpu_state, NULL);
+      pthread_attr_destroy(&attr);
    }
 }
 
@@ -794,10 +797,16 @@ int ruby_start_recording()
    sem_close(s); 
 
    Preferences* p = get_Preferences();
-   if ( p->iRecordingLedAction == 1 )
-      hardware_recording_led_set_on();
-   if ( p->iRecordingLedAction == 2 )
-      hardware_recording_led_set_blinking();
+   if ( (p->iRecordingLedAction == 2) || (hardware_is_running_on_runcam_vrx()) )
+   {
+      if ( hardware_is_running_on_runcam_vrx() )
+         hardware_led_red_set_blinking(MAX_U32);
+      else
+         hardware_led_green_set_blinking(MAX_U32);
+   }
+   else if ( p->iRecordingLedAction == 1 )
+      hardware_led_green_set_on();
+
    g_bVideoRecordingStarted = true;
    
    notification_add_recording_start();
@@ -831,7 +840,10 @@ int ruby_stop_recording()
    sem_close(s); 
    g_bVideoRecordingStarted = false;
 
-   hardware_recording_led_set_off();
+   if ( hardware_is_running_on_runcam_vrx() )
+      hardware_led_red_set_on();
+   else
+      hardware_led_green_set_off();
 
    notification_add_recording_end();
    g_bVideoProcessing = true;
@@ -1233,6 +1245,93 @@ void _on_start_completed()
    g_bPlayIntro = false;
 }
 
+bool ruby_central_has_sdcard_update(bool bDoUpdateToo)
+{
+   if ( ! hardware_is_running_on_runcam_vrx() )
+      return false;
+   char szOutput[2048];
+   hw_execute_bash_command_raw("lsblk -l | grep mmcblk1p3", szOutput);
+   removeTrailingNewLines(szOutput);
+   log_line("[SDCard] Output of lsblk: [%s]", szOutput);
+   if ( (strlen(szOutput) < 10) || (NULL == strstr(szOutput, "mmcblk1p3")) )
+      return false;
+
+   // Already mounted? It's native SD card boot
+   if ( NULL != strstr(szOutput, "/") )
+   {
+      log_line("[SDCard] SD card already mounted as main Ruby instalation.");
+      return false;
+   }
+
+   // Try mount and look for Ruby files
+   bool bHasRuby = false;
+   hw_execute_bash_command("mkdir -p /mnt/tmp-ruby", NULL);
+   hw_execute_bash_command("mount /dev/mmcblk1p3 /mnt/tmp-ruby", NULL);
+   if ( access("/mnt/tmp-ruby/home/radxa/ruby/ruby_start", R_OK) == -1 )
+   {
+      log_line("[SDCard] ruby_start not found on SD card mount point.");
+      bHasRuby = false;
+   }
+   else
+   {
+      log_line("[SDCard] ruby_start found on SD card mount point.");
+      bHasRuby = true;
+   }
+
+   if ( bHasRuby )
+   {
+      szOutput[0] = 0;
+      hw_execute_bash_command_raw("/mnt/tmp-ruby/home/radxa/ruby/ruby_start -ver 2>&1", szOutput);
+      log_line("[SDCard] Ruby version on the SD card: [%s]", szOutput);
+      for( int i=0; i<(int)strlen(szOutput); i++ )
+      {
+         if ( szOutput[i] == '.' )
+            szOutput[i] = ' ';
+      }
+      int iMajor = 0;
+      int iMinor = 0;
+      log_line("[SDCard] Ruby version on the SD card formated: [%s]", szOutput);
+      if ( 2 != sscanf(szOutput, "%d %d", &iMajor, &iMinor) )
+         bHasRuby = false;
+      if ( bHasRuby )
+      {
+         log_line("[SDCard] Ruby version on the SD card parsed: %d.%d", iMajor, iMinor);
+         log_line("[SDCard] Ruby version running now: %d.%d", SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR);
+         if ( iMinor < 10 )
+            iMinor *= 10;
+
+         if ( (iMajor < SYSTEM_SW_VERSION_MAJOR) ||
+              ((iMajor == SYSTEM_SW_VERSION_MAJOR) && (iMinor <= SYSTEM_SW_VERSION_MINOR)) )
+         {
+            log_line("[SDCard] SD card ruby binaries are older than current instalation.");
+            bHasRuby = false;
+         }
+      }
+   }
+
+   if ( bHasRuby )
+      log_line("[SDCard] Newer Ruby binaries found on SD card.");
+
+   if ( ! bDoUpdateToo )
+   {
+      log_line("[SDCard] No update asked for. Unmount.");
+      hw_execute_bash_command("umount /mnt/tmp-ruby", NULL);
+      hw_execute_bash_command("rm -rf /mnt/tmp-ruby", NULL);
+      return bHasRuby;
+   }
+
+   log_line("[SDCard] Updating Ruby binaries from SD card...");
+   hw_execute_bash_command("cp -rf /mnt/tmp-ruby/home/radxa/ruby/ruby_* /home/radxa/ruby/", NULL);
+   hw_execute_bash_command("cp -rf /mnt/tmp-ruby/home/radxa/ruby/res/* /home/radxa/ruby/res/", NULL);
+   hw_execute_bash_command("cp -rf /mnt/tmp-ruby/home/radxa/ruby/updates/* /home/radxa/ruby/updates/", NULL);
+   sync();
+   hardware_sleep_ms(500);
+   log_line("[SDCard] Done updating Ruby binaries from SD card.");
+   hw_execute_bash_command("umount /mnt/tmp-ruby", NULL);
+   hw_execute_bash_command("rm -rf /mnt/tmp-ruby", NULL);
+   return bHasRuby;
+}
+
 void start_loop()
 {
    hardware_sleep_ms(START_SEQ_DELAY);
@@ -1251,8 +1350,6 @@ void start_loop()
    }
    if ( s_StartSequence == START_SEQ_LOAD_CONFIG )
    {
-      if ( ! load_Preferences() )
-         save_Preferences();
       osd_apply_preferences();
 
       load_PluginsSettings();
@@ -1701,13 +1798,16 @@ void start_loop()
          add_menu_to_stack(s_pMenuConfirmHDMI);
       }
 
+      bool bHasSDCardUpdate = ruby_central_has_sdcard_update(false);
+
       int iMajor = 0;
       int iMinor = 0;
       get_Ruby_BaseVersion(&iMajor, &iMinor);
       if ( (iMajor < 10) || ((iMajor == 10) && (iMinor < 1)) )
+      if ( ! bHasSDCardUpdate )
       {
-         MenuConfirmation* pMC = new MenuConfirmation(getString(0), getString(1), 0, true);
-         pMC->addTopLine(getString(3));
+         MenuConfirmation* pMC = new MenuConfirmation(L("Firmware Instalation"), L("Your controller needs to be fully flashed with the latest version of Ruby."), 0, true);
+         pMC->addTopLine(L("Instead of a regular OTA update, a full firmware instalation is required as there where changes in latest Ruby that require a complete update of the system."));
          pMC->setIconId(g_idIconWarning);
          pMC->m_yPos = 0.3;
          add_menu_to_stack(pMC);
@@ -1727,6 +1827,14 @@ void start_loop()
       }
       ruby_resume_watchdog();
 
+      if ( ! g_bIsReinit )
+      if ( ! g_bIsHDMIConfirmation )
+      if ( bHasSDCardUpdate )
+      {
+         MenuConfirmationSDCardUpdate* pMC = new MenuConfirmationSDCardUpdate();
+         pMC->m_yPos = 0.3;
+         add_menu_to_stack(pMC);
+      }
       log_line("Finished executing start up sequence step: %d", s_StartSequence);
       return;
    }
@@ -2141,6 +2249,10 @@ int main(int argc, char *argv[])
 
    log_init("Central");
 
+   hardware_detectBoardAndSystemType();
+
+   initLocalizationData();
+
    check_licences();
    
    char szFile[MAX_FILE_PATH_SIZE];
@@ -2167,11 +2279,12 @@ int main(int argc, char *argv[])
 
    if ( ! load_Preferences() )
       save_Preferences();
+   Preferences* p = get_Preferences();
+   setActiveLanguage(p->iLanguage);
 
    if ( ! load_ControllerSettings() )
       save_ControllerSettings();
 
-   Preferences* p = get_Preferences();
    if ( p->nLogLevel != 0 )
       log_only_errors();
 
@@ -2201,30 +2314,26 @@ int main(int argc, char *argv[])
          g_bPlayIntro = false;
       else
       {
-         #ifdef HW_PLATFORM_RASPBERRY
-         char szComm[256];
-         strcpy(szFile, FOLDER_RUBY_TEMP);
-         strcat(szFile, FILE_TEMP_INTRO_PLAYING);
-         sprintf(szComm, "touch %s", szFile);
-         hw_execute_bash_command(szComm, NULL);
-         sprintf(szComm, "./%s res/intro.h264 15 -endexit&", VIDEO_PLAYER_OFFLINE);
-         hw_execute_bash_command_nonblock(szComm, NULL);
-         #endif
-         #ifdef HW_PLATFORM_RADXA
-         //for( int i=0; i<25; i++ )
-         //   hardware_sleep_ms(100);
-         //sprintf(szComm, "./%s -f res/intro.h264 20 -endexit&", VIDEO_PLAYER_OFFLINE);
-         //hw_execute_bash_command_nonblock(szComm, NULL);
-         #endif
+         strcpy(szFile, FOLDER_BINARIES);
+         strcat(szFile, "res/intro.h264");
+         if ( access(szFile, R_OK) == -1 )
+            g_bPlayIntro = false;
+         else
+         {
+            #ifdef HW_PLATFORM_RASPBERRY
+            char szComm[256];
+            strcpy(szFile, FOLDER_RUBY_TEMP);
+            strcat(szFile, FILE_TEMP_INTRO_PLAYING);
+            sprintf(szComm, "touch %s", szFile);
+            hw_execute_bash_command(szComm, NULL);
+            sprintf(szComm, "./%s res/intro.h264 15 -endexit&", VIDEO_PLAYER_OFFLINE);
+            hw_execute_bash_command_nonblock(szComm, NULL);
+            #endif
+         }
 
          hardware_enable_audio_output();
          hardware_set_audio_output_volume(pCS->iAudioOutputVolume);
-
-         //int iSample = 1 + (rand()%2);
-         //char szFileIntro[256];
-         //sprintf(szFileIntro, "res/intro%d.wav", iSample);
          hardware_audio_play_file_async("res/intro1.wav");
-
       }
    }
 

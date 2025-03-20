@@ -52,3 +52,5 @@ void ruby_set_active_model_id(u32 uVehicleId);
 
 void ruby_mark_reinit_hdmi_display();
 void ruby_reinit_hdmi_display();
+
+bool ruby_central_has_sdcard_update(bool bDoUpdateToo);

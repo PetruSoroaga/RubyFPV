@@ -777,15 +777,17 @@ int link_watch_loop_processes()
 
          static int s_iCheckUSBCount = 0;
          s_iCheckUSBCount++;
+         bool bUSBDisconnected = false;
 
          // To fix make faster or execute in bg
-         if ( (s_iCheckUSBCount % 4) == 0 )
+         if ( ((s_iCheckUSBCount % 4) == 0) || bNeedsRestart )
          {
             szOutput[0] = 0;
             hw_execute_bash_command_silent("dmesg | grep \"USB disconnect\"", szOutput);
             if ( NULL != strstr(szOutput, "USB disconnect") )
             {
                log_line("USB disconnect detected. Check radio iterfaces...");
+               bUSBDisconnected = true;
                int iCurrentRadioInterfacesCount = hardware_get_radio_interfaces_count();
                int iCurrentRadioInterfacesIEEECount = 0;
                for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
@@ -908,9 +910,13 @@ int link_watch_loop_processes()
             */
 
             if ( (iNewRadioInterfacesIEEECount != iCurrentRadioInterfacesIEEECount) ||
-                 (iNewRadioInterfacesCount != iCurrentRadioInterfacesCount) )
+                 (iNewRadioInterfacesCount != iCurrentRadioInterfacesCount) || bUSBDisconnected )
             {
-               log_error_and_alarm("Radio interfaces count has changed. One or more radio interfaces broke.");
+               if ( (iNewRadioInterfacesIEEECount != iCurrentRadioInterfacesIEEECount) ||
+                    (iNewRadioInterfacesCount != iCurrentRadioInterfacesCount) )
+                  log_error_and_alarm("Radio interfaces count has changed. One or more radio interfaces broke.");
+               else
+                  log_error_and_alarm("One or more radio interfaces disconnected.");
 
                link_watch_reset();
                popups_remove_all();

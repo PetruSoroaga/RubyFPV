@@ -53,9 +53,9 @@
 #include "video_source_majestic.h"
 #include "adaptive_video.h"
 #include "ruby_rt_vehicle.h"
+#include "negociate_radio.h"
 
 u32 s_uResendPairingConfirmationCounter = 0;
-u32 s_uTemporaryVideoBitrateBeforeNegociateRadio = 0;
 
 int _process_received_ping_messages(int iInterfaceIndex, u8* pPacketBuffer)
 {
@@ -329,81 +329,8 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
    
 
    if ( pPH->packet_type == PACKET_TYPE_NEGOCIATE_RADIO_LINKS )
-   {
-      u8 uCommand = pPacketBuffer[sizeof(t_packet_header) + sizeof(u8)];
-      u32 uParam1 = 0;
-      u32 uParam2 = 0;
-      int iParam1 = 0;
-      memcpy(&uParam1, pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u8), sizeof(u32));
-      memcpy(&uParam2, pPacketBuffer + sizeof(t_packet_header) + 2*sizeof(u8) + sizeof(u32), sizeof(u32));
-      memcpy(&iParam1, &uParam1, sizeof(int));
-      log_line("Received negociate radio link, command %d, datarate: %d, radio flags: %u (%s)", uCommand, iParam1, uParam2, str_get_radio_frame_flags_description2(uParam2));
-      g_uTimeLastNegociateRadioLinksCommand = g_TimeNow;
-      
-      if ( (uCommand == NEGOCIATE_RADIO_STEP_END) || (uCommand == NEGOCIATE_RADIO_STEP_CANCEL) )
-      {
-         if ( g_bNegociatingRadioLinks )
-            adaptive_video_set_bitrate(s_uTemporaryVideoBitrateBeforeNegociateRadio);
+      return negociate_radio_process_received_radio_link_messages(pPacketBuffer);
 
-         g_bNegociatingRadioLinks = false;
-         g_uTimeStartNegociatingRadioLinks = 0;
-         packet_utils_set_adaptive_video_datarate(0);
-         radio_remove_temporary_frames_flags();
-
-         if ( uCommand == NEGOCIATE_RADIO_STEP_END )
-         {
-            g_pCurrentModel->resetVideoLinkProfilesToDataRates(iParam1, iParam1);
-            g_pCurrentModel->radioLinksParams.link_radio_flags[0] = uParam2;
-            g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags |= MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS;
-            g_pCurrentModel->validate_radio_flags();
-            saveCurrentModel();
-            t_packet_header PH;
-            radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED, STREAM_ID_DATA);
-            PH.vehicle_id_src = PACKET_COMPONENT_RUBY | (MODEL_CHANGED_GENERIC<<8);
-            PH.total_length = sizeof(t_packet_header);
-
-            ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)&PH, PH.total_length);
-            ruby_ipc_channel_send_message(s_fIPCRouterToCommands, (u8*)&PH, PH.total_length);
-            if ( g_pCurrentModel->rc_params.rc_enabled )
-               ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)&PH, PH.total_length);
-                  
-            if ( NULL != g_pProcessStats )
-               g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
-            if ( NULL != g_pProcessStats )
-               g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
-         }
-      }
-      else
-      {
-         if ( ! g_bNegociatingRadioLinks )
-         {
-            g_uTimeStartNegociatingRadioLinks = g_TimeNow;
-            s_uTemporaryVideoBitrateBeforeNegociateRadio = adaptive_video_set_bitrate(DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE);
-         }
-         g_bNegociatingRadioLinks = true;
-      }
-
-      if ( uCommand == NEGOCIATE_RADIO_STEP_DATA_RATE )
-      {
-         log_line("Negociate radio link: Set datarate: %d, radio flags: %u (%s)", iParam1, uParam2, str_get_radio_frame_flags_description2(uParam2));
-         packet_utils_set_adaptive_video_datarate(iParam1);
-         radio_set_temporary_frames_flags(uParam2);
-      }
-      t_packet_header PH;
-      radio_packet_init(&PH, PACKET_COMPONENT_RUBY, PACKET_TYPE_NEGOCIATE_RADIO_LINKS, STREAM_ID_DATA);
-      PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
-      PH.vehicle_id_dest = g_uControllerId;
-      PH.total_length = sizeof(t_packet_header) + 2*sizeof(u8) + 2*sizeof(u32);
-
-      u8 packet[MAX_PACKET_TOTAL_SIZE];
-      memcpy(packet, (u8*)&PH, sizeof(t_packet_header));
-      packet[sizeof(t_packet_header)] = 1;
-      packet[sizeof(t_packet_header)+sizeof(u8)] = uCommand;
-      memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8), &uParam1, sizeof(u32));
-      memcpy(packet+sizeof(t_packet_header) + 2*sizeof(u8)+sizeof(u32), &uParam2, sizeof(u32));
-      packets_queue_add_packet(&g_QueueRadioPacketsOut, packet);
-      return 0;
-   }
    log_line("Received unprocessed Ruby message from controller, message type: %d", pPH->packet_type);
 
    return 0;

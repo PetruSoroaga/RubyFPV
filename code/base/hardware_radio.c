@@ -1426,7 +1426,16 @@ int _hardware_try_install_rtl8812au(char* szSrcDriver)
    if ( access(szDriverFullPath, R_OK) == -1 )
    {
       log_softerror_and_alarm("[HardwareRadio] Can't access driver file: [%s]", szDriverFullPath);
-      return 0;
+      if ( ! hardware_is_running_on_runcam_vrx() )
+         return 0;
+
+      strcpy(szDriverFullPath, "/home/88XXau_wfb.ko");
+      log_line("[HardwareRadio] Driver file to use: [%s]", szDriverFullPath);
+      if ( access(szDriverFullPath, R_OK) == -1 )
+      {
+         log_softerror_and_alarm("[HardwareRadio] Can't access driver file: [%s]", szDriverFullPath);
+         return 0;
+      }
    }
 
    char szComm[256];
@@ -1526,7 +1535,16 @@ int _hardware_try_install_rtl8812eu(char* szSrcDriver)
    if ( access(szDriverFullPath, R_OK) == -1 )
    {
       log_softerror_and_alarm("[HardwareRadio] Can't access driver file: [%s]", szDriverFullPath);
-      return 0;
+      if ( ! hardware_is_running_on_runcam_vrx() )
+         return 0;
+
+      strcpy(szDriverFullPath, "/home/8812eu_radxa.ko");
+      log_line("[HardwareRadio] Driver file to use: [%s]", szDriverFullPath);
+      if ( access(szDriverFullPath, R_OK) == -1 )
+      {
+         log_softerror_and_alarm("[HardwareRadio] Can't access driver file: [%s]", szDriverFullPath);
+         return 0;
+      }
    }
 
    char szComm[256];
@@ -1630,7 +1648,7 @@ void hardware_install_drivers(int iEchoToConsole)
    removeTrailingNewLines(szPlatform);
    log_line("Platform: [%s]", szPlatform);
 
-   log_line("[HardwareRadio] Installing drivers for platform: %s ...", szPlatform);
+   log_line("[HardwareRadio] Installing drivers for platform: %s, board: %s ...", szPlatform, str_get_hardware_board_name(hardware_getBoardType()));
    if ( iEchoToConsole )
    {
       printf("Ruby: Installing drivers for platform: %s ...\n", szPlatform);

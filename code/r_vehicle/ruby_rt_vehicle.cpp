@@ -100,6 +100,7 @@
 #include "video_source_csi.h"
 #include "video_source_majestic.h"
 #include "video_tx_buffers.h"
+#include "negociate_radio.h"
 
 #define MAX_RECV_UPLINK_HISTORY 12
 #define SEND_ALARM_MAX_COUNT 5
@@ -1210,6 +1211,8 @@ int main(int argc, char *argv[])
       test_majestic();
       return 0;
    }
+
+   hardware_detectBoardAndSystemType();
 
    g_uControllerId = vehicle_utils_getControllerId();
    load_VehicleSettings();

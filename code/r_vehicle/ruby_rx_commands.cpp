@@ -1113,7 +1113,7 @@ bool process_command(u8* pBuffer, int length)
          #endif
 
          strcat(szBuffer, "Detected board type: ");
-         strcat(szBuffer, str_get_hardware_board_name(hardware_getOnlyBoardType()));
+         strcat(szBuffer, str_get_hardware_board_name(hardware_getBoardType()));
          strcat(szBuffer, "#");
          strcat(szBuffer, "Stored board type: ");
          strcat(szBuffer, str_get_hardware_board_name(g_pCurrentModel->hwCapabilities.uBoardType));
@@ -3651,6 +3651,8 @@ int r_start_commands_rx(int argc, char* argv[])
    if ( s_fIPCToRouter < 0 )
       return -1;
  
+   hardware_detectBoardAndSystemType();
+
    g_uControllerId = vehicle_utils_getControllerId();
    load_VehicleSettings();
    hardware_reload_serial_ports_settings();

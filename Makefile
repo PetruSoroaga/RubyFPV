@@ -3,6 +3,10 @@
 _CFLAGS := $(CFLAGS) -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
 _CPPFLAGS := $(CPPLAGS) -Wall -Wno-stringop-truncation -Wno-format-truncation -O2 -fdata-sections -ffunction-sections
 
+FOLDER_BASE=code/base
+FOLDER_COMMON=code/common
+FOLDER_RADIO=code/radio
+FOLDER_UTILS=code/utils
 FOLDER_CENTRAL_RENDERER=code/renderer
 
 ifeq ($(RUBY_BUILD_ENV),openipc)
@@ -24,7 +28,7 @@ _LDFLAGS := $(LDFLAGS) -lrt -lpcap -lpthread -li2c -lgpiod -Wl,--gc-sections
 _CFLAGS := $(_CFLAGS) -DRUBY_BUILD_HW_PLATFORM_RADXA
 _CPPFLAGS := $(_CPPFLAGS) -DRUBY_BUILD_HW_PLATFORM_RADXA
 CENTRAL_RENDER_CODE := $(FOLDER_CENTRAL_RENDERER)/render_engine.o $(FOLDER_CENTRAL_RENDERER)/render_engine_cairo.o $(FOLDER_CENTRAL_RENDERER)/render_engine_ui.o $(FOLDER_CENTRAL_RENDERER)/drm_core.o
-
+MODULE_LOC := $(FOLDER_COMMON)/strings_table.o 
 else
 
 LDFLAGS_CENTRAL := -L/usr/lib/arm-linux-gnueabihf -lopenmaxil -lbcm_host -lvcos -lvchiq_arm -lpthread -lrt -lm
@@ -42,11 +46,6 @@ endif
 endif
 
 INCLUDE_CENTRAL := -Imenu -Iosd -I../menu -I../osd -Icode/r_central/menu -Icode/r_central/osd -I../openvg -I/opt/vc/include/ -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux -I/usr/include/freetype2
-
-FOLDER_BASE=code/base
-FOLDER_COMMON=code/common
-FOLDER_RADIO=code/radio
-FOLDER_UTILS=code/utils
 
 FOLDER_START=code/r_start
 FOLDER_RUTILS=code/r_utils
@@ -179,7 +178,7 @@ MODULE_BASE2 := $(FOLDER_BASE)/gpio.o $(FOLDER_BASE)/ctrl_settings.o $(FOLDER_UT
 MODULE_COMMON := $(FOLDER_COMMON)/string_utils.o $(FOLDER_COMMON)/relay_utils.o
 MODULE_MODELS := $(FOLDER_BASE)/models.o $(FOLDER_BASE)/models_list.o
 MODULE_RADIO := $(FOLDER_COMMON)/radio_stats.o $(FOLDER_RADIO)/fec.o $(FOLDER_RADIO)/radio_duplicate_det.o $(FOLDER_RADIO)/radio_rx.o $(FOLDER_RADIO)/radio_tx.o $(FOLDER_RADIO)/radiolink.o $(FOLDER_RADIO)/radiopackets_rc.o $(FOLDER_RADIO)/radiopackets_short.o $(FOLDER_RADIO)/radiopackets2.o $(FOLDER_RADIO)/radiopacketsqueue.o $(FOLDER_RADIO)/radiotap.o
-MODULE_VEHICLE := $(FOLDER_VEHICLE)/shared_vars.o $(FOLDER_VEHICLE)/timers.o $(FOLDER_VEHICLE)/adaptive_video.o $(FOLDER_VEHICLE)/generic_tx_ecbuffers.o $(FOLDER_UTILS)/utils_vehicle.o $(FOLDER_VEHICLE)/launchers_vehicle.o $(FOLDER_BASE)/vehicle_rt_info.o
+MODULE_VEHICLE := $(FOLDER_VEHICLE)/shared_vars.o $(FOLDER_VEHICLE)/timers.o $(FOLDER_VEHICLE)/adaptive_video.o $(FOLDER_VEHICLE)/negociate_radio.o $(FOLDER_VEHICLE)/generic_tx_ecbuffers.o $(FOLDER_UTILS)/utils_vehicle.o $(FOLDER_VEHICLE)/launchers_vehicle.o $(FOLDER_BASE)/vehicle_rt_info.o
 MODULE_STATION := $(FOLDER_STATION)/shared_vars.o $(FOLDER_STATION)/shared_vars_state.o $(FOLDER_STATION)/timers.o $(FOLDER_STATION)/adaptive_video.o
 
 
@@ -189,7 +188,7 @@ CENTRAL_MENU_ALL2 := $(FOLDER_CENTRAL_MENU)/menu_vehicle_relay.o $(FOLDER_CENTRA
 CENTRAL_MENU_ALL3 := $(FOLDER_CENTRAL_MENU)/menu_vehicle_management.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_import.o $(FOLDER_CENTRAL_MENU)/menu_switch_vehicle.o $(FOLDER_CENTRAL_MENU)/menu_controller_joystick.o $(FOLDER_CENTRAL_MENU)/menu_system_all_params.o $(FOLDER_CENTRAL_MENU)/menu_color_picker.o $(FOLDER_CENTRAL_MENU)/menu_controller_video.o $(FOLDER_CENTRAL_MENU)/menu_controller_telemetry.o $(FOLDER_CENTRAL_MENU)/menu_update_vehicle.o $(FOLDER_CENTRAL_MENU)/menu_device_i2c.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_osd_stats.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_audio.o $(FOLDER_CENTRAL_MENU)/menu_channels_select.o $(FOLDER_CENTRAL_MENU)/menu_system_dev_logs.o $(FOLDER_CENTRAL_MENU)/menu_item_vehicle.o $(FOLDER_CENTRAL_MENU)/menu_radio_config.o $(FOLDER_CENTRAL_MENU)/menu_preferences.o
 CENTRAL_MENU_ALL4 := $(FOLDER_CENTRAL_MENU)/menu_vehicle_data_link.o $(FOLDER_CENTRAL_MENU)/menu_controller_network.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_osd_plugins.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_instruments_general.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_osd_elements.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_osd_plugin.o $(FOLDER_CENTRAL_MENU)/menu_controller_plugins.o $(FOLDER_CENTRAL_MENU)/menu_controller_encryption.o $(FOLDER_CENTRAL_MENU)/menu_search_connect.o $(FOLDER_CENTRAL_MENU)/menu_system_hardware.o $(FOLDER_CENTRAL_MENU)/menu_confirmation_hdmi.o $(FOLDER_CENTRAL_MENU)/menu_controller_recording.o $(FOLDER_CENTRAL_MENU)/menu_system_video_profiles.o $(FOLDER_CENTRAL_MENU)/menu_info_booster.o $(FOLDER_CENTRAL_MENU)/menu_controller_radio_interface.o $(FOLDER_CENTRAL_MENU)/menu_negociate_radio.o $(FOLDER_CENTRAL_MENU)/menu_about.o
 CENTRAL_MENU_ALL5 := $(FOLDER_CENTRAL_MENU)/menu_system_dev_stats.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_link.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_interface.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_management_plugins.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_peripherals.o $(FOLDER_CENTRAL_MENU)/menu_confirmation_delete_logs.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_cpu_oipc.o $(FOLDER_CENTRAL_MENU)/menu_confirmation_vehicle_board.o
-CENTRAL_MENU_ALL6 := $(FOLDER_CENTRAL_MENU)/menu_controller_radio.o $(FOLDER_CENTRAL_MENU)/menu_confirmation_video_rate.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_simplesetup.o
+CENTRAL_MENU_ALL6 := $(FOLDER_CENTRAL_MENU)/menu_controller_radio.o $(FOLDER_CENTRAL_MENU)/menu_confirmation_video_rate.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_simplesetup.o $(FOLDER_CENTRAL_MENU)/menu_confirmation_sdcard_update.o
 CENTRAL_MENU_RC := $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_failsafe.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_channels.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_expo.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_camera.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_rc_input.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_functions.o
 CENTRAL_MENU_RADIO := $(FOLDER_CENTRAL_MENU)/menu_controller_radio_interface_sik.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_link_sik.o $(FOLDER_CENTRAL_MENU)/menu_diagnose_radio_link.o $(FOLDER_CENTRAL_MENU)/menu_vehicle_radio_link_elrs.o
 CENTRAL_POPUP_ALL := $(FOLDER_CENTRAL)/popup.o $(FOLDER_CENTRAL)/popup_log.o $(FOLDER_CENTRAL)/popup_commands.o $(FOLDER_CENTRAL)/popup_camera_params.o
@@ -216,7 +215,7 @@ ruby_central: $(FOLDER_CENTRAL)/ruby_central.o $(MODULE_BASE) $(MODULE_MODELS) $
 
 ruby_utils: ruby_logger ruby_initdhcp ruby_sik_config ruby_alive ruby_video_proc ruby_update ruby_update_worker
 
-ruby_start: $(FOLDER_START)/ruby_start.o $(FOLDER_START)/r_start_vehicle.o $(FOLDER_START)/r_test.o $(FOLDER_START)/r_initradio.o $(FOLDER_START)/first_boot.o \
+ruby_start: $(FOLDER_START)/ruby_start.o $(FOLDER_START)/r_start_vehicle.o $(MODULE_LOC) $(FOLDER_START)/r_test.o $(FOLDER_START)/r_initradio.o $(FOLDER_START)/first_boot.o \
 	$(FOLDER_VEHICLE)/ruby_rx_commands.o $(FOLDER_BASE)/parser_h264.o $(FOLDER_BASE)/hardware_audio.o $(FOLDER_BASE)/camera_utils.o $(FOLDER_VEHICLE)/video_source_csi.o $(FOLDER_VEHICLE)/ruby_rx_rc.o  $(FOLDER_VEHICLE)/process_upload.o $(FOLDER_BASE)/commands.o $(FOLDER_BASE)/vehicle_settings.o $(FOLDER_BASE)/hardware_radio_txpower.o $(FOLDER_RADIO)/radiopackets2.o $(FOLDER_BASE)/ctrl_preferences.o $(FOLDER_BASE)/ctrl_interfaces.o $(FOLDER_VEHICLE)/hw_config_check.o $(MODULE_MINIMUM_BASE) $(MODULE_MODELS) $(MODULE_MINIMUM_COMMON) $(FOLDER_BASE)/ruby_ipc.o $(FOLDER_BASE)/ctrl_settings.o $(FOLDER_UTILS)/utils_controller.o $(FOLDER_UTILS)/utils_vehicle.o $(FOLDER_BASE)/utils.o $(FOLDER_BASE)/shared_mem.o $(FOLDER_VEHICLE)/launchers_vehicle.o $(FOLDER_VEHICLE)/shared_vars.o $(FOLDER_VEHICLE)/timers.o $(FOLDER_UTILS)/utils_vehicle.o $(FOLDER_BASE)/encr.o \
 	$(FOLDER_BASE)/core_plugins_settings.o $(FOLDER_BASE)/hardware_camera.o $(FOLDER_BASE)/hardware_cam_maj.o $(FOLDER_BASE)/hardware_files.o $(FOLDER_BASE)/tx_powers.o $(FOLDER_BASE)/wiringPiI2C_radxa.o
 	$(CXX) $(_CFLAGS) -o $@ $^ $(_LDFLAGS) -ldl

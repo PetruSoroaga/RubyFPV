@@ -159,10 +159,9 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
    {
       addMenuItem(new MenuItemSection("General"));
 
-      m_pItemsSelect[18] = new MenuItemSelect("Language", "Change the user interface language.");  
-      m_pItemsSelect[18]->addSelection("English");
-      m_pItemsSelect[18]->addSelection("French", false);
-      m_pItemsSelect[18]->addSelection("Spanish", false);
+      m_pItemsSelect[18] = new MenuItemSelect("Language", "Change the user interface language.");
+      for( int i=0; i<getLanguagesCount(); i++ )
+         m_pItemsSelect[18]->addSelection(L(getLanguageName(i)));
       m_pItemsSelect[18]->setIsEditable();
       m_IndexLanguage = addMenuItem(m_pItemsSelect[18]);
     
@@ -262,7 +261,7 @@ void MenuPreferencesUI::valuesToUI()
    }
 
    if ( -1 != m_IndexLanguage )
-      m_pItemsSelect[18]->setSelectedIndex(0);
+      m_pItemsSelect[18]->setSelectedIndex(p->iLanguage);
 
 }
 

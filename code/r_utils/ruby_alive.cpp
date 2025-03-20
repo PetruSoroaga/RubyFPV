@@ -81,9 +81,9 @@ void power_leds(int onoff)
    }
 
    if ( onoff )
-      GPIOWrite(GPIOGetPinLedError(), HIGH);
+      GPIOWrite(GPIOGetPinLedRed(), HIGH);
    else
-      GPIOWrite(GPIOGetPinLedError(), LOW);
+      GPIOWrite(GPIOGetPinLedRed(), LOW);
    #endif
 }
 
@@ -113,8 +113,6 @@ int main(int argc, char *argv[])
    signal(SIGQUIT, handle_sigint);
 
    log_init("RubyAlive");
-
-   init_hardware_only_status_led();
 
    int counter = 0;
    int nLeds = 0;

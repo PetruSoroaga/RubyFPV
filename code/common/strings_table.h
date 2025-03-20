@@ -4,7 +4,11 @@
 extern "C" {
 #endif 
 
-const char* getString(u32 uStringId);
+void initLocalizationData();
+int getLanguagesCount();
+const char* getLanguageName(int iIndex);
+void setActiveLanguage(int iLanguage);
+
 const char* L(const char* szString);
 
 #ifdef __cplusplus

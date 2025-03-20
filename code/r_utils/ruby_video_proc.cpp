@@ -297,7 +297,7 @@ int main(int argc, char *argv[])
 
    log_init("RubyVideoProcessor");
 
-   //hardware_set_priority(2);
+   hardware_detectBoardAndSystemType();
 
    g_pCurrentModel = new Model();
    char szFile[MAX_FILE_PATH_SIZE];

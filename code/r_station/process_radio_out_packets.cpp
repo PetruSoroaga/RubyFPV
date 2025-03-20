@@ -90,8 +90,9 @@ void preprocess_radio_out_packet(u8* pPacketBuffer, int iPacketLength)
 
    if ( pPH->packet_type == PACKET_TYPE_NEGOCIATE_RADIO_LINKS )
    {
-      u8 uCommand = pPacketBuffer[sizeof(t_packet_header) + sizeof(u8)];
-      if ( (uCommand == NEGOCIATE_RADIO_STEP_END) || (uCommand == NEGOCIATE_RADIO_STEP_CANCEL) )
+      u8 uStep = pPacketBuffer[sizeof(t_packet_header) + sizeof(u8)];
+      log_line("[NegociateRadioLink] Sending packet to radio, step: %d", uStep);
+      if ( (uStep == NEGOCIATE_RADIO_STEP_END) || (uStep == NEGOCIATE_RADIO_STEP_CANCEL) )
       {
          g_bNegociatingRadioLinks = false;
          g_uTimeEndedNegiciateRadioLink = g_TimeNow;

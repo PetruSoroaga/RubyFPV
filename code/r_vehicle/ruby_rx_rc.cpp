@@ -144,6 +144,8 @@ int r_start_rx_rc(int argc, char *argv[])
    if ( s_fIPC_FromRouter < 0 )
       return -1;
 
+   hardware_detectBoardAndSystemType();
+
    g_uControllerId = vehicle_utils_getControllerId();
 
    char szFile[128];

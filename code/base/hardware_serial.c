@@ -82,14 +82,14 @@ void _hardware_enumerate_serial_ports()
 
    strcpy(s_HardwareSerialPortsInfo[0].szName, "Serial-0");
    strcpy(s_HardwareSerialPortsInfo[0].szPortDeviceName, "/dev/ttyAMA0");
-   if ( (hardware_getOnlyBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTAR_338Q )
+   if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTAR_338Q )
       strcpy(s_HardwareSerialPortsInfo[0].szPortDeviceName, "/dev/ttyS0");
    s_HardwareSerialPortsInfo[0].iSupported = 1;
    s_HardwareSerialPortsInfo[0].lPortSpeed = DEFAULT_FC_TELEMETRY_SERIAL_SPEED;
    s_HardwareSerialPortsInfo[0].iPortUsage = SERIAL_PORT_USAGE_NONE;
    s_iCountHardwareSerialPorts = 1;
 
-   //if ( (hardware_getOnlyBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTAR_338Q )
+   //if ( (hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTAR_338Q )
    {
       for( int i=1; i<5; i++ )
       {

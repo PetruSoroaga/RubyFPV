@@ -10,6 +10,9 @@ cmake -B build
 sudo cmake --build build --target install
 
 
+sudo apt-get -o "Acquire::https::Verify-Peer=false" install -y libgpiod-dev
+sudo apt -o "Acquire::https::Verify-Peer=false" install -y i2c-tools libi2c-dev linux-libc-dev 
+
 
 * drivers Pi3: 'make' -j4 KVER=5.10.103-v7+ KSRC=/lib/modules/5.10.103-v7+/build
 * drivers Pi4: 'make' -j4 KVER=5.10.103-v7l+ KSRC=/lib/modules/5.10.103-v7l+/build

@@ -121,7 +121,7 @@ void MenuControllerRadio::addItems()
    {
       int iCurrentMaxSetPowerMw = apply_controller_radio_tx_powers(g_pCurrentModel, pCS->iFixedTxPower, true);
       char szText[128];
-      sprintf(szText, "Current Tx Power: %d mW (%s)", iCurrentMaxSetPowerMw, getString(4));
+      sprintf(szText, "Current Tx Power: %d mW (%s)", iCurrentMaxSetPowerMw, L("Computed based on current vehicle radio Tx power settings"));
       addMenuItem(new MenuItemText(szText, true));
    }
 

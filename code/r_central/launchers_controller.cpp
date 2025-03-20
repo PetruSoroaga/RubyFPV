@@ -270,7 +270,6 @@ void controller_stop_i2c()
 
 bool _controller_wait_for_stop_process(const char* szProcName)
 {
-   char szComm[1024];
    char szPIDs[1024];
 
    if ( NULL == szProcName || 0 == szProcName[0] )

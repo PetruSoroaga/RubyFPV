@@ -595,6 +595,9 @@ int main(int argc, char *argv[])
    }
    
    log_init("RubyUpdateWorker");
+
+   hardware_detectBoardAndSystemType();
+
    hardware_sleep_ms(500);
 
    char szComm[MAX_FILE_PATH_SIZE];

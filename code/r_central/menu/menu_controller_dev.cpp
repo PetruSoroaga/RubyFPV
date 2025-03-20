@@ -155,7 +155,7 @@ void MenuControllerDev::addItems()
    m_IndexStreamerMode = addMenuItem(m_pItemsSelect[1]);
 
    m_IndexMPPBuffers = -1;
-   if ( hardware_board_is_radxa(hardware_getOnlyBoardType()) )
+   if ( hardware_board_is_radxa(hardware_getBoardType()) )
    {
       m_pItemsSlider[0] = new MenuItemSlider("Video Buffers Size", "Sets a relative size for the video buffers used by live video stream player.", 5,100,30, fSliderWidth);
       m_pItemsSlider[0]->setStep(1);

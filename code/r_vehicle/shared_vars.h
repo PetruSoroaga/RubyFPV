@@ -79,7 +79,6 @@ extern bool g_bReceivedPairingRequest;
 extern bool g_bHasLinkToController;
 extern bool g_bHadEverLinkToController;
 extern bool g_bHasSentVehicleSettingsAtLeastOnce;
-extern bool g_bNegociatingRadioLinks;
 
 extern u32 g_uControllerId;
 

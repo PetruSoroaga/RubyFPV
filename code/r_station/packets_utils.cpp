@@ -445,6 +445,8 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
    if ( (iVehicleRadioLinkId < 0) || (iVehicleRadioLinkId >= g_pCurrentModel->radioLinksParams.links_count) )
       return false;
    
+   t_packet_header* pPH = (t_packet_header*)pPacketData;
+
    u32 microT = get_current_timestamp_micros();
 
    int nRateTx = compute_packet_uplink_datarate(iVehicleRadioLinkId, iRadioInterfaceIndex, &(g_pCurrentModel->radioLinksParams), pPacketData);
@@ -452,6 +454,17 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
 
    u32 radioFlags = g_pCurrentModel->radioLinksParams.link_radio_flags[iVehicleRadioLinkId];
    radio_set_frames_flags(radioFlags);
+
+   int iHasTemporaryFramesFlags = radio_has_temporary_frames_flags();
+   u32 uTemporaryFramesFlags = radio_get_temporary_frames_flags();
+   int iDidSetTempFlags = 0;
+   if ( (pPH->packet_type == PACKET_TYPE_NEGOCIATE_RADIO_LINKS) ||
+        (pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_REQUEST) ||
+        (pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_CONFIRMATION) )
+   {
+      radio_set_temporary_frames_flags(radio_get_current_frames_flags_datarate() | RADIO_FLAGS_FRAME_TYPE_DATA);
+      iDidSetTempFlags = 1;
+   }
 
    if ( test_link_is_in_progress() )
       log_line("Test link in progress. Sending radio packet using datarate: %d", nRateTx);
@@ -469,10 +482,18 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
       be = 1;
 
    int totalLength = radio_build_new_raw_ieee_packet(iLocalRadioLinkId, s_RadioRawPacket, pPacketData, nPacketLength, RADIO_PORT_ROUTER_UPLINK, be);
+
+   if ( iDidSetTempFlags )
+   {
+      if ( iHasTemporaryFramesFlags )
+         radio_set_temporary_frames_flags(uTemporaryFramesFlags);
+      else
+         radio_remove_temporary_frames_flags();
+   }
+
    int iRepeatCount = 0;
    bool bShouldDuplicate = false;
 
-   t_packet_header* pPH = (t_packet_header*)pPacketData;
    if ( (pPH->packet_type == PACKET_TYPE_VIDEO_REQ_MULTIPLE_PACKETS) ||
         (pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE) ||
         (pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_TO_ADAPTIVE_VIDEO_LEVEL) )

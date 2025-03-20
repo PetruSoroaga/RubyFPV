@@ -577,7 +577,7 @@ bool Model::loadVersion10(FILE* fd)
    if ( video_params.iH264Slices < 1 || video_params.iH264Slices > 16 )
    {
       video_params.iH264Slices = DEFAULT_VIDEO_H264_SLICES;
-      if ( hardware_board_is_openipc(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_openipc(hardware_getBoardType()) )
          video_params.iH264Slices = DEFAULT_VIDEO_H264_SLICES_OIPC;
    }
    video_params.videoAdjustmentStrength = tmp2;
@@ -1540,7 +1540,7 @@ void Model::resetVideoParamsToDefaults()
 
    video_params.user_selected_video_link_profile = VIDEO_PROFILE_HIGH_QUALITY;
    video_params.iH264Slices = DEFAULT_VIDEO_H264_SLICES;
-   if ( hardware_board_is_openipc(hardware_getOnlyBoardType()) )
+   if ( hardware_board_is_openipc(hardware_getBoardType()) )
       video_params.iH264Slices = DEFAULT_VIDEO_H264_SLICES_OIPC;
    video_params.iRemovePPSVideoFrames = 0;
    video_params.iInsertPPSVideoFrames = 1;
@@ -1578,23 +1578,23 @@ void Model::resetVideoLinkProfiles(int iProfile)
       video_link_profiles[i].video_data_length = DEFAULT_VIDEO_DATA_LENGTH;
 
       video_link_profiles[i].fps = DEFAULT_VIDEO_FPS;
-      if ( hardware_board_is_openipc(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_openipc(hardware_getBoardType()) )
          video_link_profiles[i].fps = DEFAULT_VIDEO_FPS_OIPC;
-      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
          video_link_profiles[i].fps = DEFAULT_VIDEO_FPS_OIPC_SIGMASTAR;
         
       video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
-      if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_goke(hardware_getBoardType()) )
          video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
-      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
          video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_SIGMASTAR;
 
       video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
-      if ( (hardware_getOnlyBoardType() == BOARD_TYPE_PIZERO) ||
-           (hardware_getOnlyBoardType() == BOARD_TYPE_PIZEROW) ||
-           hardware_board_is_goke(hardware_getOnlyBoardType()) )
+      if ( ((hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO) ||
+           ((hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_PIZEROW) ||
+           hardware_board_is_goke(hardware_getBoardType()) )
          video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
-      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
          video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_OPIC_SIGMASTAR;
 
       if ( hardware_isCameraVeye() || hardware_isCameraHDMI() )
@@ -1617,9 +1617,9 @@ void Model::resetVideoLinkProfiles(int iProfile)
       video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK;
       video_link_profiles[VIDEO_PROFILE_BEST_PERF].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HP<<8);
       video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
-      if ( (hardware_getOnlyBoardType() == BOARD_TYPE_PIZERO) ||
-           (hardware_getOnlyBoardType() == BOARD_TYPE_PIZEROW) ||
-           hardware_board_is_goke(hardware_getOnlyBoardType()) )
+      if ( ((hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO) ||
+           ((hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_PIZEROW) ||
+           hardware_board_is_goke(hardware_getBoardType()) )
          video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
 
       video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
@@ -2993,7 +2993,7 @@ void Model::resetToDefaults(bool generateId)
 
    hwCapabilities.uBoardType = 0;
    if ( hardware_is_vehicle() )
-      hwCapabilities.uBoardType = hardware_getOnlyBoardType();
+      hwCapabilities.uBoardType = hardware_getBoardType();
    resetHWCapabilities();
 
    if ( generateId )
@@ -3065,7 +3065,7 @@ void Model::resetToDefaults(bool generateId)
       processesPriorities.iNiceRouter = DEFAULT_PRIORITY_PROCESS_ROUTER_OPIC;
    processesPriorities.ioNiceRouter = DEFAULT_IO_PRIORITY_ROUTER;
    processesPriorities.iNiceVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_TX;
-   if ( hardware_board_is_openipc(hardware_getOnlyBoardType()) )
+   if ( hardware_board_is_openipc(hardware_getBoardType()) )
       processesPriorities.iNiceVideo = 0;
    processesPriorities.iNiceOthers = DEFAULT_PRIORITY_PROCESS_OTHERS;
    processesPriorities.ioNiceVideo = DEFAULT_IO_PRIORITY_VIDEO_TX;
@@ -3136,7 +3136,7 @@ void Model::resetHWCapabilities()
    hwCapabilities.iMaxTxVideoBlockPackets = MAX_TOTAL_PACKETS_IN_BLOCK;
    hwCapabilities.uFlags = 0;
 
-   if ( hardware_board_is_goke( hardware_getOnlyBoardType() ) )
+   if ( hardware_board_is_goke( hardware_getBoardType() ) )
       hwCapabilities.uFlags &= ~MODEL_HW_CAP_FLAG_OTA;
    else
       hwCapabilities.uFlags |= MODEL_HW_CAP_FLAG_OTA;
@@ -3515,7 +3515,7 @@ void Model::resetCameraProfileToDefaults(camera_profile_parameters_t* pCamParams
    pCamParams->sharpness = 110;
    pCamParams->exposure = 3; // sports   2; //backlight
    pCamParams->shutterspeed = 0; // auto
-   if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+   if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
      pCamParams->shutterspeed = DEFAULT_OIPC_SHUTTERSPEED; //milisec
 
    pCamParams->whitebalance = 1; //auto
@@ -4351,7 +4351,7 @@ void Model::setDefaultVideoBitrate()
       video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
       video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
    }
-   if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+   if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
    {
       video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_OPIC_SIGMASTAR;
       video_link_profiles[VIDEO_PROFILE_USER].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_OPIC_SIGMASTAR;

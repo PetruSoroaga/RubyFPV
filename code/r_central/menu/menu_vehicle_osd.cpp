@@ -65,6 +65,7 @@ MenuVehicleOSD::MenuVehicleOSD(void)
    //m_IndexOSDReset = -1;
    addMenuItem(new MenuItemSection("OSD Layouts and Settings")); 
 
+   int iScreenIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
 
    m_pItemsSelect[0] = new MenuItemSelect("Screen", "Changes the active screen of the OSD elements and what information you see on this screen.");
    m_pItemsSelect[0]->addSelection("Screen 1");
@@ -88,7 +89,7 @@ MenuVehicleOSD::MenuVehicleOSD(void)
    m_pItemsSelect[7]->addSelection("Minimal");
    m_pItemsSelect[7]->addSelection("Compact");
    m_pItemsSelect[7]->addSelection("Default");
-   m_pItemsSelect[7]->addSelection("Custom");
+   m_pItemsSelect[7]->addSelection("Custom", (g_pCurrentModel->osd_params.osd_layout_preset[iScreenIndex] == OSD_PRESET_CUSTOM)?true:false);
    m_pItemsSelect[7]->setIsEditable();
    m_IndexOSDLayout = addMenuItem(m_pItemsSelect[7]);
 
@@ -178,6 +179,11 @@ void MenuVehicleOSD::valuesToUI()
    m_pItemsSelect[5]->setSelectedIndex((g_pCurrentModel->osd_params.osd_flags3[iScreenIndex] & OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS) ? 1:0);
    m_pItemsSelect[6]->setSelectedIndex((g_pCurrentModel->osd_params.osd_preferences[iScreenIndex] & OSD_PREFERENCES_BIT_FLAG_DONT_SHOW_FC_MESSAGES) ? 1:0);
    m_pItemsSelect[7]->setSelectedIndex(g_pCurrentModel->osd_params.osd_layout_preset[iScreenIndex]);
+   if ( g_pCurrentModel->osd_params.osd_layout_preset[iScreenIndex] == OSD_PRESET_CUSTOM )
+      m_pItemsSelect[7]->setSelectionIndexEnabled(4);
+   else
+      m_pItemsSelect[7]->setSelectionIndexDisabled(4);
+
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
    if ( -1 != m_IndexOSDShowMSPOSD )
    {

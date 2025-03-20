@@ -71,6 +71,7 @@ sem_t* s_pSemaphoreStartRecord = NULL;
 sem_t* s_pSemaphoreStopRecord = NULL; 
 bool s_bRecording = false;
 bool s_bRequestStopRecordingThread = false;
+u32 s_uRecordingLastStartStopTime = 0;
 
 pthread_t s_pThreadVideoRecording;
 int s_iPipeRecordingThreadWrite = 0;
@@ -353,6 +354,7 @@ void rx_video_recording_uninit()
 
 void rx_video_recording_start()
 {
+   s_uRecordingLastStartStopTime = g_TimeNow;
    if ( s_bRecording )
    {
       log_line("[VideoRecording] Received request to start recording but recording is already started. Ignore it.");
@@ -463,6 +465,7 @@ void rx_video_recording_start()
 
 void rx_video_recording_stop()
 {
+   s_uRecordingLastStartStopTime = g_TimeNow;
    if ( ! s_bRecording )
    {
       log_line("[VideoRecording] Received request to stop recording video but recording is not started. Ignore it.");
@@ -475,6 +478,11 @@ void rx_video_recording_stop()
 bool rx_video_is_recording()
 {
    return s_bRecording;
+}
+
+u32  rx_video_recording_get_last_start_stop_time()
+{
+   return s_uRecordingLastStartStopTime;
 }
 
 void rx_video_recording_on_new_data(u8* pData, int iLength)

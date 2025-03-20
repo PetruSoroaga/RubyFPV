@@ -1,5 +1,5 @@
-# Ruby: Digital FPV Radio System
-Ruby is a complete solution (hardware and software) for robust end to end digital radio links, designed specifically for controlling and managing UAVs/drones/planes/cars and other remote vehicles
+# RubyFPV: Open Source Digital FPV Radio System
+Ruby is a full open source solution (hardware and software) for robust end to end digital radio links, designed specifically for controlling and managing UAVs/drones/planes/cars and other remote vehicles
 
 Read more about Ruby, including how to setup, install and use your Ruby systems, here: https://rubyfpv.com/
 
@@ -21,7 +21,7 @@ The radio links can be encrypted end to end so that only authorized components c
 Note: Encryption is temporarly disabled due to...[reasons]
 
 
-<B>Live video, telemetry, remote control, auxiliary & custom data streams:</B>
+<B>Live video, audio, telemetry, remote control, auxiliary & custom data streams:</B>
 
 By default Ruby supports all the required data capabilities for UAVs (video, telemetry, control and user defined data streams).
 
@@ -36,9 +36,9 @@ You can read more about it and get the Ruby FPV system for free here: https://ru
 
 # Licences
 
-Check LICENCE files
+RubyFPV is open source, check LICENCE files for complete details.
 
-Also, check the licences folder for additional licences terms.
+Also, check the licences folder for additional licences terms related to the hardware components.
 
 # Building the code
 

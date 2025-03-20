@@ -100,6 +100,33 @@ void update_openipc_cpu(Model* pModel)
       pModel->processesPriorities.iFreqARM = DEFAULT_FREQ_OPENIPC_SIGMASTAR;
 }
 
+
+void do_update_to_108()
+{
+   log_line("Doing update to 10.8");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_ControllerSettings();
+      ControllerSettings* pCS = get_ControllerSettings();
+      pCS->iNiceRXVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_RX;
+      save_ControllerSettings();
+      load_Preferences();
+      Preferences* pP = get_Preferences();
+      pP->nLogLevel = 1;
+      save_Preferences();
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   pModel->processesPriorities.iNiceVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_TX;
+   
+   log_line("Updated model VID %u (%s) to v10.8", pModel->uVehicleId, pModel->getLongName());
+}
+
+
 void do_update_to_107()
 {
    log_line("Doing update to 10.7");
@@ -162,7 +189,7 @@ void do_update_to_106()
    pModel->uDeveloperFlags |= DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS;
    pModel->resetOSDStatsFlags();
 
-   if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+   if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
    {
       for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
          pModel->video_link_profiles[i].fps = DEFAULT_VIDEO_FPS_OIPC;
@@ -262,11 +289,11 @@ void do_update_to_104()
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
       pModel->video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE;
-      if ( (hardware_getOnlyBoardType() == BOARD_TYPE_PIZERO) ||
-           (hardware_getOnlyBoardType() == BOARD_TYPE_PIZEROW) ||
-           hardware_board_is_goke(hardware_getOnlyBoardType()) )
+      if ( ((hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_PIZERO) ||
+           ((hardware_getBoardType() & BOARD_TYPE_MASK) == BOARD_TYPE_PIZEROW) ||
+           hardware_board_is_goke(hardware_getBoardType()) )
          pModel->video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
-      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
          pModel->video_link_profiles[i].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_OPIC_SIGMASTAR;
    }
 
@@ -359,7 +386,7 @@ void do_update_to_103()
 
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
    update_openipc_cpu(pModel);
-   if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+   if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
    {
       pModel->processesPriorities.iFreqARM = DEFAULT_FREQ_OPENIPC_SIGMASTAR;
       pModel->processesPriorities.iFreqGPU = 0;
@@ -372,7 +399,7 @@ void do_update_to_103()
    pModel->rxtx_sync_type = RXTX_SYNC_TYPE_BASIC;
   
    pModel->video_params.iH264Slices = DEFAULT_VIDEO_H264_SLICES;
-   if ( hardware_board_is_openipc(hardware_getOnlyBoardType()) )
+   if ( hardware_board_is_openipc(hardware_getBoardType()) )
       pModel->video_params.iH264Slices = DEFAULT_VIDEO_H264_SLICES_OIPC;
 
    pModel->enc_flags = MODEL_ENC_FLAGS_NONE;
@@ -435,7 +462,7 @@ void do_update_to_102()
          for( int k=0; k<MODEL_CAMERA_PROFILES-1; k++ )
          {
             pModel->camera_params[i].profiles[k].shutterspeed = 0; // auto
-            if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+            if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
                pModel->camera_params[i].profiles[k].shutterspeed = 8; //milisec
          }
       }   
@@ -447,9 +474,9 @@ void do_update_to_102()
          pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
 
       pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
-      if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_goke(hardware_getBoardType()) )
          pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
-      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
          pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_SIGMASTAR;
    }
 
@@ -497,7 +524,7 @@ void do_update_to_101()
    }
    pModel->video_params.iH264Slices = DEFAULT_VIDEO_H264_SLICES_OIPC;
 
-   if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+   if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
       pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_OPIC_SIGMASTAR;
    
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
@@ -513,9 +540,9 @@ void do_update_to_101()
          pModel->video_link_profiles[i].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
 
       pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
-      if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_goke(hardware_getBoardType()) )
          pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
-      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
          pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_SIGMASTAR;
 
       pModel->video_link_profiles[i].h264profile = 2; // high
@@ -646,7 +673,7 @@ void do_update_to_98()
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
       pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME;
-      if ( hardware_board_is_goke(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_goke(hardware_getBoardType()) )
          pModel->video_link_profiles[i].keyframe_ms = DEFAULT_VIDEO_KEYFRAME_OIPC_GOKE;
 
       pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
@@ -827,7 +854,7 @@ void do_update_to_95()
       pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH;
 
       #if defined (HW_PLATFORM_OPENIPC_CAMERA)
-      if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+      if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
       {
          if ( pModel->video_link_profiles[i].fps < DEFAULT_VIDEO_FPS_OIPC )
             pModel->video_link_profiles[i].fps = DEFAULT_VIDEO_FPS_OIPC;
@@ -954,7 +981,7 @@ void do_update_to_91()
          for( int k=0; k<MODEL_CAMERA_PROFILES-1; k++ )
          {
             pModel->camera_params[i].profiles[k].shutterspeed = 0; // auto
-            if ( hardware_board_is_sigmastar(hardware_getOnlyBoardType()) )
+            if ( hardware_board_is_sigmastar(hardware_getBoardType()) )
                pModel->camera_params[i].profiles[k].shutterspeed = 10; //milisec
          }
       }   
@@ -1108,6 +1135,8 @@ int main(int argc, char *argv[])
 
    log_init("RubyUpdate");
 
+   hardware_detectBoardAndSystemType();
+
    if ( argc >= 3 )
    {
       iMajor = atoi(argv[1]);
@@ -1134,7 +1163,6 @@ int main(int argc, char *argv[])
       return 0;
    }
 
-   init_hardware_only_status_led();
    getSystemType();
 
    u32 uCurrentVersion = 0;
@@ -1252,6 +1280,8 @@ int main(int argc, char *argv[])
       do_update_to_106();
    if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 7) )
       do_update_to_107();
+   if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 8) )
+      do_update_to_108();
 
 
    saveCurrentModel();

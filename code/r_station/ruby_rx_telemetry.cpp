@@ -839,6 +839,9 @@ int main(int argc, char *argv[])
    }
    
    log_init("RX_Telemetry");
+
+   hardware_detectBoardAndSystemType();
+
    //log_add_file("logs/log_rx_telemetry.log");
 
    if ( strcmp(argv[argc-1], "-debug") == 0 )

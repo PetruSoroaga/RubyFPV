@@ -57,6 +57,7 @@
 #include "launchers_vehicle.h"
 #include "video_source_csi.h"
 #include "adaptive_video.h"
+#include "negociate_radio.h"
 
 extern u32 s_uTemporaryVideoBitrateBeforeNegociateRadio;
 
@@ -930,15 +931,7 @@ int periodicLoop()
    process_camera_periodic_loop();
 
    _periodic_update_radio_stats();
-   
-
-   if ( g_bNegociatingRadioLinks )
-   if ( (g_TimeNow > g_uTimeStartNegociatingRadioLinks + 60*2*1000) || (g_TimeNow > g_uTimeLastNegociateRadioLinksCommand + 8000) )
-   {
-      adaptive_video_set_bitrate(s_uTemporaryVideoBitrateBeforeNegociateRadio);
-      g_uTimeStartNegociatingRadioLinks = 0;
-      g_bNegociatingRadioLinks = false;
-   }
+   negociate_radio_periodic_loop();
 
    //_periodic_loop_check_ping();
 

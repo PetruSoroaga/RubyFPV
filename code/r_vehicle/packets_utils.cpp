@@ -43,6 +43,7 @@
 #include "timers.h"
 #include "processor_tx_video.h"
 #include "test_link_params.h"
+#include "negociate_radio.h"
 
 #include "../radio/radiopackets2.h"
 #include "../radio/radiolink.h"
@@ -365,6 +366,17 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
    u32 radioFlags = g_pCurrentModel->radioInterfacesParams.interface_current_radio_flags[iRadioInterfaceIndex];
    radio_set_frames_flags(radioFlags);
 
+   int iHasTemporaryFramesFlags = radio_has_temporary_frames_flags();
+   u32 uTemporaryFramesFlags = radio_get_temporary_frames_flags();
+   int iDidSetTempFlags = 0;
+   if ( (pPH->packet_type == PACKET_TYPE_NEGOCIATE_RADIO_LINKS) ||
+        (pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_REQUEST) ||
+        (pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_CONFIRMATION) )
+   {
+      radio_set_temporary_frames_flags(radio_get_current_frames_flags_datarate() | RADIO_FLAGS_FRAME_TYPE_DATA);
+      iDidSetTempFlags = 1;
+   }
+
    int be = 0;
    if ( g_pCurrentModel->enc_flags != MODEL_ENC_FLAGS_NONE )
    if ( hpp() )
@@ -397,8 +409,15 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
   */ 
 
    int totalLength = radio_build_new_raw_ieee_packet(iLocalRadioLinkId, s_RadioRawPacket, pPacketData, nPacketLength, RADIO_PORT_ROUTER_DOWNLINK, be);
-
    u32 microT1 = get_current_timestamp_micros();
+
+   if ( iDidSetTempFlags )
+   {
+      if ( iHasTemporaryFramesFlags )
+         radio_set_temporary_frames_flags(uTemporaryFramesFlags);
+      else
+         radio_remove_temporary_frames_flags();
+   }
 
    int iRepeatCount = 0;
    if ( (pPH->packet_type == PACKET_TYPE_VIDEO_SWITCH_VIDEO_KEYFRAME_TO_VALUE_ACK) ||
@@ -821,6 +840,17 @@ void send_alarm_to_controller(u32 uAlarm, u32 uFlags1, u32 uFlags2, u32 uRepeatC
    alarms_to_string(uAlarm, uFlags1, uFlags2, szBuff);
 
    s_uAlarmsIndex++;
+
+   if ( test_link_is_in_progress() )
+   {
+      log_line("Skip sending alarm to controller (test link in progress): %s, alarm index: %u, repeat count: %u", szBuff, s_uAlarmsIndex, uRepeatCount);
+      return;
+   }
+   if ( negociate_radio_link_is_in_progress() )
+   {
+      log_line("Skip sending alarm to controller (negociate radio in progress): %s, alarm index: %u, repeat count: %u", szBuff, s_uAlarmsIndex, uRepeatCount);
+      return;
+   }
    log_line("Sending alarm to controller: %s, alarm index: %u, repeat count: %u", szBuff, s_uAlarmsIndex, uRepeatCount);
 
    _send_alarm_packet_to_radio_queue(s_uAlarmsIndex, uAlarm, uFlags1, uFlags2, uRepeatCount);
@@ -852,6 +882,17 @@ void send_alarm_to_controller_now(u32 uAlarm, u32 uFlags1, u32 uFlags2, u32 uRep
    alarms_to_string(uAlarm, uFlags1, uFlags2, szBuff);
 
    s_uAlarmsIndex++;
+
+   if ( test_link_is_in_progress() )
+   {
+      log_line("Skip sending alarm to controller (test link in progress): %s, alarm index: %u, repeat count: %u", szBuff, s_uAlarmsIndex, uRepeatCount);
+      return;
+   }
+   if ( negociate_radio_link_is_in_progress() )
+   {
+      log_line("Skip sending alarm to controller (negociate radio in progress): %s, alarm index: %u, repeat count: %u", szBuff, s_uAlarmsIndex, uRepeatCount);
+      return;
+   }
    log_line("Sending alarm to controller: %s, alarm index: %u, repeat count: %u", szBuff, s_uAlarmsIndex, uRepeatCount);
 
    for( u32 u=0; u<uRepeatCount; u++ )
@@ -895,6 +936,7 @@ void send_pending_alarms_to_controller()
          return;
    }
 
-   _send_alarm_packet_to_radio_queue(s_AlarmsQueue[0].uIndex, s_AlarmsQueue[0].uId, s_AlarmsQueue[0].uFlags1, s_AlarmsQueue[0].uFlags2, s_AlarmsQueue[0].uRepeatCount );
+   if ( (! test_link_is_in_progress()) && (! negociate_radio_link_is_in_progress()) )
+      _send_alarm_packet_to_radio_queue(s_AlarmsQueue[0].uIndex, s_AlarmsQueue[0].uId, s_AlarmsQueue[0].uFlags1, s_AlarmsQueue[0].uFlags2, s_AlarmsQueue[0].uRepeatCount );
    s_AlarmsQueue[0].uRepeatCount--;
 }

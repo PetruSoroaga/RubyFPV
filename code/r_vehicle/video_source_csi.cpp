@@ -91,7 +91,7 @@ static void * _thread_watchdog_video_capture(void *ignored_argument)
    {
       for( int i=0; i<100; i++)
       {
-         hardware_sleep_ms(20);
+         hardware_sleep_ms(40);
          if ( g_bQuit || s_bStopThreadWatchDogVideoCapture )
          {
             s_bStopThreadWatchDogVideoCapture = false;
@@ -409,13 +409,25 @@ void video_source_csi_start_program()
 
    s_bStopThreadWatchDogVideoCapture = false;
    s_bHasThreadWatchDogVideoCapture = false;
-   if ( 0 != pthread_create(&s_pThreadWatchDogVideoCapture, NULL, &_thread_watchdog_video_capture, NULL) )
+
+   pthread_attr_t attr;
+   struct sched_param params;
+
+   pthread_attr_init(&attr);
+   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+   pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
+   pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
+   params.sched_priority = 0;
+   pthread_attr_setschedparam(&attr, &params);
+   
+   if ( 0 != pthread_create(&s_pThreadWatchDogVideoCapture, &attr, &_thread_watchdog_video_capture, NULL) )
       log_softerror_and_alarm("[VideoSourceCSI] Failed to create thread for watchdog.");
    else
    {
       s_bHasThreadWatchDogVideoCapture = true;
       log_line("[VideoSourceCSI] Created thread for watchdog.");
    }
+   pthread_attr_destroy(&attr);
    adaptive_video_on_capture_restarted();
    s_uRaspiVidStartTimeMs = g_TimeNow;
    s_bDidSentRaspividBitrateRefresh = false;

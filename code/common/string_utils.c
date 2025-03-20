@@ -186,6 +186,40 @@ char* str_format_time(u32 miliseconds)
    return s_szFormatTime[s_iFormatTimeIndex];
 }
 
+char* str_format_binary_number(u32 uNumber)
+{
+   static char s_szFormatBinaryNumber[64];
+   s_szFormatBinaryNumber[0] = 0;
+   char* p = s_szFormatBinaryNumber;
+   for( int k=0; k<4; k++ )
+   {
+      if ( k != 0 )
+      {
+         *p = ' ';
+         p++;
+         *p = 0;
+      }
+      if ( uNumber & 0xFF000000 )
+      {
+         strcpy(p, "0b");
+         for( int i=0; i<8; i++ )
+         {
+            *p = (uNumber & (0x01<<31))?'1':'0';
+            p++;
+            *p = 0;
+            uNumber = (uNumber<<1);
+         }
+      }
+      else
+      {
+         strcpy(p, "0x00");
+         p += 4;
+         uNumber = (uNumber << 8);
+      }
+   }
+   *p = 0;
+   return s_szFormatBinaryNumber;
+}
 
 char* str_get_pipe_flags(int iFlags)
 {
@@ -1241,62 +1275,62 @@ char* str_get_decode_h264_profile_name(u8 uH264Profile, u8 uH264ProfileConstrain
    if ( uH264Profile == 0x42 ) //Baseline
    {
       if ( uH264ProfileConstrains & 0b01000000 )
-         strcpy(s_szH264DecodedProfileName, getString(16));
+         strcpy(s_szH264DecodedProfileName, "Constrained Baseline");
       else
-         strcpy(s_szH264DecodedProfileName, getString(5));
+         strcpy(s_szH264DecodedProfileName, "Baseline");
    }
    if ( uH264Profile == 0x4D ) // Main
    {
       if ( uH264ProfileConstrains & 0b10000000 )
-         strcpy(s_szH264DecodedProfileName, getString(17));
+         strcpy(s_szH264DecodedProfileName, "Constrained Main");
       else
-         strcpy(s_szH264DecodedProfileName, getString(6));
+         strcpy(s_szH264DecodedProfileName, "Main");
    }
    if ( uH264Profile == 0x53 ) // Scalable baseline
    {
-      strcpy(s_szH264DecodedProfileName, getString(19));
+      strcpy(s_szH264DecodedProfileName, "Scalable Baseline");
    }
    if ( uH264Profile == 0x56 ) // Scalable high
    {
-      strcpy(s_szH264DecodedProfileName, getString(20));
+      strcpy(s_szH264DecodedProfileName, "Scalable High");
    }
 
    if ( uH264Profile == 0x58 ) // Extended
    {
       if ( uH264ProfileConstrains & 0b11000000 )
-         strcpy(s_szH264DecodedProfileName, getString(18));
+         strcpy(s_szH264DecodedProfileName, "Constrained Extended");
       else
-         strcpy(s_szH264DecodedProfileName, getString(7));
+         strcpy(s_szH264DecodedProfileName, "Extended");
    }
    if ( uH264Profile == 0x64 ) // High
    {
-      strcpy(s_szH264DecodedProfileName, getString(8));
+      strcpy(s_szH264DecodedProfileName, "High");
    }
    if ( uH264Profile == 0x6E ) // High10
    {
       if ( uH264ProfileConstrains & 0b00010000 )
-         strcpy(s_szH264DecodedProfileName, getString(12));
+         strcpy(s_szH264DecodedProfileName, "High10Intra");
       else
-         strcpy(s_szH264DecodedProfileName, getString(9));
+         strcpy(s_szH264DecodedProfileName, "High10");
    }
    if ( uH264Profile == 0x7A ) // High422
    {
       if ( uH264ProfileConstrains & 0b00010000 )
-         strcpy(s_szH264DecodedProfileName, getString(13));
+         strcpy(s_szH264DecodedProfileName, "High422Intra");
       else
-         strcpy(s_szH264DecodedProfileName, getString(10));
+         strcpy(s_szH264DecodedProfileName, "High422");
    }
    if ( uH264Profile == 0xF4 ) // High444
    {
       if ( uH264ProfileConstrains & 0b00010000 )
-         strcpy(s_szH264DecodedProfileName, getString(13));
+         strcpy(s_szH264DecodedProfileName, "High444Intra");
       else
-         strcpy(s_szH264DecodedProfileName, getString(11));
+         strcpy(s_szH264DecodedProfileName, "High444");
    }
    
    if ( uH264Profile == 0x2C )
    {
-      strcpy(s_szH264DecodedProfileName, getString(15));
+      strcpy(s_szH264DecodedProfileName, "CAVL444Intra");
    }
 
    return s_szH264DecodedProfileName;

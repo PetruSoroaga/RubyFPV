@@ -406,6 +406,7 @@ int r_start_vehicle(int argc, char *argv[])
    char szFile[128];
    check_licences();
 
+   hardware_detectBoardAndSystemType();
    hardware_enumerate_radio_interfaces();
    int retry = 0;
    while ( 0 == hardware_get_radio_interfaces_count() && retry < 30 )

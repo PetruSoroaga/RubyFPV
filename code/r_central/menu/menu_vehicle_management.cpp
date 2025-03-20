@@ -146,10 +146,10 @@ void MenuVehicleManagement::onReturnFromChild(int iChildMenuId, int returnValue)
    // Upload software
    if ( (1 == returnValue) && ( (2 == iChildMenuId/1000) || (4 == iChildMenuId/1000)) )
    {
-      onEventPairingDiscardAllUIActions();
-
       if ( uploadSoftware() )
       {
+         onEventPairingDiscardAllUIActions();
+         
          char szComm[256];
          char szOutput[4096];
          memset(szOutput, 0, 4096);
@@ -165,6 +165,7 @@ void MenuVehicleManagement::onReturnFromChild(int iChildMenuId, int returnValue)
          pm->m_xPos = 0.4; pm->m_yPos = 0.4;
          pm->m_Width = 0.36;
          pm->m_bDisableStacking = true;
+         pm->disablePairingUIActions();
          pm->setTimeoutMs(6000);
 
          if ( 0 < strlen(szOutput) )
