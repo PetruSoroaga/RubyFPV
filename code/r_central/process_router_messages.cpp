@@ -197,7 +197,8 @@ int send_packet_to_router(u8* pPacket, int nLength)
       log_softerror_and_alarm("[Router COMM] No IPC to router to send message to.");
       return 0; 
    }
-   hardware_led_green_set_blinking_fast(1000);
+   if ( hardware_is_running_on_runcam_vrx() )
+      hardware_led_green_set_blinking_fast(1000);
    int iRes = ruby_ipc_channel_send_message(s_fIPCToRouter, pPacket, nLength);
    if ( iRes != nLength )
       log_softerror_and_alarm("[Router COM] Failed to send message to router (msg size: %d bytes), error: %d", nLength, iRes);
