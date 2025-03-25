@@ -103,7 +103,6 @@ void _do_player_mode()
    ControllerSettings* pCS = get_ControllerSettings();
 
    ruby_drm_core_wait_for_display_connected(); 
-   
    if ( hdmi_enum_modes() < 0 )
    {
       log_error_and_alarm("Failed to enumerate HDMI modes. Exit player.");
@@ -159,6 +158,7 @@ void _do_player_mode()
    }
 
    log_line("Opened input video file (%s), has %d FPS", g_szPlayFileName, g_iFileFPS);
+   mpp_enable_vsync(pCS->iHDMIVSync?true:false);
    mpp_start_decoding_thread();
 
 
@@ -351,6 +351,7 @@ void _do_stream_mode_pipe()
    }
 
    log_line("Opened input video stream fifo (%s)", FIFO_RUBY_STATION_VIDEO_STREAM_DISPLAY);
+   mpp_enable_vsync(pCS->iHDMIVSync?true:false);
    mpp_start_decoding_thread();
 
    u32 uTimeLastCheck = get_current_timestamp_ms();
@@ -601,6 +602,7 @@ void _do_stream_mode_sm()
    close(fdSMem); 
    log_line("Mapped shared mem: %s", SM_STREAMER_NAME);
 
+   mpp_enable_vsync(pCS->iHDMIVSync?true:false);
    mpp_start_decoding_thread();
 
    u32 uTimeLastCheck = get_current_timestamp_ms();
@@ -795,6 +797,7 @@ void _do_stream_mode_udp()
    }
 
    log_line("Opened input video stream udp socket on port %d", DEFAULT_LOCAL_VIDEO_PLAYER_UDP_PORT);
+   mpp_enable_vsync(pCS->iHDMIVSync?true:false);
    mpp_start_decoding_thread();
 
    u32 uTimeLastCheck = get_current_timestamp_ms();

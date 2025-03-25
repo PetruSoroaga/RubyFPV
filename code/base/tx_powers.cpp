@@ -87,7 +87,7 @@ static int s_iTxInfoA6100[] =
 static int s_iTxInfoAWUS036ACS[] =
    { 1,   1,   2,    3,   10,   25,   35,   50,   60,   90,  110,    0,    0};
 static int s_iTxInfoArcherT2UP[] =
-   { 1,   2,   7,   25,   65,  100,  135,  150,  170,  190,    0,    0,    0}; // measured 05.feb.2025, ruby 10.3, 5800mhz, 18mb, legacy rates
+   { 1,   2,   7,   25,   65,  100,  135,  150,  170,  190,    0,    0,    0}; // measured 05.feb.2025, ruby 10.3, 5800mhz, 18mb legacy rates
 static int s_iTxInfoArcherRTL8812AU_AF1[] =
    { 1,   2,   5,   15,   40,   70,   95,  110,  130,  150,    0,    0,    0}; // measured 16.jan.2025
 
@@ -95,6 +95,10 @@ static int s_iTxInfoArcherRTL8812AU_AF1[] =
 //------------------------------------------------------------------------
 static int s_iTxInfoRTL8812EU[] =
    { 6,   7,  15,   45,  110,  160,  230,  270,  320,  380,  430,  500,  550}; // measured 08.dec.2024, ruby 10.1
+
+static int s_iTxInfoRTL8812EURunCamV2[] =
+   {9,    9,  12,   15,   40,   65,  100,  120,  150,  200,  230,  300,  320}; // measured 21.mar.2025, ruby 10.8, 5700mhz, 18mb legacy rates, power/freq factor: 5805/5700: 72/130
+//   {8,    8,  10,   15,   45,   50,   70,   90,  120,  150,  180,  250,  270}; // measured 21.mar.2025, ruby 10.8, 5805mhz, 18mb legacy rates, power/freq factor: 5805/5700: 72/130
 
 static int s_iTxInfoRTL8733BU[] =
    { 1,   1,   1,    4,    8,    12,  20,   22,   30,   60,    0,    0,    0}; // measured 20.jan.2025, ruby 10.3
@@ -125,6 +129,14 @@ const int* _tx_powers_get_mw_table_for_card(u32 uBoardType, int iCardModel)
    if ( ((uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT) == BOARD_SUBTYPE_OPENIPC_AIO_EMAX_MINI )
    {
       piMwPowers = s_iTxInfoArcherRTL8812AU_AF1;
+      return piMwPowers;
+   }
+
+   if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_OPENIPC_SIGMASTAR_338Q )
+   if ( ((uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT) == BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM_V2 )
+   if ( iCardModel == CARD_MODEL_BLUE_8812EU )
+   {
+      piMwPowers = s_iTxInfoRTL8812EURunCamV2;
       return piMwPowers;
    }
 

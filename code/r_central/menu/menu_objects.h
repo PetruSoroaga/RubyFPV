@@ -3,7 +3,7 @@
 #include "menu_item_select.h"
 #include "../../base/base.h"
 #include "../../base/models.h"
-#include "../../common/strings_table.h"
+#include "../../common/strings_loc.h"
 
 #include "../handle_commands.h"
 

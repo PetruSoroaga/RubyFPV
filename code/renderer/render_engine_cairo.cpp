@@ -50,6 +50,9 @@
 #include <sys/mman.h>
 #include <time.h> 
 
+static int s_iLastCairoFontFamilyId = -1;
+static bool s_bLastCairoFontStyleBold = false;
+   
 RenderEngineCairo::RenderEngineCairo()
 :RenderEngine()
 {
@@ -84,7 +87,7 @@ RenderEngineCairo::RenderEngineCairo()
       log_line("RendererCairo: Created main and back cairo surfaces for render buffer ids %u and %u", m_uRenderDrawSurfacesIds[0], m_uRenderDrawSurfacesIds[1]);
 
    m_pCairoCtx = NULL;
-   
+   m_pCairoTempCtx = NULL;
    m_fStrokeSize = 1.0;
    
    m_iCountImages = 0;
@@ -118,6 +121,15 @@ void* RenderEngineCairo::getDrawContext()
 
 void RenderEngineCairo::startFrame()
 {
+
+   if ( NULL != m_pCairoTempCtx )
+      cairo_destroy(m_pCairoTempCtx);
+   m_pCairoTempCtx = NULL;
+
+   RenderEngine::startFrame();
+   s_iLastCairoFontFamilyId = -1;
+   s_bLastCairoFontStyleBold = false;
+   
    type_drm_buffer* pOutputBufferInfo = ruby_drm_core_get_back_draw_buffer();
    
    memset(pOutputBufferInfo->pData, m_uClearBufferByte, pOutputBufferInfo->uSize);
@@ -136,14 +148,20 @@ void RenderEngineCairo::startFrame()
 
    if ( NULL == m_pCairoCtx )
       return;
-
-   cairo_select_font_face(m_pCairoCtx, "Roboto", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
- 
 }
 
 void RenderEngineCairo::endFrame()
 {
+   if ( NULL != m_pCairoCtx )
+      cairo_destroy(m_pCairoCtx);
+   m_pCairoCtx = NULL; 
+
+   if ( NULL != m_pCairoTempCtx )
+      cairo_destroy(m_pCairoTempCtx);
+   m_pCairoTempCtx = NULL;
+
    ruby_drm_swap_mainback_buffers();
+   RenderEngine::endFrame();
 }
 
 
@@ -164,6 +182,34 @@ void RenderEngineCairo::setStrokeSize(float fStrokeSize)
       cairo_set_line_width(m_pCairoCtx, m_fStrokeSize*(m_fPixelWidth+m_fPixelHeight)*0.6);
    else
       cairo_set_line_width(m_pCairoCtx, m_fStrokeSize);
+}
+
+cairo_t* RenderEngineCairo::_createTempDrawContext()
+{
+   if ( NULL != m_pCairoTempCtx )
+      return m_pCairoTempCtx;
+
+   s_iLastCairoFontFamilyId = -1;
+   s_bLastCairoFontStyleBold = false;
+
+   type_drm_buffer* pOutputBufferInfo = ruby_drm_core_get_back_draw_buffer();
+   
+   if ( pOutputBufferInfo->uBufferId == m_uRenderDrawSurfacesIds[0] )
+   if ( NULL != m_pMainCairoSurface[0] )
+      m_pCairoTempCtx = cairo_create(m_pMainCairoSurface[0]);
+
+   if ( pOutputBufferInfo->uBufferId == m_uRenderDrawSurfacesIds[1] )
+   if ( NULL != m_pMainCairoSurface[1] )
+      m_pCairoTempCtx = cairo_create(m_pMainCairoSurface[1]);
+
+   return m_pCairoTempCtx;
+}
+
+cairo_t* RenderEngineCairo::_getActiveCairoContext()
+{
+   if ( NULL != m_pCairoCtx )
+      return m_pCairoCtx;
+   return m_pCairoTempCtx;
 }
 
 void* RenderEngineCairo::_loadRawFontImageObject(const char* szFileName)
@@ -1309,6 +1355,160 @@ void RenderEngineCairo::drawArc(float x, float y, float r, float a1, float a2)
 {
 }
 
+void RenderEngineCairo::_updateCurrentFontToUse(RenderEngineRawFont* pFont, bool bForce)
+{
+   if ( NULL == pFont )
+      return;
+   cairo_t* pCairoCtx = _getActiveCairoContext();
+   if ( NULL == pCairoCtx )
+       pCairoCtx = _createTempDrawContext();
+
+   if ( bForce || (s_iLastCairoFontFamilyId != pFont->iFamilyId) || (s_bLastCairoFontStyleBold != pFont->bBold) )
+   {
+      s_iLastCairoFontFamilyId = pFont->iFamilyId;
+      s_bLastCairoFontStyleBold = pFont->bBold;
+
+      cairo_font_weight_t iStyle = CAIRO_FONT_WEIGHT_NORMAL;
+      if ( s_bLastCairoFontStyleBold )
+         iStyle = CAIRO_FONT_WEIGHT_BOLD;
+
+      if ( s_iLastCairoFontFamilyId == 0 )
+         cairo_select_font_face(pCairoCtx, "Noto Sans SC", CAIRO_FONT_SLANT_NORMAL, iStyle);
+      else if ( s_iLastCairoFontFamilyId == 1 )
+         cairo_select_font_face(pCairoCtx, "DejaVu Sans", CAIRO_FONT_SLANT_NORMAL, iStyle);
+      else
+         cairo_select_font_face(pCairoCtx, "Nimbus", CAIRO_FONT_SLANT_NORMAL, iStyle);
+   }
+
+   //cairo_select_font_face(pCairoCtx, "Roboto", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+   //cairo_select_font_face(pCairoCtx, "Nimbus", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+   //cairo_select_font_face(pCairoCtx, "DejaVu Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+   // For OSD: cairo_select_font_face(pCairoCtx, "DejaVu Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+   //cairo_select_font_face(pCairoCtx, "Noto Sans SC", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+}
+
+float RenderEngineCairo::textRawWidthScaled(u32 fontId, float fScale, const char* szText)
+{
+   RenderEngineRawFont* pFont = _getRawFontFromId(fontId);
+   if ( NULL == pFont )
+      return 0.0;
+
+   cairo_t* pCairoCtx = _getActiveCairoContext();
+   if ( NULL == pCairoCtx )
+       pCairoCtx = _createTempDrawContext();
+   cairo_move_to(pCairoCtx, 0,0);
+   _updateCurrentFontToUse(pFont, true);
+   cairo_set_font_size(pCairoCtx, pFont->lineHeight*0.8*fScale);
+
+   char szTxt[256];
+   memset(szTxt, 0, sizeof(szTxt));
+   strncpy(szTxt, szText, sizeof(szTxt)-2);
+   
+   char* szParse = szTxt;
+   char* szWord = NULL;
+   int iCountWords = 0;
+   float space_width = _get_raw_space_width(pFont);
+   float fWidth = 0.0;
+
+   while ( *szParse )
+   {
+      szWord = szParse;
+      while ( *szParse )
+      {
+         if ( ((*szParse) == ' ') || ((*szParse) == '\n') )
+         {
+            *szParse = 0;
+            szParse++;
+            break;
+         }
+         szParse++;
+      }
+      if ( NULL == szWord )
+         break;
+      if ( 0 == szWord[0] )
+         continue;
+      iCountWords++;
+      cairo_text_extents_t cte;
+      cte.width = 0;
+      cte.x_advance = 0;
+      cairo_text_extents(pCairoCtx, szWord, &cte);
+      fWidth += cte.width * m_fPixelWidth;
+      if ( iCountWords > 1 )
+         fWidth += space_width;
+   }
+
+   return fWidth;
+   //cairo_text_extents_t cte;
+   //cairo_text_extents(pCairoCtx, szText, &cte);
+   //float fWidth = cte.x_advance;
+
+   /*
+   cairo_scaled_font_t * pSFont = cairo_get_scaled_font(pCairoCtx);
+   
+   cairo_glyph_t* glyphs = NULL;
+   int glyph_count = 0;
+   cairo_text_cluster_t* clusters = NULL;
+   int cluster_count = 0;
+   cairo_text_cluster_flags_t clusterflags;
+
+   cairo_status_t stat = cairo_scaled_font_text_to_glyphs(pSFont, 0, 0, szText, strlen(szText), &glyphs, &glyph_count, &clusters, &cluster_count, &clusterflags);
+   float fWidthGlyphs = 0.0;
+
+   if ( stat == CAIRO_STATUS_SUCCESS )
+   {
+      //log_line("DBG glyph: %d glyphs, %d clusters", glyph_count, cluster_count);
+      int glyph_index = 0;
+      int byte_index = 0;
+      for (int i = 0; i < cluster_count; i++)
+      {
+        cairo_text_cluster_t* cluster = &clusters[i];
+        cairo_glyph_t* clusterglyphs = &glyphs[glyph_index];
+
+        // get extents for the glyphs in the cluster
+        cairo_text_extents_t extents;
+        cairo_scaled_font_glyph_extents(pSFont, clusterglyphs, cluster->num_glyphs, &extents);
+        // ... for later use
+        //log_line("DBG glyph: cluster %d: %d glyphs, %d bytes, width: %f, adv: %f", i,cluster->num_glyphs, cluster->num_bytes, extents.width, extents.x_advance);
+        // glyph/byte position
+        fWidthGlyphs += extents.x_advance;
+        glyph_index += cluster->num_glyphs;
+        byte_index += cluster->num_bytes;
+     }
+   }
+   */
+}
+
+
+float RenderEngineCairo::_get_raw_char_width(RenderEngineRawFont* pFont, int ch)
+{
+   cairo_t* pCairoCtx = _getActiveCairoContext();
+   if ( NULL == pCairoCtx )
+       pCairoCtx = _createTempDrawContext();
+
+   //return RenderEngine::_get_raw_char_width(pFont, ch);
+   
+   char szText[8];
+   szText[0] = ch;
+   szText[1] = 0;
+
+   cairo_move_to(pCairoCtx, 0,0);
+   _updateCurrentFontToUse(pFont, true);
+   cairo_set_font_size(pCairoCtx, pFont->lineHeight*0.8);
+
+   cairo_text_extents_t cte;
+   cairo_text_extents(pCairoCtx, szText, &cte);
+   float fWidth = cte.width;
+
+   if ( fWidth <= m_fPixelWidth )
+   {
+      char szTmp[2];
+      szTmp[0] = 'W';
+      szTmp[1] =0;
+      cairo_text_extents(pCairoCtx, szTmp, &cte);
+      fWidth = cte.width;
+   }
+   return fWidth * m_fPixelWidth;
+}
 
 void RenderEngineCairo::_drawSimpleText(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos)
 {
@@ -1330,11 +1530,6 @@ void RenderEngineCairo::_drawSimpleTextScaled(RenderEngineRawFont* pFont, const 
    if ( m_bDrawBackgroundBoundingBoxes )
       _drawSimpleTextBoundingBox(pFont, szText, xPos, yPos, 1.0);
 
-
-   cairo_set_font_size (m_pCairoCtx, pFont->lineHeight*0.8);
-   cairo_text_extents_t cte;
-   cairo_text_extents(m_pCairoCtx, szText, &cte);
-
    float fColor[4];
    if ( m_bDrawBackgroundBoundingBoxes && m_bDrawBackgroundBoundingBoxesTextUsesSameStrokeColor )
    {
@@ -1352,39 +1547,12 @@ void RenderEngineCairo::_drawSimpleTextScaled(RenderEngineRawFont* pFont, const 
    }
    if ( (fColor[3] < 0.1) || (fColor[3] >= 1.0) )
       fColor[3] = 1.0;
+
    cairo_set_source_rgba(m_pCairoCtx, fColor[0], fColor[1], fColor[2], fColor[3]);
-   cairo_move_to (m_pCairoCtx, xPos * m_iRenderWidth, yPos * m_iRenderHeight + pFont->baseLine);
-   cairo_show_text (m_pCairoCtx, szText);
-   
-   return;
-
-   while ( *szText )
-   {
-      float fWidthCh = _get_raw_char_width(pFont, *szText);
-      if ( (fWidthCh < 0.0001) || ( (*szText) < pFont->charIdFirst || (*szText) > pFont->charIdLast ) )
-      {
-         szText++;
-         continue;
-      }
-      if ( xPos < 0 )
-      {
-         xPos += fWidthCh * fScale;
-         szText++;
-         continue;
-      }
-      if ( xPos + fWidthCh * fScale >= 1.0 )
-         break;
-
-      int xImg = pFont->chars[(*szText)-pFont->charIdFirst].imgXOffset;
-      int yImg = pFont->chars[(*szText)-pFont->charIdFirst].imgYOffset;
-      int wImg = pFont->chars[(*szText)-pFont->charIdFirst].width;
-      int hImg = pFont->chars[(*szText)-pFont->charIdFirst].height;
-      
-      //fbg_imageDrawAlpha(m_pFBG, (struct _fbg_img*) pFont->pImageObject, xPos * m_iRenderWidth, yPos * m_iRenderHeight, wImg*fScale, hImg*fScale, xImg, yImg, wImg, hImg);
-      _bltFontChar(xPos * m_iRenderWidth, yPos * m_iRenderHeight, xImg, yImg, wImg, hImg, pFont);
-      xPos += fWidthCh * fScale;
-      szText++;
-   }
+   cairo_move_to(m_pCairoCtx, xPos * m_iRenderWidth, yPos * m_iRenderHeight + pFont->baseLine);
+   _updateCurrentFontToUse(pFont, false);
+   cairo_set_font_size(m_pCairoCtx, pFont->lineHeight*0.8);
+   cairo_show_text(m_pCairoCtx, szText);
 }
 
 void RenderEngineCairo::_bltFontChar(int iDestX, int iDestY, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, RenderEngineRawFont* pFont)

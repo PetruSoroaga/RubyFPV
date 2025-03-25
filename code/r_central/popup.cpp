@@ -784,6 +784,8 @@ void Popup::computeSize()
 
    if ( m_fMaxWidth > 0.8 )
       m_fMaxWidth = 0.8;
+   if ( m_fMaxWidth < 0.1 )
+      m_fMaxWidth = 0.1;
 
    // Compute width
 
@@ -794,8 +796,9 @@ void Popup::computeSize()
    else
    {
       if ( 0 != m_szTitle[0] )
+      {
          fMaxTextWidth = g_pRenderEngine->textWidth(m_idFont, m_szTitle);
-         
+      }  
       for (int i = 0; i<m_LinesCount; i++)
       {
          float fTextWidth = g_pRenderEngine->textWidth(m_idFont, (const char*)(m_szLines[i]));
@@ -849,8 +852,8 @@ void Popup::computeSize()
    }
    m_RenderYPos -= m_fBottomMargin;
 
-
-   m_bInvalidated = false;
+   if ( g_pRenderEngine->isFrameStarted() )
+      m_bInvalidated = false;
 }
 
 void Popup::Render()
@@ -922,7 +925,6 @@ void Popup::Render()
 
    if ( (0 != m_idIcon) || (0 != m_idIcon2) )
       xTextStart += height_text*0.4;
-
    
    g_pRenderEngine->setColors(get_Color_PopupText());
    

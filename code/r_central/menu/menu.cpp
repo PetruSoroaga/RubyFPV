@@ -245,6 +245,16 @@ void remove_menu_from_stack(Menu* pMenu)
 
    if ( k < 0 )
       return;
+   bool bIsTopMenu = false;
+   if ( k == g_iMenuStackTopIndex-1 )
+      bIsTopMenu = true;
+
+   if ( bIsTopMenu )
+   {
+      menu_stack_pop_no_delete(0);
+      return;
+   }
+
    while ( k < g_iMenuStackTopIndex-1 )
    {
       g_pMenuStack[k] = g_pMenuStack[k+1];
@@ -255,9 +265,15 @@ void remove_menu_from_stack(Menu* pMenu)
    }
    g_iMenuStackTopIndex--;
    g_pMenuStack[g_iMenuStackTopIndex] = NULL;
-   g_iMenuIds[g_iMenuStackTopIndex] = -1;
    g_iMenuReturnValue[g_iMenuStackTopIndex] = -1;
-   g_iMenuDisableStackingFlag[g_iMenuStackTopIndex] = 0;
+   if ( bIsTopMenu )
+   {
+      g_iMenuIds[g_iMenuStackTopIndex+1] = 0;
+      g_iMenuReturnValue[g_iMenuStackTopIndex] = 0;
+      g_iMenuDisableStackingFlag[g_iMenuStackTopIndex] = g_pMenuStack[g_iMenuStackTopIndex]->m_bDisableStacking;
+   }
+   else
+      g_iMenuDisableStackingFlag[g_iMenuStackTopIndex] = 0;
    delete pMenu;
 }
 
@@ -937,20 +953,20 @@ bool menu_check_current_model_ok_for_edit()
 {
    if ( NULL == g_pCurrentModel )
    {
-      Menu* pm = new Menu(0,"Info",NULL);
+      Menu* pm = new Menu(0,L("Info"), NULL);
       pm->m_xPos = 0.24; pm->m_yPos = 0.2;
       pm->m_Width = 0.3;
-      pm->addTopLine("You have no vehicles. Search and connect to a vehicle first.");
+      pm->addTopLine(L("You have no vehicles. Search and connect to a vehicle first."));
       add_menu_to_stack(pm);
       return false;
    }
       
    if ( g_pCurrentModel->is_spectator )
    {
-         Menu* pm = new Menu(0,"Info",NULL);
+         Menu* pm = new Menu(0,L("Info"), NULL);
          pm->m_xPos = 0.24; pm->m_yPos = 0.2;
          pm->m_Width = 0.3;
-         pm->addTopLine("You are currently paired with a vehicle in spectator mode. You can not change any vehicle settings while in spectator mode.");
+         pm->addTopLine(L("You are currently paired with a vehicle in spectator mode. You can not change any vehicle settings while in spectator mode."));
          add_menu_to_stack(pm);
          return false;
    }

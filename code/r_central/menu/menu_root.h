@@ -12,6 +12,7 @@ class MenuRoot: public Menu
       virtual void onSelectItem();
 
    private:
+      void addItems();
       void RenderVehicleInfo();
       void createHWInfo(Menu* pm);
 

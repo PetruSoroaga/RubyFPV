@@ -110,10 +110,16 @@ void do_update_to_108()
       load_ControllerSettings();
       ControllerSettings* pCS = get_ControllerSettings();
       pCS->iNiceRXVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_RX;
+      pCS->iHDMIVSync = 1;
       save_ControllerSettings();
       load_Preferences();
       Preferences* pP = get_Preferences();
       pP->nLogLevel = 1;
+      pP->iLanguage = 1;
+      #if defined (HW_PLATFORM_RADXA)
+      pP->iOSDFont = 1;
+      pP->iOSDFontBold = 1;
+      #endif
       save_Preferences();
    }
 
@@ -123,6 +129,13 @@ void do_update_to_108()
 
    pModel->processesPriorities.iNiceVideo = DEFAULT_PRIORITY_PROCESS_VIDEO_TX;
    
+   u32 uBoardSubType = (pModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT;
+   if ( (uBoardSubType != 0) && (uBoardSubType < 10) )
+      uBoardSubType *= 10;
+   if ( uBoardSubType > 255 )
+      uBoardSubType = 255;
+   pModel->hwCapabilities.uBoardType &= ~(BOARD_SUBTYPE_MASK);
+   pModel->hwCapabilities.uBoardType |= (uBoardSubType << BOARD_SUBTYPE_SHIFT);
    log_line("Updated model VID %u (%s) to v10.8", pModel->uVehicleId, pModel->getLongName());
 }
 

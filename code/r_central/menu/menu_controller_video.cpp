@@ -45,7 +45,10 @@
 
 #include "../process_router_messages.h"
 #include "../pairing.h"
-
+#if defined (HW_PLATFORM_RADXA)
+#include "../../renderer/drm_core.h"
+#include "../../renderer/render_engine_cairo.h"
+#endif
 #include <time.h>
 #include <sys/resource.h>
 #include <pthread.h>
@@ -121,6 +124,7 @@ MenuControllerVideo::MenuControllerVideo(void)
 
    m_IndexHDMIBoost = -1;
    m_IndexHDMIOverscan = -1;
+   m_IndexHDMIVSync = -1;
 
    #if defined (HW_PLATFORM_RASPBERRY)
    m_pItemsSlider[0] = new MenuItemSlider("HDMI Output Boost", "Sets the boost voltage level for the HDMI output.", 0,11,6, 0.15);
@@ -133,6 +137,14 @@ MenuControllerVideo::MenuControllerVideo(void)
    m_pItemsSelect[2]->addSelection("Disabled");
    m_pItemsSelect[2]->setIsEditable();
    m_IndexHDMIOverscan = addMenuItem(m_pItemsSelect[2]);
+   #endif
+
+   #if defined (HW_PLATFORM_RADXA)
+   m_pItemsSelect[6] = new MenuItemSelect("HDMI Vertical Sync", "Enable vertical sync renderging synchronization on the HDMI display.");
+   m_pItemsSelect[6]->addSelection("Disabled");
+   m_pItemsSelect[6]->addSelection("Enabled");
+   m_pItemsSelect[6]->setIsEditable();
+   m_IndexHDMIVSync = addMenuItem(m_pItemsSelect[6]);
    #endif
 
    m_IndexCalibrateHDMI = addMenuItem(new MenuItem("Calibrate HDMI output", "Calibrate the colors, brightness and contrast on the controller display."));
@@ -223,6 +235,10 @@ void MenuControllerVideo::valuesToUI()
       m_pItemsSelect[2]->setSelectedIndex(pCS->iDisableHDMIOverscan);
    }
    #endif
+
+   if ( -1 != m_IndexHDMIVSync )
+      m_pItemsSelect[6]->setSelectedIndex(pCS->iHDMIVSync);
+
    m_pItemsSelect[0]->setSelection(hdmi_get_current_resolution_index());
 
    m_pItemsSelect[3]->removeAllSelections();
@@ -383,6 +399,19 @@ void MenuControllerVideo::onSelectItem()
       config_file_force_value("config.txt", "disable_overscan", pCS->iDisableHDMIOverscan);
       hw_execute_bash_command("cp config.txt /boot/config.txt", NULL);
 
+      invalidate();
+      valuesToUI();
+      return;
+   }
+
+   if ( (-1 != m_IndexHDMIVSync) && (m_IndexHDMIVSync == m_SelectedIndex) )
+   {
+      pCS->iHDMIVSync = m_pItemsSelect[6]->getSelectedIndex();
+      save_ControllerSettings();
+      #if defined (HW_PLATFORM_RADXA)
+      ruby_drm_enable_vsync(pCS->iHDMIVSync?true:false);
+      send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_CONTROLLER_CHANGED, PACKET_COMPONENT_LOCAL_CONTROL);
+      #endif
       invalidate();
       valuesToUI();
       return;

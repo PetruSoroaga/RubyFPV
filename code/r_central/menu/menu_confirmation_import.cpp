@@ -52,8 +52,8 @@ MenuConfirmationImport::MenuConfirmationImport(const char* szTitle, const char* 
    m_xPos = 0.35; m_yPos = 0.35;
    m_Width = 0.3;
    addTopLine(szText);
-   addMenuItem(new MenuItem("No"));
-   addMenuItem(new MenuItem("Yes"));
+   addMenuItem(new MenuItem(L("No")));
+   addMenuItem(new MenuItem(L("Yes")));
    m_SelectedIndex = 0;
 }
 
@@ -102,7 +102,7 @@ void MenuConfirmationImport::onSelectItem()
          hardware_reboot();
       }
       else
-         addMessage("Failed to import settings from USB memory stick.");         
+         addMessage(L("Failed to import settings from USB memory stick."));         
       return;
    }
 }

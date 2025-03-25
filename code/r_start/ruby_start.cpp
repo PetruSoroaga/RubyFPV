@@ -59,7 +59,7 @@
 #endif
 
 #include "../common/string_utils.h"
-#include "../common/strings_table.h"
+#include "../common/strings_loc.h"
 #include "r_start_vehicle.h"
 #include "r_initradio.h"
 #include "../r_vehicle/ruby_rx_commands.h"
@@ -1050,7 +1050,7 @@ int _step_check_file_system()
    return 0;
 }
 
-void _step_check_binaries_and_processes()
+void _step_check_binaries_and_resources()
 {
    char szComm[MAX_FILE_PATH_SIZE];
 
@@ -1117,6 +1117,36 @@ void _step_check_binaries_and_processes()
    printf(szInfo);
    printf("\n");
    fflush(stdout);
+
+   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA)
+   if ( access("/usr/share/fonts/truetype/noto/noto.ttf", R_OK) == -1 )
+   {
+      char szFile[MAX_FILE_PATH_SIZE];
+      strcpy(szFile, FOLDER_RESOURCES);
+      strcat(szFile, "noto.ttf");
+      if ( access(szFile, R_OK) != -1 )
+      {
+         hw_execute_bash_command("mkdir -p /usr/share/fonts/truetype/noto/", NULL);
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s /usr/share/fonts/truetype/noto/", szFile);
+         hw_execute_bash_command(szComm, NULL);
+         hw_execute_bash_command("chmod 777 /usr/share/fonts/truetype/noto", NULL);
+         hw_execute_bash_command("chmod 777 /usr/share/fonts/truetype/noto/noto.ttf", NULL);
+      }
+   }
+   #endif
+
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   log_line("Check OpenIPC presence of sysupgrade stop script...");
+   if ( access("/etc/rc.local.stop", R_OK) == -1 )
+   {
+      hw_execute_bash_command("echo \"/usr/sbin/ruby_stop.sh\" > /etc/rc.local.stop", NULL);
+      hw_execute_bash_command("chmod 755 /etc/rc.local.stop", NULL);
+   }
+   if ( access("/etc/rc.local.stop", X_OK) == -1 )
+   {
+      hw_execute_bash_command("chmod 755 /etc/rc.local.stop", NULL);
+   }
+   #endif
 }
 
 void _step_load_init_devices()
@@ -1383,18 +1413,7 @@ void _step_enumerate_radios()
 void _step_initialize_check_vehicle()
 {
    log_line("Doing initialization checks on vehicle...");
-   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
-   log_line("Check OpenIPC presence of sysupgrade stop script...");
-   if ( access("/etc/rc.local.stop", R_OK) == -1 )
-   {
-      hw_execute_bash_command("echo \"/usr/sbin/ruby_stop.sh\" > /etc/rc.local.stop", NULL);
-      hw_execute_bash_command("chmod 755 /etc/rc.local.stop", NULL);
-   }
-   if ( access("/etc/rc.local.stop", X_OK) == -1 )
-   {
-      hw_execute_bash_command("chmod 755 /etc/rc.local.stop", NULL);
-   }
-   #endif
+
    log_line("Done doing initialization checks on vehicle.");
 }
 
@@ -1463,7 +1482,7 @@ int main(int argc, char *argv[])
    init_hardware_only_detection_pins();
    hardware_detectBoardAndSystemType();
    
-   _step_check_binaries_and_processes();
+   _step_check_binaries_and_resources();
    _log_oipc_boot_step("Done check binaries.");
 
    char szComm[1204];
@@ -1577,9 +1596,9 @@ int main(int argc, char *argv[])
 #endif
 
 #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
-   log_line("Feature radio RxTx thread syncronization is: On.");
+   log_line("Feature radio RxTx thread synchronization is: On.");
 #else
-   log_line("Feature radio RxTx thread syncronization is: Off.");
+   log_line("Feature radio RxTx thread synchronization is: Off.");
 #endif
 
    if ( g_bIsFirstBoot )

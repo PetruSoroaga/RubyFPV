@@ -12,8 +12,8 @@
 #define WIFI_TYPE_AG 3 // per bits
 
 
-#define BOARD_TYPE_MASK (u32)0xFF
-#define BOARD_SUBTYPE_MASK (u32)0xFF00
+#define BOARD_TYPE_MASK ((u32)0xFF)
+#define BOARD_SUBTYPE_MASK ((u32)0xFF00)
 #define BOARD_SUBTYPE_SHIFT 8
 
 #define BOARD_TYPE_NONE     0
@@ -35,16 +35,17 @@
 #define BOARD_TYPE_OPENIPC_SIGMASTAR_338Q 40
 
 #define BOARD_SUBTYPE_OPENIPC_UNKNOWN  0
-#define BOARD_SUBTYPE_OPENIPC_GENERIC         ((u32)1)
-#define BOARD_SUBTYPE_OPENIPC_GENERIC_30KQ    ((u32)2)
-#define BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT  ((u32)3)
-#define BOARD_SUBTYPE_OPENIPC_AIO_MARIO       ((u32)4)
-#define BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM      ((u32)5)
-#define BOARD_SUBTYPE_OPENIPC_AIO_EMAX_MINI   ((u32)6)
-#define BOARD_SUBTYPE_OPENIPC_AIO_EMAX        ((u32)7)
-#define BOARD_SUBTYPE_OPENIPC_AIO_THINKER     ((u32)8)
-#define BOARD_SUBTYPE_OPENIPC_AIO_THINKER_E   ((u32)9)
-#define BOARD_SUBTYPE_OPENIPC_LAST            ((u32)10)
+#define BOARD_SUBTYPE_OPENIPC_GENERIC         ((u32)10)
+#define BOARD_SUBTYPE_OPENIPC_GENERIC_30KQ    ((u32)20)
+#define BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT  ((u32)30)
+#define BOARD_SUBTYPE_OPENIPC_AIO_MARIO       ((u32)40)
+#define BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM_V1   ((u32)50)
+#define BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM_V2   ((u32)52)
+#define BOARD_SUBTYPE_OPENIPC_AIO_EMAX_MINI   ((u32)60)
+#define BOARD_SUBTYPE_OPENIPC_AIO_EMAX        ((u32)70)
+#define BOARD_SUBTYPE_OPENIPC_AIO_THINKER     ((u32)80)
+#define BOARD_SUBTYPE_OPENIPC_AIO_THINKER_E   ((u32)90)
+#define BOARD_SUBTYPE_OPENIPC_LAST            ((u32)100)
 
 
 #define BOARD_TYPE_RADXA_ZERO3 60
@@ -102,6 +103,9 @@ void hardware_swap_buttons(int swap);
 void hardware_detectBoardAndSystemType();
 u32 hardware_detectBoardType();
 u32 hardware_getBoardType();
+int hardware_get_board_subtypes_count();
+u32 hardware_get_board_subtype_at_index(int iIndex);
+int hardware_get_board_subtype_index(u32 uBoardSubType);
 
 int hardware_board_is_raspberry(u32 uBoardType);
 int hardware_board_is_radxa(u32 uBoardType);

@@ -95,7 +95,7 @@ u32 _getBestMatchingFontHeight(u32* pFontList, int iFontCount, float fPixelsHeig
    return pFontList[iFontCount-1];
 }
 
-bool _loadFontFamily(const char* szName, u32* pOutputList, int* pCountOutput)
+bool _loadFontFamily(int iFamilyId, const char* szName, int iBold, u32* pOutputList, int* pCountOutput)
 {
    if ( (NULL == szName) || (0 == szName[0]) || (NULL == pOutputList) || (NULL == pCountOutput) )
       return false;
@@ -111,7 +111,7 @@ bool _loadFontFamily(const char* szName, u32* pOutputList, int* pCountOutput)
       if ( access( szFontFile, R_OK ) == -1 )
          continue;
 
-      int iResult = g_pRenderEngine->loadRawFont(szFontFile);
+      int iResult = g_pRenderEngine->loadRawFont(iFamilyId, szFontFile, iBold);
       if ( iResult > 0 )
       {
          pOutputList[(*pCountOutput)] = (u32) iResult;
@@ -150,7 +150,7 @@ bool loadAllFonts(bool bReloadMenuFonts)
    if ( bReloadMenuFonts )
    {
       log_line("Loading menu fonts...");
-      _loadFontFamily("raw_bold", s_ListMenuFontSizes, &s_iListMenuFontSizesCount );
+      _loadFontFamily(0, "raw_bold", false, s_ListMenuFontSizes, &s_iListMenuFontSizesCount );
    }
 
    Preferences* p = get_Preferences();
@@ -166,7 +166,7 @@ bool loadAllFonts(bool bReloadMenuFonts)
       strcpy(szFont, "bt_bold");
 
     log_line("Loading OSD fonts...");
-   _loadFontFamily(szFont, s_ListOSDFontSizes, &s_iListOSDFontSizesCount );
+   _loadFontFamily(p->iOSDFont, szFont, p->iOSDFontBold, s_ListOSDFontSizes, &s_iListOSDFontSizesCount );
 
    for( int i=0; i<s_iListOSDFontSizesCount; i++ )
       g_pRenderEngine->setFontOutlineColor(s_ListOSDFontSizes[i], p->iColorOSDOutline[0], p->iColorOSDOutline[1], p->iColorOSDOutline[2], p->iColorOSDOutline[3]);

@@ -343,7 +343,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
    if ( uChangeType == MODEL_CHANGED_SYNCHRONISED_SETTINGS_FROM_VEHICLE )
    {
       g_pCurrentModel->b_mustSyncFromVehicle = false;
-      log_line("Model settings where synchronised from vehicle. Reset model must sync flag.");
+      log_line("Model settings where synchronized from vehicle. Reset model must sync flag.");
    }
 
    if ( g_pCurrentModel->enc_flags != oldEFlags )
@@ -648,7 +648,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, u8 uChangeT
       }
    }
 
-   // Signal other components about the model change if it's not from central or if settings where synchronised from vehicle
+   // Signal other components about the model change if it's not from central or if settings where synchronized from vehicle
    // Signal other components too if the RC parameters where changed
    bool bNotify = false;
 
@@ -982,7 +982,9 @@ void process_local_control_packet(t_packet_header* pPH)
       g_pControllerSettings = get_ControllerSettings();
       int iOldTxMode = g_pControllerSettings->iRadioTxUsesPPCAP;
       int iOldSocketBuffers = g_pControllerSettings->iRadioBypassSocketBuffers;
-
+      #if defined (HW_PLATFORM_RADXA)
+      int iOldHDMIVSync = g_pControllerSettings->iHDMIVSync;
+      #endif
       hw_serial_port_info_t oldSerialPorts[MAX_SERIAL_PORTS];
       for( int i=0; i<hardware_get_serial_ports_count(); i++ )
       {
@@ -994,6 +996,16 @@ void process_local_control_packet(t_packet_header* pPH)
       hardware_reload_serial_ports_settings();
       load_ControllerSettings();
       g_pControllerSettings = get_ControllerSettings();
+
+      #if defined (HW_PLATFORM_RADXA)
+      if ( g_pControllerSettings->iHDMIVSync != iOldHDMIVSync )
+      {
+         g_TimeNow = get_current_timestamp_ms();
+         g_TimeLastVideoParametersOrProfileChanged = g_TimeNow;
+         rx_video_output_signal_restart_streamer();
+         return;
+      }
+      #endif
 
       if ( g_pControllerSettings->iRadioTxUsesPPCAP != iOldTxMode )
       {

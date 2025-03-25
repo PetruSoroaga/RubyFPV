@@ -135,6 +135,8 @@ typedef struct
    int iDoNotShowAgainIds[MAX_PREFERENCES_CHECKBOXES];
    int iDoNotShowAgainValues[MAX_PREFERENCES_CHECKBOXES];
    int iUnitsHeight;
+   int iOSDFontBold;
+   int iMenuFontBold;
 } Preferences;
 
 int save_Preferences();

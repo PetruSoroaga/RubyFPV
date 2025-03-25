@@ -33,6 +33,8 @@ class RenderEngineCairo: public RenderEngine
      virtual void drawIcon(float xPos, float yPos, float fWidth, float fHeight, u32 uIconId);
      virtual void bltIcon(float xPosDest, float yPosDest, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, u32 uIconId);
 
+     virtual float textRawWidthScaled(u32 fontId, float fScale, const char* szText);
+
      virtual void drawLine(float x1, float y1, float x2, float y2);
      virtual void drawRect(float xPos, float yPos, float fWidth, float fHeight);
      virtual void drawRoundRect(float xPos, float yPos, float fWidth, float fHeight, float fCornerRadius);
@@ -46,11 +48,15 @@ class RenderEngineCairo: public RenderEngine
      virtual void drawArc(float x, float y, float r, float a1, float a2);
      
    protected:
+      cairo_t* _createTempDrawContext();
+      cairo_t* _getActiveCairoContext();
       virtual void* _loadRawFontImageObject(const char* szFileName);
       virtual void _freeRawFontImageObject(void* pImageObject);
 
-      void _drawSimpleText(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos);
-      void _drawSimpleTextScaled(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos, float fScale);
+      void _updateCurrentFontToUse(RenderEngineRawFont* pFont, bool bForce);
+      virtual float _get_raw_char_width(RenderEngineRawFont* pFont, int ch);
+      virtual void _drawSimpleText(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos);
+      virtual void _drawSimpleTextScaled(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos, float fScale);
       void _bltFontChar(int iDestX, int iDestY, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, RenderEngineRawFont* pFont);
       void _blend_pixel(unsigned char* pixel, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
       void _draw_hline(int x, int y, int w, unsigned char r, unsigned char g, unsigned char b, unsigned char a);
@@ -60,6 +66,7 @@ class RenderEngineCairo: public RenderEngine
       u32 m_uRenderDrawSurfacesIds[2];
       cairo_surface_t *m_pMainCairoSurface[2];
       cairo_t* m_pCairoCtx;
+      cairo_t* m_pCairoTempCtx;
 
       cairo_surface_t* m_pImages[MAX_RAW_IMAGES];
       u32 m_ImageIds[MAX_RAW_IMAGES];

@@ -48,7 +48,7 @@
 #include <sys/resource.h>
 
 MenuControllerRadio::MenuControllerRadio(void)
-:Menu(MENU_ID_CONTROLLER_RADIO, "Controller Radio Settings", NULL)
+:Menu(MENU_ID_CONTROLLER_RADIO, L("Controller Radio Settings"), NULL)
 {
    m_Width = 0.38;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.18;
@@ -199,7 +199,7 @@ void MenuControllerRadio::addItemsFixedPower()
    }
 
    int iMaxPower = tx_powers_get_max_usable_power_mw_for_controller();
-   m_pItemsSelect[1] = createMenuItemTxPowers("Radio Tx Power (mW)", false, false, false, iMaxPower);
+   m_pItemsSelect[1] = createMenuItemTxPowers(L("Radio Tx Power (mW)"), false, false, false, iMaxPower);
 
    selectMenuItemTxPowersValue(m_pItemsSelect[1], false, false, false, &(iMwPowers[0]), iCountPowers, iMaxPower);
 

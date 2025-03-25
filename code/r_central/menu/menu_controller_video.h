@@ -24,6 +24,7 @@ class MenuControllerVideo: public Menu
       int m_IndexHDMIRes;
       int m_IndexHDMIRefreshRate;
       int m_IndexHDMIOverscan;
+      int m_IndexHDMIVSync;
 
       int m_IndexVideoUSBForward;
       int m_IndexVideoUSBPort;

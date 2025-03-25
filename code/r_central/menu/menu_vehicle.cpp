@@ -63,7 +63,7 @@ const char* s_szMenuVAlarmFreq = "Hardware alarm: Frequency capped!";
 const char* s_szMenuVAlarmVoltage = "Hardware alarm: Undervoltage!";
 
 MenuVehicle::MenuVehicle(void)
-:Menu(MENU_ID_VEHICLE, "Vehicle Settings", NULL)
+:Menu(MENU_ID_VEHICLE, L("Vehicle Settings"), NULL)
 {
    m_Width = 0.18;
    m_xPos = menu_get_XStartPos(m_Width);
@@ -89,56 +89,56 @@ void MenuVehicle::onShow()
    removeAllItems();
 
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
-      addMenuItem(new MenuItemText("You are connected in spectator mode. Can't change vehicle settings."));
+      addMenuItem(new MenuItemText(L("You are connected in spectator mode. Can't change vehicle settings.")));
 
-   m_IndexGeneral = addMenuItem(new MenuItem("General","Change general settings like name, type of vehicle and so on."));
+   m_IndexGeneral = addMenuItem(new MenuItem(L("General"), L("Change general settings like name, type of vehicle and so on.")));
    //if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
    //   m_pMenuItems[m_IndexGeneral]->setEnabled(false);
 
-   m_IndexRadio = addMenuItem(new MenuItem("Radio Links", "Change the radio links configuration of this vehicle."));
+   m_IndexRadio = addMenuItem(new MenuItem(L("Radio Links"), L("Change the radio links configuration of this vehicle.")));
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexRadio]->setEnabled(false);
 
-   m_IndexAlarms = addMenuItem(new MenuItem("Warnings/Alarms","Change which alarms and warnings to enable/disable."));
+   m_IndexAlarms = addMenuItem(new MenuItem(L("Warnings/Alarms"), L("Change which alarms and warnings to enable/disable.")));
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexAlarms]->setEnabled(false);
 
-   m_IndexOSD = addMenuItem(new MenuItem("OSD / Instruments","Change OSD type, layout and settings."));
+   m_IndexOSD = addMenuItem(new MenuItem(L("OSD / Instruments"), L("Change OSD type, layout and settings.")));
 
-   m_IndexCamera = addMenuItem(new MenuItem("Camera","Change camera parameters: brightness, contrast, sharpness and so on."));
+   m_IndexCamera = addMenuItem(new MenuItem(L("Camera"), L("Change camera parameters: brightness, contrast, sharpness and so on.")));
 
    //if ( NULL != g_pCurrentModel && (!g_pCurrentModel->hasCamera()) )
    //   m_pMenuItems[m_IndexCamera]->setEnabled(false);
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexCamera]->setEnabled(false);
 
-   m_IndexVideo = addMenuItem(new MenuItem("Video","Change video resolution, fps so on."));
+   m_IndexVideo = addMenuItem(new MenuItem(L("Video"), L("Change video resolution, fps so on.")));
    
    //if ( NULL != g_pCurrentModel && (!g_pCurrentModel->hasCamera()) )
    //   m_pMenuItems[m_IndexVideo]->setEnabled(false);
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexVideo]->setEnabled(false);
 
-   m_IndexAudio = addMenuItem(new MenuItem("Audio","Change the audio settings"));
+   m_IndexAudio = addMenuItem(new MenuItem(L("Audio"), L("Change the audio settings")));
    if ( (NULL != g_pCurrentModel) && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexAudio]->setEnabled(false);
 
-   m_IndexTelemetry = addMenuItem(new MenuItem("Telemetry","Change telemetry parameters between flight controller and ruby vehicle."));
+   m_IndexTelemetry = addMenuItem(new MenuItem(L("Telemetry"), L("Change telemetry parameters between flight controller and ruby vehicle.")));
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexTelemetry]->setEnabled(false);
 
-   m_IndexDataLink = addMenuItem(new MenuItem("Auxiliary Data Link","Create and configure a general purpose data link between the vehicle and the controller."));
+   m_IndexDataLink = addMenuItem(new MenuItem(L("Auxiliary Data Link"), L("Create and configure a general purpose data link between the vehicle and the controller.")));
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexDataLink]->setEnabled(false);
  
-   m_IndexRC = addMenuItem(new MenuItem("Remote Control","Change your remote control type, channels, protocols and so on.")); 
+   m_IndexRC = addMenuItem(new MenuItem(L("Remote Control"), L("Change your remote control type, channels, protocols and so on."))); 
    #ifndef FEATURE_ENABLE_RC
    m_pMenuItems[m_IndexRC]->setEnabled(false);
    #endif
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexRC]->setEnabled(false);
 
-   m_IndexFunctions = addMenuItem(new MenuItem("Functions and Triggers","Configure special functions and triggers."));
+   m_IndexFunctions = addMenuItem(new MenuItem(L("Functions and Triggers"), L("Configure special functions and triggers.")));
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexFunctions]->setEnabled(false);
 
@@ -151,7 +151,7 @@ void MenuVehicle::onShow()
       m_pMenuItems[index]->setEnabled(false);
    */
 
-   m_IndexRelay = addMenuItem(new MenuItem("Relaying", "Configure this vehicle as a relay."));
+   m_IndexRelay = addMenuItem(new MenuItem(L("Relaying"), L("Configure this vehicle as a relay.")));
    #ifdef FEATURE_RELAYING
    m_pMenuItems[m_IndexRelay]->setEnabled(true);
    #else
@@ -160,15 +160,15 @@ void MenuVehicle::onShow()
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexRelay]->setEnabled(false);
 
-   m_IndexPeripherals = addMenuItem(new MenuItem("Peripherals", "Change vehicle's serial ports settings and other peripherals."));
+   m_IndexPeripherals = addMenuItem(new MenuItem(L("Peripherals"), L("Change vehicle's serial ports settings and other peripherals.")));
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexPeripherals]->setEnabled(false);
 
-   m_IndexCPU = addMenuItem(new MenuItem("CPU Settings", "Change CPU overclocking settings and processes priorities."));
+   m_IndexCPU = addMenuItem(new MenuItem(L("CPU Settings"), L("Change CPU overclocking settings and processes priorities.")));
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexCPU]->setEnabled(false);
 
-   m_IndexManagement = addMenuItem(new MenuItem("Management","Updates, deletes, back-up, restore the vehicle data and firmware."));
+   m_IndexManagement = addMenuItem(new MenuItem(L("Management"), L("Updates, deletes, back-up, restore the vehicle data and firmware.")));
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexManagement]->setEnabled(false);
 
@@ -187,6 +187,7 @@ void MenuVehicle::onShow()
       m_SelectedIndex = 0;
    if ( m_SelectedIndex >= m_ItemsCount )
       m_SelectedIndex = m_ItemsCount-1;
+   onFocusedItemChanged();
 }
 
 void MenuVehicle::addTopDescription()
@@ -194,7 +195,7 @@ void MenuVehicle::addTopDescription()
    removeAllTopLines();
    char szBuff[256];
    //sprintf(szBuff, "%s Settings", g_pCurrentModel->getLongName());
-   strcpy(szBuff, "Vehicle Settings");
+   strcpy(szBuff, L("Vehicle Settings"));
    szBuff[0] = toupper(szBuff[0]);
    setTitle(szBuff);
    //setSubTitle("Vehicle Settings");
@@ -209,7 +210,7 @@ void MenuVehicle::addTopDescription()
       m_Flags = g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.throttled;
 
    if ( 0xFFFF == m_Flags || 0 == m_Flags )
-      addTopLine("No hardware alarms.");
+      addTopLine(L("No hardware alarms."));
    else
    {
       addTopLine("Has hardware alarms:");
@@ -266,13 +267,13 @@ void MenuVehicle::Render()
    szLine3[0] = 0;
    if ( (NULL != g_pCurrentModel) && link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
    {
-      sprintf(szLine1, "Connected to:");
+      sprintf(szLine1, L("Connected to:"));
       sprintf(szLine2, "%s", g_pCurrentModel->getLongName() );
       sprintf(szLine3, "Running ver %d.%d", ((g_pCurrentModel->sw_version>>8) & 0xFF), (g_pCurrentModel->sw_version & 0xFF)/10);
    }
    else
    {
-      sprintf(szLine1, "Looking for:" );
+      sprintf(szLine1, L("Looking for:") );
       sprintf(szLine2, "%s", g_pCurrentModel->getLongName() );
    }
    szLine2[0] = toupper(szLine2[0]);
@@ -316,7 +317,7 @@ void MenuVehicle::onSelectItem()
 {
    if ( NULL == g_pCurrentModel )
    {
-      Popup* p = new Popup(true, "Vehicle is offline", 4 );
+      Popup* p = new Popup(true, L("Vehicle is offline"), 4 );
       p->setIconId(g_idIconWarning, get_Color_IconWarning());
       popups_add_topmost(p);
       valuesToUI();
@@ -327,7 +328,7 @@ void MenuVehicle::onSelectItem()
    {
       if ( (m_IndexOSD != m_SelectedIndex) && (m_IndexGeneral != m_SelectedIndex) )
       {
-         Popup* p = new Popup(true, "Vehicle Settings can not be changed on a spectator vehicle.", 5 );
+         Popup* p = new Popup(true, L("Vehicle Settings can not be changed on a spectator vehicle."), 5 );
          p->setIconId(g_idIconError, get_Color_IconError());
          popups_add_topmost(p);
          valuesToUI();
@@ -339,7 +340,7 @@ void MenuVehicle::onSelectItem()
       {
          if ( get_sw_version_build(g_pCurrentModel) < 278 )
          {
-            addMessage("OSD functionality has changed. You need to update your vehicle sowftware.");
+            addMessage(L("OSD functionality has changed. You need to update your vehicle sowftware."));
             return;
          }
          add_menu_to_stack(new MenuVehicleOSD());
@@ -362,7 +363,7 @@ void MenuVehicle::onSelectItem()
       }
       if ( ((g_pCurrentModel->sw_version >>8) & 0xFF) < 7 )
       {
-         addMessage("You need to update your vehicle sowftware to be able to use this menu.");
+         addMessage(L("You need to update your vehicle sowftware to be able to use this menu."));
          return;
       }
       handle_commands_reset_has_received_vehicle_core_plugins_info();
@@ -377,7 +378,7 @@ void MenuVehicle::onSelectItem()
 
    if ( (!pairing_isStarted()) || (NULL == g_pCurrentModel) || (!link_is_vehicle_online_now(g_pCurrentModel->uVehicleId)) )
    {
-      Popup* p = new Popup(true, "Can't change settings when not connected to the vehicle.", 5 );
+      Popup* p = new Popup(true, L("Can't change settings when not connected to the vehicle."), 5 );
       p->setIconId(g_idIconError, get_Color_IconError());
       popups_add_topmost(p);
       valuesToUI();
@@ -386,7 +387,7 @@ void MenuVehicle::onSelectItem()
 
    if ( g_pCurrentModel->b_mustSyncFromVehicle && ( m_IndexManagement != m_SelectedIndex) )
    {
-      Popup* p = new Popup(true, "Vehicle Settings not synched yet", 4 );
+      Popup* p = new Popup(true, L("Vehicle Settings not synched yet"), 4 );
       p->setIconId(g_idIconError, get_Color_IconError());
       popups_add_topmost(p);
       valuesToUI();
@@ -407,9 +408,9 @@ void MenuVehicle::onSelectItem()
    if ( m_IndexCamera == m_SelectedIndex )
    {
       if ( (NULL == g_pCurrentModel) || (g_pCurrentModel->iCameraCount <=0) )
-         addMessage("This vehicle has no cameras.");
+         addMessage(L("This vehicle has no cameras."));
       else if ( (NULL != g_pCurrentModel) && g_pCurrentModel->is_spectator )
-         addMessage("You can't change camera settings for a spectator vehicle.");
+         addMessage(L("You can't change camera settings for a spectator vehicle."));
       else
          add_menu_to_stack(new MenuVehicleCamera());
       return;
@@ -417,9 +418,9 @@ void MenuVehicle::onSelectItem()
    if ( m_IndexVideo == m_SelectedIndex )
    {
       if ( (NULL == g_pCurrentModel) || (g_pCurrentModel->iCameraCount <=0) )
-         addMessage("This vehicle has no cameras or video streams.");
+         addMessage(L("This vehicle has no cameras or video streams."));
       else if ( (NULL != g_pCurrentModel) && g_pCurrentModel->is_spectator )
-         addMessage("You can't change video settings for a spectator vehicle.");
+         addMessage(L("You can't change video settings for a spectator vehicle."));
       else
          add_menu_to_stack(new MenuVehicleVideo());
    }
@@ -444,7 +445,7 @@ void MenuVehicle::onSelectItem()
       }
       if ( ((g_pCurrentModel->sw_version >>8) & 0xFF) < 7 )
       {
-         addMessage("You need to update your vehicle sowftware to be able to use this menu.");
+         addMessage(L("You need to update your vehicle sowftware to be able to use this menu."));
          return;
       }
       handle_commands_reset_has_received_vehicle_core_plugins_info();
@@ -465,7 +466,7 @@ void MenuVehicle::onSelectItem()
       }
       if ( ((g_pCurrentModel->sw_version >>8) & 0xFF) < 7 )
       {
-         addMessage("You need to update your vehicle sowftware to be able to use this menu.");
+         addMessage(L("You need to update your vehicle sowftware to be able to use this menu."));
          return;
       }
       handle_commands_reset_has_received_vehicle_core_plugins_info();
@@ -481,7 +482,7 @@ void MenuVehicle::onSelectItem()
    {
       if ( get_sw_version_build(g_pCurrentModel) < 278 )
       {
-         addMessage("OSD functionality has changed. You need to update your vehicle sowftware.");
+         addMessage(L("OSD functionality has changed. You need to update your vehicle sowftware."));
          return;
       }
       add_menu_to_stack(new MenuVehicleOSD());
@@ -514,7 +515,7 @@ void MenuVehicle::onSelectItem()
 
       if ( ! bCanUse )
       {
-         MenuConfirmation* pMC = new MenuConfirmation("No Suitable Hardware","You need at least two radio interfaces on the vehicle to be able to use the relay functionality.",10, true);
+         MenuConfirmation* pMC = new MenuConfirmation(L("No Suitable Hardware"), L("You need at least two radio interfaces on the vehicle to be able to use the relay functionality."), 10, true);
          pMC->m_yPos = 0.3;
          add_menu_to_stack(pMC);
          return;

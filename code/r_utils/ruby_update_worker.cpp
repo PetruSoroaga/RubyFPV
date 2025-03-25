@@ -500,8 +500,18 @@ bool _find_update_zip_file()
    hw_execute_bash_command(szComm, szOutput);
 
    if ( (0 == strlen(szOutput)) || (NULL == strstr(szOutput, "ruby_update")) )
-      return false;
+   {
+      if ( g_bIsController )
+         sprintf(szComm, "find %sruby_update*.upd 2>/dev/null", FOLDER_USB_MOUNT);
+      else
+         sprintf(szComm, "find ruby_update*.upd 2>/dev/null");
 
+      hw_execute_bash_command(szComm, szOutput);
+      if ( (0 == strlen(szOutput)) || (NULL == strstr(szOutput, "ruby_update")) )
+      {
+         return false;
+      }
+   }
    int iLen = strlen(szOutput);
    for( int i=0; i<iLen; i++ )
    {
@@ -552,6 +562,13 @@ void _step_copy_and_extract_zip()
    {
       snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s/*", g_szUpdateUnpackFolder);
       hw_execute_bash_command(szComm, NULL);
+   }
+
+   char* pExt = strstr(g_szUpdateZipFileName, ".upd");
+   if ( NULL != pExt )
+   {
+      pExt[0] = 0;
+      strcpy(pExt, ".zip");
    }
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "unzip %s%s -d %s", FOLDER_UPDATES, g_szUpdateZipFileName, g_szUpdateUnpackFolder);
    hw_execute_bash_command(szComm, NULL);

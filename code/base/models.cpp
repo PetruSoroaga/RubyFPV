@@ -3232,6 +3232,7 @@ void Model::resetOSDFlags(int iScreen)
    if ( (iScreen = -1) || (iScreen == 0) )
    {
       osd_params.osd_flags[0] = 0; // horizontal layout for stats panels;
+      osd_params.osd_flags[0] |= OSD_FLAG_SHOW_CPU_INFO;
       osd_params.osd_flags2[0] = OSD_FLAG2_LAYOUT_ENABLED | OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY | OSD_FLAG2_SHOW_RC_RSSI;
    }
    if ( (iScreen = -1) || (iScreen == 1) )
@@ -3373,7 +3374,10 @@ void Model::resetOSDScreenToLayout(int iScreen, int iLayout)
       osd_params.osd_flags[iScreen] |= OSD_FLAG_SHOW_GPS_INFO;
 
       if ( iScreen < 3 )
+      {
+         osd_params.osd_flags[iScreen] |= OSD_FLAG_SHOW_CPU_INFO;
          osd_params.osd_flags2[iScreen] |= OSD_FLAG2_SHOW_STATS_VIDEO | OSD_FLAG2_SHOW_MINIMAL_VIDEO_DECODE_STATS;// | OSD_FLAG2_SHOW_MINIMAL_RADIO_INTERFACES_STATS;
+      }
    }
 }
 

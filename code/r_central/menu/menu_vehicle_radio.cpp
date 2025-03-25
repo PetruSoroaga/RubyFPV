@@ -52,7 +52,7 @@ int s_iTempGenNewFrequency = 0;
 int s_iTempGenNewFrequencyLink = 0;
 
 MenuVehicleRadioConfig::MenuVehicleRadioConfig(void)
-:Menu(MENU_ID_VEHICLE_RADIO_CONFIG, "Vehicle Radio Configuration", NULL)
+:Menu(MENU_ID_VEHICLE_RADIO_CONFIG, L("Vehicle Radio Configuration"), NULL)
 {
    m_Width = 0.38;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.21;
@@ -115,7 +115,7 @@ void MenuVehicleRadioConfig::populate()
 
    if ( 0 == g_pCurrentModel->radioLinksParams.links_count )
    {
-      addMenuItem( new MenuItemText("No radio interfaces detected on this vehicle!"));
+      addMenuItem( new MenuItemText(L("No radio interfaces detected on this vehicle!")));
       return;
    }
 
@@ -126,15 +126,15 @@ void MenuVehicleRadioConfig::populate()
    m_IndexRadioConfig = addMenuItem(new MenuItem(L("Full Radio Config"), L("Full radio configuration")));
    m_pMenuItems[m_IndexRadioConfig]->showArrow();
 
-   m_pItemsSelect[4] = new MenuItemSelect("Disable Uplinks", "Disable all uplinks, makes the system a one way system. Except for initial pairing and synching and sending commands to the vehicle. No video retransmissions happen, adaptive video is also disabled.");
-   m_pItemsSelect[4]->addSelection("No");
-   m_pItemsSelect[4]->addSelection("Yes");
+   m_pItemsSelect[4] = new MenuItemSelect(L("Disable Uplinks"), L("Disable all uplinks, makes the system a one way system. Except for initial pairing and synching and sending commands to the vehicle. No video retransmissions happen, adaptive video is also disabled."));
+   m_pItemsSelect[4]->addSelection(L("No"));
+   m_pItemsSelect[4]->addSelection(L("Yes"));
    m_pItemsSelect[4]->setIsEditable();
    m_IndexDisableUplink = addMenuItem(m_pItemsSelect[4]);
 
-   m_pItemsSelect[3] = new MenuItemSelect("Prioritize Uplink", "Prioritize Uplink data over Downlink data. Enable it when uplink data resilience and consistentcy is more important than downlink data.");
-   m_pItemsSelect[3]->addSelection("No");
-   m_pItemsSelect[3]->addSelection("Yes");
+   m_pItemsSelect[3] = new MenuItemSelect(L("Prioritize Uplink"), L("Prioritize Uplink data over Downlink data. Enable it when uplink data resilience and consistentcy is more important than downlink data."));
+   m_pItemsSelect[3]->addSelection(L("No"));
+   m_pItemsSelect[3]->addSelection(L("Yes"));
    m_pItemsSelect[3]->setIsEditable();
    m_IndexPrioritizeUplink = addMenuItem(m_pItemsSelect[3]);
 
@@ -187,7 +187,7 @@ void MenuVehicleRadioConfig::populate()
    }
    */
 
-   m_IndexOptimizeLinks = addMenuItem(new MenuItem("Optmize Radio Links Wizard", "Runs a process to optimize radio links parameters."));
+   m_IndexOptimizeLinks = addMenuItem(new MenuItem(L("Optmize Radio Links Wizard"), L("Runs a process to optimize radio links parameters.")));
    m_pMenuItems[m_IndexOptimizeLinks]->showArrow();
 
    m_SelectedIndex = iTmp;
@@ -243,11 +243,11 @@ void MenuVehicleRadioConfig::populateFrequencies()
           iRadioInterfaceId+1, m_SupportedChannelsCount[iRadioLinkId]);
 
       char szTmp[128];
-      strcpy(szTmp, "Radio Link Frequency");
+      strcpy(szTmp, L("Radio Link Frequency"));
       if ( g_pCurrentModel->radioLinksParams.links_count > 1 )
-         sprintf(szTmp, "Radio Link %d Frequency", iRadioLinkId+1 );
+         sprintf(szTmp, L("Radio Link %d Frequency"), iRadioLinkId+1 );
 
-      strcpy(szTooltip, "Sets the radio link frequency for this radio link.");
+      strcpy(szTooltip, L("Sets the radio link frequency for this radio link."));
       snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), " Radio type: %s.", str_get_radio_card_model_string(g_pCurrentModel->radioInterfacesParams.interface_card_model[iRadioInterfaceId]));
       strcat(szTooltip, szBuff);
       
@@ -623,7 +623,7 @@ void MenuVehicleRadioConfig::onSelectItem()
    {
       if ( ! m_bControllerHasKey )
       {
-         MenuConfirmation* pMC = new MenuConfirmation("Missing Pass Code", "You have not set a pass code on the controller. You need first to set a pass code on the controller from Menu->Controller->Encryption.", -1, true);
+         MenuConfirmation* pMC = new MenuConfirmation(L("Missing Pass Code"), "You have not set a pass code on the controller. You need first to set a pass code on the controller from Menu->Controller->Encryption.", -1, true);
          pMC->m_yPos = 0.3;
          add_menu_to_stack(pMC);
          m_pItemsSelect[2]->setSelectedIndex(0);
@@ -684,7 +684,7 @@ void MenuVehicleRadioConfig::onSelectItem()
 
       if ( link_is_reconfiguring_radiolink() )
       {
-         add_menu_to_stack(new MenuConfirmation("Configuration In Progress","Another radio link configuration change is in progress. Please wait.", 0, true));
+         add_menu_to_stack(new MenuConfirmation(L("Configuration In Progress"), L("Another radio link configuration change is in progress. Please wait."), 0, true));
          valuesToUI();
          return;
       }
@@ -705,7 +705,7 @@ void MenuVehicleRadioConfig::onSelectItem()
          if ( NULL != szError && 0 != szError[0] )
          {
             log_line(szError);
-            add_menu_to_stack(new MenuConfirmation("Invalid option",szError, 0, true));
+            add_menu_to_stack(new MenuConfirmation(L("Invalid option"), szError, 0, true));
             valuesToUI();
             return;
          }
@@ -740,7 +740,7 @@ void MenuVehicleRadioConfig::onSelectItem()
       if ( (get_sw_version_major(g_pCurrentModel) < 9) ||
            ((get_sw_version_major(g_pCurrentModel) == 9) && (get_sw_version_minor(g_pCurrentModel) <= 20)) )
       {
-         addMessageWithTitle(0, "Can't update radio links", "You need to update your vehicle to version 9.2 or newer");
+         addMessageWithTitle(0, L("Can't update radio links"), L("You need to update your vehicle to version 9.2 or newer"));
          return;
       }
 

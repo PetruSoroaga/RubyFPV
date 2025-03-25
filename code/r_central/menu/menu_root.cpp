@@ -52,7 +52,6 @@
 
 
 const char* s_textRoot[] = { "Welcome to", SYSTEM_NAME, NULL };
-static int sCounterRefresh_RootMenu = 0;
 
 
 MenuRoot::MenuRoot(void)
@@ -65,29 +64,6 @@ MenuRoot::MenuRoot(void)
 
    if ( 1 == Menu::getRenderMode() )
       addExtraHeightAtStart(0.2);
-
-   m_iIndexSpectator = -1;
-
-   m_iIndexSimpleSetup = addMenuItem(new MenuItem("Quick Setup", "Quickly change the most common vehicle settings."));
-   m_iIndexSearch = addMenuItem(new MenuItem("Search", "Search for vehicles."));
-   m_iIndexMyVehicles = addMenuItem(new MenuItem("My Vehicles","Manage your vehicles."));
-   addSeparator();
-   //m_iIndexSpectator = addMenuItem(new MenuItem("Spectator Vehicles", "See the list of vehicles you recently connected to as a spectator."));
-   m_iIndexVehicle = addMenuItem(new MenuItem("Vehicle Settings","Change vehicle settings."));
-   m_iIndexController = addMenuItem(new MenuItem("Controller Settings", "Change controller settings and user interface preferences."));
-   m_iIndexSystem = addMenuItem(new MenuItem("System", "Configure system options, shows detailed information about the system"));
-   addSeparator();
-   m_iIndexMedia = addMenuItem(new MenuItem("Media & Storage", "Manage saved logs, screenshots and videos."));
-   
-   m_pMenuItems[m_ItemsCount-1]->setExtraHeight(m_sfMenuPaddingY);
-   char szBuff[256];
-   char szBuff2[64];
-   getSystemVersionString(szBuff2, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
-   sprintf(szBuff, "Version %s (b.%d)", szBuff2, SYSTEM_SW_BUILD_NUMBER);
-
-   addMenuItem(new MenuItemText(szBuff, true, 0.01 * Menu::getScaleFactor()));
-   sprintf(szBuff, "Running on: %s", str_get_hardware_board_name_short(hardware_getBoardType()));
-   addMenuItem(new MenuItemText(szBuff, true, 0.01 * Menu::getScaleFactor()));
 }
 
 MenuRoot::~MenuRoot()
@@ -99,14 +75,44 @@ void MenuRoot::onShow()
 {
    int iPrevSelectedItem = m_SelectedIndex;
    log_line("Entering root menu...");
-   load_Preferences();
-   sCounterRefresh_RootMenu = 0;
    
+   load_Preferences();
+   addItems();
    Menu::onShow();
-   if ( iPrevSelectedItem >= 0 )
-      m_SelectedIndex = iPrevSelectedItem;
 
+   if ( iPrevSelectedItem >= 0 )
+   {
+      m_SelectedIndex = iPrevSelectedItem;
+      onFocusedItemChanged();
+   }
    log_line("Entered root menu.");
+}
+
+void MenuRoot::addItems()
+{
+   removeAllItems();
+   m_iIndexSpectator = -1;
+
+   m_iIndexSimpleSetup = addMenuItem(new MenuItem(L("Quick setup"), L("Quickly change the most common vehicle settings.")));
+   m_iIndexSearch = addMenuItem(new MenuItem(L("Search"), L("Search for vehicles.")));
+   m_iIndexMyVehicles = addMenuItem(new MenuItem(L("My vehicles"), L("Manage my vehicles.")));
+   addSeparator();
+   //m_iIndexSpectator = addMenuItem(new MenuItem("Spectator Vehicles", "See the list of vehicles you recently connected to as a spectator."));
+   m_iIndexVehicle = addMenuItem(new MenuItem(L("Vehicle settings"), L("Change vehicle settings.")));
+   m_iIndexController = addMenuItem(new MenuItem(L("Controller settings"), L("Change controller settings and user interface preferences.")));
+   m_iIndexSystem = addMenuItem(new MenuItem(L("System"), L("Configure system options, shows detailed information about the system.")));
+   addSeparator();
+   m_iIndexMedia = addMenuItem(new MenuItem(L("Media & storage"), L("Manage saved logs, screenshots and videos.")));
+   
+   m_pMenuItems[m_ItemsCount-1]->setExtraHeight(m_sfMenuPaddingY);
+   char szBuff[256];
+   char szBuff2[64];
+   getSystemVersionString(szBuff2, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
+   sprintf(szBuff, "Version %s (b.%d)", szBuff2, SYSTEM_SW_BUILD_NUMBER);
+
+   addMenuItem(new MenuItemText(szBuff, true, 0.01 * Menu::getScaleFactor()));
+   sprintf(szBuff, "Running on: %s", str_get_hardware_board_name_short(hardware_getBoardType()));
+   addMenuItem(new MenuItemText(szBuff, true, 0.01 * Menu::getScaleFactor()));
 }
 
 
@@ -148,30 +154,30 @@ void MenuRoot::RenderVehicleInfo()
    if ( (NULL == g_pCurrentModel) || (0 == g_uActiveControllerModelVID) ||
         (g_bFirstModelPairingDone && (0 == getControllerModelsCount()) && (0 == getControllerModelsSpectatorCount())) )
    {
-      hText1 = g_pRenderEngine->getMessageHeight("Not paired with any vehicle", MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
+      hText1 = g_pRenderEngine->getMessageHeight(L("Not paired with any vehicle"), MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
       height += hText1;
-      hText2 = g_pRenderEngine->getMessageHeight("Search for a vehicle to find one and connect to or select one from your paired vehicles.", MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
+      hText2 = g_pRenderEngine->getMessageHeight(L("Search for a vehicle to find one and connect to or select one from your paired vehicles."), MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
       height += hText2 + lineSpacing;
    }
    else
    {
       if ( (NULL != g_pCurrentModel) && link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
       {
-         sprintf(szLine1, "Connected to %s", g_pCurrentModel->getLongName() );
+         sprintf(szLine1, L("Connected to %s"), g_pCurrentModel->getLongName() );
          sprintf(szBuff, "Running ver %d.%d", ((g_pCurrentModel->sw_version>>8) & 0xFF), (g_pCurrentModel->sw_version & 0xFF));
          height += g_pRenderEngine->textHeight(g_idFontMenuSmall);
          height += g_pRenderEngine->textHeight(g_idFontMenuSmall);
       }
       else
-         sprintf(szLine1, "Looking for %s", g_pCurrentModel->getLongName() );
+         sprintf(szLine1, L("Looking for %s"), g_pCurrentModel->getLongName() );
 
       hText1 = g_pRenderEngine->getMessageHeight(szLine1, MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
       height += hText1;
 
       if ( g_pCurrentModel->is_spectator )
-         strcpy(szLine2, "(Spectator Mode)");
+         sprintf(szLine2, "(%s)", L("Spectator mode"));
       else
-         strcpy(szLine2, "(Full Control Mode)");
+         sprintf(szLine2, "(%s)", L("Full control mode"));
 
       hText2 = g_pRenderEngine->getMessageHeight(szLine2, MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
       height += hText2 + lineSpacing;
@@ -231,9 +237,9 @@ void MenuRoot::RenderVehicleInfo()
    if ( (NULL == g_pCurrentModel) || (0 == g_uActiveControllerModelVID) ||
         (g_bFirstModelPairingDone && (0 == getControllerModelsCount()) && (0 == getControllerModelsSpectatorCount())) )
    {
-      g_pRenderEngine->drawMessageLines( xPos, yPos, "Not paired with any vehicle", MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
+      g_pRenderEngine->drawMessageLines( xPos, yPos, L("Not paired with any vehicle"), MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
       yPos += hText1 + lineSpacing;
-      g_pRenderEngine->drawMessageLines( xPos, yPos, "Search for a vehicle to find one and connect to or select one of your paired vehicles.", MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
+      g_pRenderEngine->drawMessageLines( xPos, yPos, L("Search for a vehicle to find one and connect to or select one of your paired vehicles."), MENU_TEXTLINE_SPACING, maxTextWidth, g_idFontMenu);
    }
    else
    {
@@ -278,8 +284,6 @@ void MenuRoot::RenderVehicleInfo()
 void MenuRoot::Render()
 {
    RenderPrepare();
-
-   sCounterRefresh_RootMenu++;
 
    if ( Menu::getRenderMode() != 1 )
       m_RenderHeight -= 1.14 * g_pRenderEngine->textHeight(g_idFontMenu);

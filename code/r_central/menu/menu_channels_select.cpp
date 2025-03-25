@@ -53,7 +53,7 @@ u32 s_uChannelsSelect25Band = 0;
 u32 s_uChannelsSelect58Band = 0;
 
 MenuChannelsSelect::MenuChannelsSelect(u32 uFrequencyBands, int iId)
-:Menu(MENU_ID_CHANNELS_SELECT+iId*1000, "Select Frequencies", NULL)
+:Menu(MENU_ID_CHANNELS_SELECT+iId*1000, L("Select Frequencies"), NULL)
 {
    m_Width = 0.45;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.20;
@@ -61,8 +61,8 @@ MenuChannelsSelect::MenuChannelsSelect(u32 uFrequencyBands, int iId)
    setColumnsCount(4);
    enableColumnSelection(false);
    
-   addMenuItem(new MenuItem("Select All", ""));
-   addMenuItem(new MenuItem("Deselect All", ""));
+   addMenuItem(new MenuItem(L("Select All"), ""));
+   addMenuItem(new MenuItem(L("Deselect All"), ""));
 
    m_uFrequencyBands = uFrequencyBands;
    char szBuff[64];

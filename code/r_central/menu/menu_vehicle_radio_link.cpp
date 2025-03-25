@@ -42,7 +42,7 @@
 #include "../../radio/radiolink.h"
 #include "../../base/tx_powers.h"
 
-const char* s_szMenuRadio_SingleCard2 = "Note: You can not change the usage and capabilities of the radio link as there is a single radio link between vehicle and controller.";
+const char* s_szMenuRadio_SingleCard2 = "Note: You can not change the usage and capabilities of the radio link as there is a single radio link on your vehicle.";
 
 MenuVehicleRadioLink::MenuVehicleRadioLink(int iRadioLink)
 :Menu(MENU_ID_VEHICLE_RADIO_LINK, "Vehicle Radio Link Parameters", NULL)
@@ -630,14 +630,14 @@ void MenuVehicleRadioLink::valuesToUI()
    if ( (g_pCurrentModel->radioLinksParams.link_capabilities_flags[m_iRadioLink] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY) ||
         (linkCapabilitiesFlags & RADIO_HW_CAPABILITY_FLAG_DISABLED) )
    {
-      for( int i=2; i<20; i++ )
+      for( int i=3; i<20; i++ )
          if ( NULL != m_pItemsSelect[i] )
             m_pItemsSelect[i]->setEnabled(false);
       m_pItemsSelect[0]->setEnabled(false);
    }
    else
    {
-      for( int i=2; i<20; i++ )
+      for( int i=3; i<20; i++ )
          if ( NULL != m_pItemsSelect[i]) 
             m_pItemsSelect[i]->setEnabled(true);
       m_pItemsSelect[0]->setEnabled(true);

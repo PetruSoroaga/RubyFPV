@@ -46,6 +46,8 @@ class MenuVehicleSimpleSetup: public Menu
       int m_iIndexOSDLayout;
       int m_iIndexTelemetryType;
       int m_iIndexTelemetryPort;
+      int m_iIndexCamera;
+      int m_iIndexVideo;
 
       int m_iIndexFreq[MAX_RADIO_INTERFACES];
       u32 m_SupportedChannels[MAX_RADIO_INTERFACES][100];

@@ -125,7 +125,14 @@ void reset_Preferences()
       CTRL_RT_DEBUG_INFO_FLAG_SHOW_RX_VIDEO_UNRECOVERABLE_BLOCKS |
       CTRL_RT_DEBUG_INFO_FLAG_SHOW_VIDEO_PROFILE_CHANGES;
 
-   s_Preferences.iLanguage = 0;
+   s_Preferences.iLanguage = 1;
+   s_Preferences.iOSDFontBold = 0;
+   s_Preferences.iMenuFontBold = 0;
+
+   #if defined (HW_PLATFORM_RADXA)
+   s_Preferences.iOSDFont = 1;
+   s_Preferences.iOSDFontBold = 1;
+   #endif
 }
 
 int save_Preferences()
@@ -198,7 +205,8 @@ int save_Preferences()
          fprintf(fd, "\n");
    }
    fprintf(fd, "\n");
-   fprintf(fd, "%d \n", s_Preferences.iUnitsHeight);
+   fprintf(fd, "%d\n", s_Preferences.iUnitsHeight);
+   fprintf(fd, "%d %d\n", s_Preferences.iOSDFontBold, s_Preferences.iMenuFontBold);
    fclose(fd);
    log_line("Saved preferences to file: %s", szFile);
    return 1;
@@ -389,7 +397,7 @@ int load_Preferences()
 
    if ( bOk && (1 != fscanf(fd, "%d", &s_Preferences.iLanguage)) )
    {
-      s_Preferences.iLanguage = 0;
+      s_Preferences.iLanguage = 1;
    }
 
    if ( bOk )
@@ -403,6 +411,12 @@ int load_Preferences()
    if ( bOk && (1 != fscanf(fd, "%d", &s_Preferences.iUnitsHeight)) )
    {
       s_Preferences.iUnitsHeight = prefUnitsMetric;
+   }
+
+   if ( bOk && (2 != fscanf(fd, "%d %d", &s_Preferences.iOSDFontBold, &s_Preferences.iMenuFontBold)) )
+   {
+      s_Preferences.iOSDFontBold = 0;
+      s_Preferences.iMenuFontBold = 0;
    }
    
    // ----------------------------------------------------

@@ -1914,7 +1914,7 @@ bool Menu::checkIsArmed()
          sprintf(szText, "Your %s is armed, you can't perform this operation now. Please stop/disarm your %s first.", szModelType, szModelType);
       }
       else
-         strcpy(szText, "Your vehicle is armed, you can't perform this operation now. Please stop/disarm your vehicle first.");
+         strcpy(szText, L("Your vehicle is armed, you can't perform this operation now. Please stop/disarm your vehicle first."));
       Popup* p = new Popup(szText, 0.3, 0.3, 0.5, 6 );
       p->setCentered();
       p->setIconId(g_idIconError, get_Color_IconError());
@@ -1941,7 +1941,7 @@ void Menu::addMessage(const char* szMessage)
 
 void Menu::addMessage(int iId, const char* szMessage)
 {
-   Menu* pm = new MenuConfirmation("Info", szMessage, MENU_ID_SIMPLE_MESSAGE + iId*1000, true);
+   Menu* pm = new MenuConfirmation(L("Info"), szMessage, MENU_ID_SIMPLE_MESSAGE + iId*1000, true);
    pm->setId(MENU_ID_SIMPLE_MESSAGE + iId*1000);
    pm->m_xPos = 0.32; pm->m_yPos = 0.4;
    pm->m_Width = 0.36;
@@ -1951,7 +1951,7 @@ void Menu::addMessage(int iId, const char* szMessage)
 
 void Menu::addMessage2(int iId, const char* szMessage, const char* szLine2)
 {
-   Menu* pm = new MenuConfirmation("Info", szMessage, MENU_ID_SIMPLE_MESSAGE + iId*1000, true);
+   Menu* pm = new MenuConfirmation(L("Info"), szMessage, MENU_ID_SIMPLE_MESSAGE + iId*1000, true);
    pm->setId(MENU_ID_SIMPLE_MESSAGE + iId*1000);
    pm->m_xPos = 0.32; pm->m_yPos = 0.4;
    pm->m_Width = 0.36;
@@ -1982,7 +1982,7 @@ bool Menu::checkCancelUpload()
    render_commands_set_custom_status(NULL);
    log_line("The software update was canceled by user.");
    hardware_sleep_ms(50);
-   addMessage("Update was canceled.");
+   addMessage(L("Update was canceled."));
    g_nFailedOTAUpdates++;
    return true;
 }
@@ -2153,7 +2153,7 @@ bool Menu::_generate_upload_archive(char* szArchiveName)
       render_commands_set_progress_percent(-1, true);
       ruby_resume_watchdog();
       g_bUpdateInProgress = false;
-      addMessage("There was an error generating software upload file.");
+      addMessage(L("There was an error generating software upload file."));
       return false;
    }
    s_iThreadGenerateUploadCounter++;
@@ -2238,9 +2238,9 @@ bool Menu::uploadSoftware()
       ruby_resume_watchdog();
       g_bUpdateInProgress = false;
       if ( s_bThreadGenerateUploadError )
-         addMessage2(0, "Vehicle update binary files are missing or update procedure changed. Please update (again) your controller.", s_szThreadGenerateUploadErrorString);
+         addMessage2(0, L("Vehicle update binary files are missing or update procedure changed. Please update (again) your controller."), s_szThreadGenerateUploadErrorString);
       else
-         addMessage("There was an error generating upload software archive.");
+         addMessage(L("There was an error generating upload software archive."));
       return false;
    }
    render_commands_set_custom_status(NULL);
@@ -2257,7 +2257,7 @@ bool Menu::uploadSoftware()
       render_commands_set_progress_percent(-1, true);
       ruby_resume_watchdog();
       g_bUpdateInProgress = false;
-      addMessage("There was an error updating your vehicle.");
+      addMessage(L("There was an error updating your vehicle."));
       return false;
    }
    render_commands_set_custom_status(NULL);
@@ -2431,7 +2431,7 @@ bool Menu::uploadSoftware()
 
 MenuItemSelect* Menu::createMenuItemCardModelSelector(const char* szTitle)
 {
-   MenuItemSelect* pItem = new MenuItemSelect(szTitle, "Sets the radio interface model.");
+   MenuItemSelect* pItem = new MenuItemSelect(szTitle, L("Sets the radio interface model."));
    pItem->addSelection("Autodetected");
    pItem->addSelection("Generic");
    for( int i=1; i<50; i++ )
@@ -2451,7 +2451,7 @@ MenuItemSelect* Menu::createMenuItemTxPowers(const char* szTitle, bool bAddAutoO
    int iPowerLevelsCount = 0;
    const int* piPowerLevelsUIMw = tx_powers_get_ui_levels_mw(&iPowerLevelsCount);
 
-   MenuItemSelect* pItem = new MenuItemSelect(szTitle, "Sets the radio Tx power level.");
+   MenuItemSelect* pItem = new MenuItemSelect(szTitle, L("Sets the radio Tx power level."));
    
    char szText[128];
    szText[0] = 0;
@@ -2626,7 +2626,7 @@ bool Menu::_uploadVehicleUpdate(const char* szArchiveToUpload)
    fd = fopen(szFile, "rb");
    if ( NULL == fd )
    {
-      addMessage("There was an error generating the software package.");
+      addMessage(L("There was an error generating the software package."));
       g_bUpdateInProgress = false;
       return false;
    }
@@ -2639,7 +2639,7 @@ bool Menu::_uploadVehicleUpdate(const char* szArchiveToUpload)
    u8** pPackets = (u8**) malloc(nPackets*sizeof(u8*));
    if ( NULL == pPackets )
    {
-      addMessage("There was an error generating the upload package.");
+      addMessage(L("There was an error generating the upload package."));
       g_bUpdateInProgress = false;
       return false;
    }
@@ -2663,7 +2663,7 @@ bool Menu::_uploadVehicleUpdate(const char* szArchiveToUpload)
       if ( nRead < 0 )
       {
          //free((u8*)pPackets);
-         addMessage("There was an error generating the upload package.");
+         addMessage(L("There was an error generating the upload package."));
          g_bUpdateInProgress = false;
          return false;
       }
@@ -2737,7 +2737,7 @@ bool Menu::_uploadVehicleUpdate(const char* szArchiveToUpload)
 
          if ( ! handle_commands_send_command_once_to_vehicle(COMMAND_ID_UPLOAD_SW_TO_VEHICLE63, resendCounter, bWaitAck, pPacket, pcpsp->block_length+sizeof(command_packet_sw_package)) )
          {
-            addMessage("There was an error uploading the software package.");
+            addMessage(L("There was an error uploading the software package."));
             fclose(fd);
             g_nFailedOTAUpdates++;
             for( int i=0; i<5; i++ )
@@ -2910,7 +2910,7 @@ bool Menu::_uploadVehicleUpdate(const char* szArchiveToUpload)
 
 void Menu::addMessageNeedsVehcile(const char* szMessage, int iConfirmationId)
 {
-   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+iConfirmationId*1000,"Not connected",NULL);
+   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+iConfirmationId*1000, L("Not connected"), NULL);
    pm->m_xPos = 0.4; pm->m_yPos = 0.4;
    pm->m_Width = 0.36;
    pm->addTopLine(szMessage);
@@ -2934,7 +2934,7 @@ char* Menu::addMessageVideoBitrate(Model* pModel)
    if ( pModel->video_link_profiles[iProfile].bitrate_fixed_bps <= uMaxVideoRate )
       return s_szMenuObjectsVideoBitrateWarning;
 
-   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Video Bitrate Warning",NULL);
+   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE, L("Video Bitrate Warning"), NULL);
    pm->m_xPos = m_xPos-0.05; pm->m_yPos = m_yPos+0.05;
    pm->m_Width = 0.5;
    pm->m_bDisableStacking = true;
@@ -3006,7 +3006,7 @@ char* Menu::addMessageVideoBitrate(Model* pModel)
 
 void Menu::addUnsupportedMessageOpenIPC(const char* szMessage)
 {
-   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Functionality not supported",NULL);
+   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE, L("Functionality not supported"), NULL);
    pm->m_xPos = 0.4; pm->m_yPos = 0.4;
    pm->m_Width = 0.36;
    if ( (NULL != szMessage) && (0 != szMessage[0]) )
@@ -3019,7 +3019,7 @@ void Menu::addUnsupportedMessageOpenIPC(const char* szMessage)
 
 void Menu::addUnsupportedMessageOpenIPCGoke(const char* szMessage)
 {
-   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Functionality not supported",NULL);
+   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE, L("Functionality not supported"), NULL);
    pm->m_xPos = 0.4; pm->m_yPos = 0.4;
    pm->m_Width = 0.36;
    if ( (NULL != szMessage) && (0 != szMessage[0]) )
@@ -3032,7 +3032,7 @@ void Menu::addUnsupportedMessageOpenIPCGoke(const char* szMessage)
 
 void Menu::addUnsupportedMessageOpenIPCSigmaster(const char* szMessage)
 {
-   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Functionality not supported",NULL);
+   Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE, L("Functionality not supported"), NULL);
    pm->m_xPos = 0.4; pm->m_yPos = 0.4;
    pm->m_Width = 0.36;
    if ( (NULL != szMessage) && (0 != szMessage[0]) )

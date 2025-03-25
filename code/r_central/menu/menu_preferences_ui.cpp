@@ -42,13 +42,33 @@
 
 
 MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
-:Menu(MENU_ID_PREFERENCES_UI, "User Interface Fonts, Colors and Sizes", NULL)
+:Menu(MENU_ID_PREFERENCES_UI, L("Controller User Interface"), NULL)
 {
    m_Width = 0.32;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.12;
 
    m_bShowOnlyOSD = bShowOnlyOSD;
+}
 
+void MenuPreferencesUI::onShow()
+{
+   int iTmp = getSelectedMenuItemIndex();
+   addItems();
+   Menu::onShow();
+
+   if ( iTmp >= 1 )
+   {
+      m_SelectedIndex = iTmp;
+      onFocusedItemChanged();
+   }
+}
+
+void MenuPreferencesUI::addItems()
+{
+   removeAllItems();
+   removeAllTopLines();
+
+   setTitle(L("Controller User Interface"));
    m_IndexScaleMenu = -1;
    m_IndexMenuStacked = -1;
 
@@ -59,52 +79,54 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
    m_IndexMonitor = -1;
    m_IndexMSPOSDFont = -1;
    m_IndexLanguage = -1;
+   m_IndexOSDFont = -1;
+   m_IndexOSDFontBold = -1;
 
    if ( ! m_bShowOnlyOSD )
    {
-      addMenuItem(new MenuItemSection("Menus"));
+      addMenuItem(new MenuItemSection(L("Menus")));
 
-      m_pItemsSelect[1] = new MenuItemSelect("Menus Layout", "Changes how the menus appear on screen.");  
-      m_pItemsSelect[1]->addSelection("Side by side");
-      m_pItemsSelect[1]->addSelection("Stacked");
-      m_pItemsSelect[1]->addSelection("Sticky Left", false);
+      m_pItemsSelect[1] = new MenuItemSelect(L("Menus layout"), L("Changes how the menus appear on screen."));  
+      m_pItemsSelect[1]->addSelection(L("Side by side"));
+      m_pItemsSelect[1]->addSelection(L("Stacked"));
+      m_pItemsSelect[1]->addSelection(L("Sticky Left"), false);
       m_pItemsSelect[1]->setIsEditable();
       m_IndexMenuStacked = addMenuItem(m_pItemsSelect[1]);
 
-      m_pItemsSelect[0] = new MenuItemSelect("Menu Font Size", "Change how big the menus appear on screen.");  
-      m_pItemsSelect[0]->addSelection("X-Small");
-      m_pItemsSelect[0]->addSelection("Small");
-      m_pItemsSelect[0]->addSelection("Normal");
-      m_pItemsSelect[0]->addSelection("Large");
-      m_pItemsSelect[0]->addSelection("X-Large");
+      m_pItemsSelect[0] = new MenuItemSelect(L("Menu font size"), L("Change how big the menus appear on screen."));  
+      m_pItemsSelect[0]->addSelection(L("X-Small"));
+      m_pItemsSelect[0]->addSelection(L("Small"));
+      m_pItemsSelect[0]->addSelection(L("Normal"));
+      m_pItemsSelect[0]->addSelection(L("Large"));
+      m_pItemsSelect[0]->addSelection(L("X-Large"));
       m_pItemsSelect[0]->setIsEditable();
       m_IndexScaleMenu = addMenuItem(m_pItemsSelect[0]);
       
       addMenuItem(new MenuItemSection("OSD"));
    }
 
-   m_pItemsSelect[2] = new MenuItemSelect("Invert Colors", "Invert colors on OSD and Menus.");
-   m_pItemsSelect[2]->addSelection("Normal");
-   m_pItemsSelect[2]->addSelection("Inverted");
+   m_pItemsSelect[2] = new MenuItemSelect(L("Invert colors"), L("Invert colors on OSD and menus."));
+   m_pItemsSelect[2]->addSelection(L("Normal"));
+   m_pItemsSelect[2]->addSelection(L("Inverted"));
    m_pItemsSelect[2]->setIsEditable();
    m_IndexInvertColors = addMenuItem(m_pItemsSelect[2]);
 
-   m_IndexColorPickerOSD = addMenuItem(new MenuItem("OSD Text Color","Change color of the text in the OSD.")); 
-   m_IndexColorPickerOSDOutline = addMenuItem(new MenuItem("OSD Outline Color","Change color of the outline in the OSD.")); 
+   m_IndexColorPickerOSD = addMenuItem(new MenuItem(L("OSD text color"), L("Change color of the text in the OSD."))); 
+   m_IndexColorPickerOSDOutline = addMenuItem(new MenuItem(L("OSD outline color"), L("Change color of the outline in the OSD."))); 
 
-   m_pItemsSelect[3] = new MenuItemSelect("OSD Outline Thickness", "Increase/decrease OSD outline thickness.");
-   m_pItemsSelect[3]->addSelection("None");
-   m_pItemsSelect[3]->addSelection("Smallest");
-   m_pItemsSelect[3]->addSelection("Small");
-   m_pItemsSelect[3]->addSelection("Normal");
-   m_pItemsSelect[3]->addSelection("Large");
-   m_pItemsSelect[3]->addSelection("Larger");
-   m_pItemsSelect[3]->addSelection("Largest");
+   m_pItemsSelect[3] = new MenuItemSelect(L("OSD outline thickness"), L("Increase/decrease OSD outline thickness."));
+   m_pItemsSelect[3]->addSelection(L("None"));
+   m_pItemsSelect[3]->addSelection(L("Smallest"));
+   m_pItemsSelect[3]->addSelection(L("Small"));
+   m_pItemsSelect[3]->addSelection(L("Normal"));
+   m_pItemsSelect[3]->addSelection(L("Large"));
+   m_pItemsSelect[3]->addSelection(L("Larger"));
+   m_pItemsSelect[3]->addSelection(L("Largest"));
    //m_IndexOSDOutlineThickness = addMenuItem(m_pItemsSelect[3]);
    m_IndexOSDOutlineThickness = -1;
 
 
-   m_pItemsSelect[6] = new MenuItemSelect("OSD Screen Size", "Change how big is the OSD relative to the screen.");  
+   m_pItemsSelect[6] = new MenuItemSelect(L("OSD screen size"), L("Change how big is the OSD relative to the screen."));  
    m_pItemsSelect[6]->addSelection("100%");
    m_pItemsSelect[6]->addSelection("98%");
    m_pItemsSelect[6]->addSelection("96%");
@@ -115,29 +137,46 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
    m_pItemsSelect[6]->addSelection("86%");
    m_IndexOSDSize = addMenuItem(m_pItemsSelect[6]);
 
-   m_pItemsSelect[7] = new MenuItemSelect("OSD Flip Vertical", "Flips the OSD info vertically for rotated displays.");  
-   m_pItemsSelect[7]->addSelection("No");
-   m_pItemsSelect[7]->addSelection("Yes");
+   m_pItemsSelect[7] = new MenuItemSelect(L("OSD flip vertical"), L("Flips the OSD info vertically for rotated displays."));  
+   m_pItemsSelect[7]->addSelection(L("No"));
+   m_pItemsSelect[7]->addSelection(L("Yes"));
    m_pItemsSelect[7]->setIsEditable();
    m_IndexOSDFlip = addMenuItem(m_pItemsSelect[7]);
 
-   m_IndexColorPickerAHI = addMenuItem(new MenuItem("Instruments Color","Change color of the instruments/gauges.")); 
+   m_IndexColorPickerAHI = addMenuItem(new MenuItem(L("Instruments color"), L("Change color of the instruments/gauges."))); 
 
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
-      m_pItemsSelect[10] = new MenuItemSelect("Ruby OSD Font", "Changes the OSD font used for Ruby OSD elements.");  
+      m_pItemsSelect[10] = new MenuItemSelect(L("Ruby OSD font"), L("Changes the OSD font used for Ruby OSD elements."));  
    else
-      m_pItemsSelect[10] = new MenuItemSelect("OSD Font", "Changes the OSD font.");  
+      m_pItemsSelect[10] = new MenuItemSelect(L("OSD font"), L("Changes the OSD font."));  
+
+   #if defined (HW_PLATFORM_RASPBERRY)
    m_pItemsSelect[10]->addSelection("Font 1 Bold");
    m_pItemsSelect[10]->addSelection("Font 1 Outlined");
    m_pItemsSelect[10]->addSelection("Font 2");
    m_pItemsSelect[10]->addSelection("Font 3 Bold");
    m_pItemsSelect[10]->setIsEditable();
    m_IndexOSDFont = addMenuItem(m_pItemsSelect[10]);
+   #else
+   m_pItemsSelect[10]->addSelection("Font 1");
+   m_pItemsSelect[10]->addSelection("Font 2");
+   m_pItemsSelect[10]->setIsEditable();
+   m_IndexOSDFont = addMenuItem(m_pItemsSelect[10]);
+
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
+      m_pItemsSelect[5] = new MenuItemSelect(L("Ruby OSD font style"), L("Changes the OSD font style used for Ruby OSD elements."));  
+   else
+      m_pItemsSelect[5] = new MenuItemSelect(L("OSD font style"), L("Changes the OSD font style."));  
+   m_pItemsSelect[5]->addSelection(L("Regular"));
+   m_pItemsSelect[5]->addSelection(L("Bold"));
+   m_pItemsSelect[5]->setIsEditable();
+   m_IndexOSDFontBold = addMenuItem(m_pItemsSelect[5]);
+   #endif
 
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
    {
-      m_pItemsSelect[14] = new MenuItemSelect("MSP OSD Font", "Changes the OSD font used for MSP OSD.");  
-      m_pItemsSelect[14]->addSelection("Auto");
+      m_pItemsSelect[14] = new MenuItemSelect(L("MSP OSD font"), L("Changes the OSD font used for MSP OSD."));  
+      m_pItemsSelect[14]->addSelection(L("Auto"));
       m_pItemsSelect[14]->addSelection("Betaflight");
       m_pItemsSelect[14]->addSelection("INAV");
       m_pItemsSelect[14]->addSelection("Ardupilot");
@@ -149,24 +188,34 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
    if ( pCS->iDeveloperMode )
    {
       m_pItemsSelect[12] = new MenuItemSelect("Show loop monitor", "Shows a graphical spinner (bottom left of the screen) for monitoring the controller processes.");  
-      m_pItemsSelect[12]->addSelection("No");
-      m_pItemsSelect[12]->addSelection("Yes");
+      m_pItemsSelect[12]->addSelection(L("No"));
+      m_pItemsSelect[12]->addSelection(L("Yes"));
       m_pItemsSelect[12]->setIsEditable();
       m_pItemsSelect[12]->setTextColor(get_Color_Dev());
       m_IndexMonitor = addMenuItem(m_pItemsSelect[12]);
    }
    if ( ! m_bShowOnlyOSD )
    {
-      addMenuItem(new MenuItemSection("General"));
+      addMenuItem(new MenuItemSection(L("General")));
 
-      m_pItemsSelect[18] = new MenuItemSelect("Language", "Change the user interface language.");
+      m_pItemsSelect[18] = new MenuItemSelect(L("Language"), L("Change the user interface language."));
       for( int i=0; i<getLanguagesCount(); i++ )
-         m_pItemsSelect[18]->addSelection(L(getLanguageName(i)));
+      {
+         bool bEnabled = true;
+         #if defined (HW_PLATFORM_RASPBERRY)
+         // Disable non latin charsets (raster fonts)
+         if ( (i == 0) || (i == 4) || (i == 5) )
+            bEnabled = false;
+         #endif
+         if ( i == 4 )
+            bEnabled = false;
+         m_pItemsSelect[18]->addSelection(L(getLanguageName(i)), bEnabled);
+      }
       m_pItemsSelect[18]->setIsEditable();
       m_IndexLanguage = addMenuItem(m_pItemsSelect[18]);
     
 
-      m_pItemsSelect[15] = new MenuItemSelect("Display Units", "Changes how the OSD displays data: in metric system or imperial system.");  
+      m_pItemsSelect[15] = new MenuItemSelect(L("Display units"), L("Changes how the OSD displays data: in metric system or imperial system."));  
       m_pItemsSelect[15]->addSelection("Metric (km/h)");
       m_pItemsSelect[15]->addSelection("Metric (m/s)");
       m_pItemsSelect[15]->addSelection("Imperial (mi/h)");
@@ -174,7 +223,7 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
       m_pItemsSelect[15]->setIsEditable();
       m_IndexUnits = addMenuItem(m_pItemsSelect[15]);
 
-      m_pItemsSelect[4] = new MenuItemSelect("Display Units (Heights)", "Changes how the OSD displays heights: in metric system or imperial system.");  
+      m_pItemsSelect[4] = new MenuItemSelect(L("Display units (Heights)"), L("Changes how the OSD displays heights: in metric system or imperial system."));  
       //m_pItemsSelect[4]->addSelection("Metric (km)");
       m_pItemsSelect[4]->addSelection("Metric (m)");
       //m_pItemsSelect[4]->addSelection("Imperial (mi)");
@@ -182,19 +231,20 @@ MenuPreferencesUI::MenuPreferencesUI(bool bShowOnlyOSD)
       m_pItemsSelect[4]->setIsEditable();
       m_IndexUnitsHeight = addMenuItem(m_pItemsSelect[4]);
 
-      m_pItemsSelect[16] = new MenuItemSelect("Persist Messages Longer", "Keep the various messages and warnings longer on the screen.");  
-      m_pItemsSelect[16]->addSelection("No");
-      m_pItemsSelect[16]->addSelection("Yes");
+      m_pItemsSelect[16] = new MenuItemSelect(L("Persist messages longer"), L("Keep the various messages and warnings longer on the screen."));  
+      m_pItemsSelect[16]->addSelection(L("No"));
+      m_pItemsSelect[16]->addSelection(L("Yes"));
       m_pItemsSelect[16]->setIsEditable();
       m_IndexPersistentMessages = addMenuItem(m_pItemsSelect[16]);
 
-      m_pItemsSelect[17] = new MenuItemSelect("Log Messages Window", "Shows the log messages window.");  
-      m_pItemsSelect[17]->addSelection("Off");
-      m_pItemsSelect[17]->addSelection("On New Content");
-      m_pItemsSelect[17]->addSelection("Always On");
+      m_pItemsSelect[17] = new MenuItemSelect(L("Log messages window"), L("Shows the log messages window."));  
+      m_pItemsSelect[17]->addSelection(L("Off"));
+      m_pItemsSelect[17]->addSelection(L("On New Content"));
+      m_pItemsSelect[17]->addSelection(L("Always On"));
       m_pItemsSelect[17]->setIsEditable();
       m_IndexLogWindow = addMenuItem(m_pItemsSelect[17]);
    }
+   valuesToUI();
 }
 
 void MenuPreferencesUI::valuesToUI()
@@ -225,6 +275,8 @@ void MenuPreferencesUI::valuesToUI()
    m_pItemsSelect[7]->setSelection(p->iOSDFlipVertical);
 
    m_pItemsSelect[10]->setSelectedIndex(p->iOSDFont);
+   if ( -1 != m_IndexOSDFontBold )
+      m_pItemsSelect[5]->setSelectedIndex(p->iOSDFontBold);
 
    if ( -1 != m_IndexMonitor )
       m_pItemsSelect[12]->setSelection(p->iShowProcessesMonitor);
@@ -263,12 +315,6 @@ void MenuPreferencesUI::valuesToUI()
    if ( -1 != m_IndexLanguage )
       m_pItemsSelect[18]->setSelectedIndex(p->iLanguage);
 
-}
-
-void MenuPreferencesUI::onShow()
-{
-   removeAllTopLines();
-   Menu::onShow();
 }
 
 void MenuPreferencesUI::Render()
@@ -420,6 +466,13 @@ void MenuPreferencesUI::onSelectItem()
       loadAllFonts(false);
    }
 
+   if ( (-1 != m_IndexOSDFontBold) && (m_IndexOSDFontBold == m_SelectedIndex) )
+   {
+      p->iOSDFontBold = m_pItemsSelect[5]->getSelectedIndex();
+      save_Preferences();
+      loadAllFonts(false);    
+   }
+
    if ( m_IndexColorPickerOSD == m_SelectedIndex )
    {
       add_menu_to_stack(new MenuColorPicker());
@@ -510,7 +563,9 @@ void MenuPreferencesUI::onSelectItem()
    {
       p->iLanguage = m_pItemsSelect[18]->getSelectedIndex();
       save_Preferences();
+      setActiveLanguage(p->iLanguage); 
       valuesToUI();
+      menu_refresh_all_menus();
       return;
    }
    save_Preferences();

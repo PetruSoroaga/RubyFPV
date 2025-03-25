@@ -178,7 +178,7 @@ void radio_init_link_structures()
    }
 
 #ifdef FEATURE_RADIO_SYNCHRONIZE_RXTX_THREADS
-   log_line("[Radio] Initialize and use radio rxtx threads syncronization.");
+   log_line("[Radio] Initialize and use radio rxtx threads synchronization.");
    if ( 0 == s_iMutexRadioSyncRxTxThreadsInitialized )
    {
       if ( 0 != pthread_mutex_init(&s_pMutexRadioSyncRxTxThreads, NULL) )
@@ -187,7 +187,7 @@ void radio_init_link_structures()
          s_iMutexRadioSyncRxTxThreadsInitialized = 1;
    }
 #else
-   log_line("[Radio] Do not use radio rxtx threads syncronization.");
+   log_line("[Radio] Do not use radio rxtx threads synchronization.");
 #endif
 }
 

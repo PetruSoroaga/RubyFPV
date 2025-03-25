@@ -371,6 +371,7 @@ void RenderEngineRaw::_buildMipImage(struct _fbg_img* pSrc, struct _fbg_img* pDe
 
 void RenderEngineRaw::startFrame()
 {
+   RenderEngine::startFrame();
    fbg_clear(m_pFBG, m_uClearBufferByte);
 }
 
@@ -378,6 +379,7 @@ void RenderEngineRaw::endFrame()
 {
    fbg_draw(m_pFBG);
    fbg_flip(m_pFBG);
+   RenderEngine::endFrame();
 }
 
 void RenderEngineRaw::rotate180()

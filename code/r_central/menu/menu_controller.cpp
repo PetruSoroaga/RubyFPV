@@ -55,7 +55,7 @@
 #include <sys/resource.h>
 
 MenuController::MenuController(void)
-:Menu(MENU_ID_CONTROLLER, "Controller Settings", NULL)
+:Menu(MENU_ID_CONTROLLER, L("Controller Settings"), NULL)
 {
    m_Width = 0.18;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.18;
@@ -68,21 +68,38 @@ MenuController::MenuController(void)
 void MenuController::onShow()
 {
    int iTmp = getSelectedMenuItemIndex();
-   removeAllItems();
 
-   m_IndexVideo = addMenuItem(new MenuItem("Audio & Video Output", "Change Audio and Video Output Settings (HDMI, USB Tethering, Audio output device)"));
+   addItems();
+   Menu::onShow();
+
+   if ( iTmp > 0 )
+   {
+      m_SelectedIndex = iTmp;
+      if ( m_SelectedIndex >= m_ItemsCount )
+         m_SelectedIndex = m_ItemsCount-1;
+      onFocusedItemChanged();
+   }
+}
+
+void MenuController::addItems()
+{
+   removeAllItems();
+   removeAllTopLines();
+   
+   setTitle(L("Controller Settings"));
+   m_IndexVideo = addMenuItem(new MenuItem(L("Audio & video output"), L("Change Audio and Video Output Settings (HDMI, USB Tethering, Audio output device)")));
    //m_pMenuItems[m_IndexVideo]->showArrow();
 
-   m_IndexTelemetry = addMenuItem(new MenuItem("Telemetry Input/Output", "Change the Telemetry Input/Output settings on the controller ports."));
+   m_IndexTelemetry = addMenuItem(new MenuItem(L("Telemetry Input/Output"), L("Change the Telemetry Input/Output settings on the controller ports.")));
    //m_pMenuItems[m_IndexTelemetry]->showArrow();
 
-   m_IndexRadio = addMenuItem(new MenuItem("Radio", "Configure the radio interfaces on the controller."));
+   m_IndexRadio = addMenuItem(new MenuItem(L("Radio"), L("Configure the radio interfaces on the controller.")));
    //m_pMenuItems[m_IndexTelemetry]->showArrow();
 
-   m_IndexCPU = addMenuItem(new MenuItem("CPU and Processes", "Set CPU Overclocking, Processes Priorities"));
+   m_IndexCPU = addMenuItem(new MenuItem(L("CPU and Processes"), L("Set CPU Overclocking, Processes Priorities")));
    //m_pMenuItems[m_IndexCPU]->showArrow();
 
-   m_IndexPorts = addMenuItem(new MenuItem("Peripherals / Ports", "Change controller peripherals settings (serial ports, USB devices, HID, I2C devices, etc)"));
+   m_IndexPorts = addMenuItem(new MenuItem(L("Peripherals & Ports"), L("Change controller peripherals settings (serial ports, USB devices, HID, I2C devices, etc)")));
    //m_pMenuItems[m_IndexPorts]->showArrow();
 
    //m_pItemsSelect[1] = new MenuItemSelect("Show CPU Info in OSD", "Shows Controller CPU information (load, frequency, temperature) on the OSD, near the vehicle CPU info, when using OSD Full Layout.");
@@ -97,7 +114,7 @@ void MenuController::onShow()
    //m_pItemsSelect[2]->setUseMultiViewLayout();
    //m_IndexShowVoltage = addMenuItem(m_pItemsSelect[2]);
    
-   m_IndexNetwork = addMenuItem(new MenuItem("Local Network Settings", "Change the local network settings on the controller (DHCP/Fixed IP)"));
+   m_IndexNetwork = addMenuItem(new MenuItem(L("Local Network Settings"), L("Change the local network settings on the controller (DHCP/Fixed IP)")));
    //m_pMenuItems[m_IndexNetwork]->showArrow();
 
    m_IndexEncryption = -1;
@@ -105,12 +122,12 @@ void MenuController::onShow()
    //m_pMenuItems[m_IndexEncryption]->showArrow();
    //m_pMenuItems[m_IndexEncryption]->setEnabled(false);
 
-   m_IndexButtons = addMenuItem(new MenuItem("Buttons", "Change buttons actions."));
+   m_IndexButtons = addMenuItem(new MenuItem(L("Buttons"), L("Change buttons actions.")));
    m_IndexPreferences = -1;
    //m_IndexPreferences = addMenuItem(new MenuItem("Preferences", "Change preferences about messages."));
-   m_IndexPreferencesUI = addMenuItem(new MenuItem("User Interface", "Change user interface preferences."));
+   m_IndexPreferencesUI = addMenuItem(new MenuItem(L("User Interface"), L("Change user interface preferences: language, fonts, colors, sizes, display units.")));
 
-   m_IndexRecording = addMenuItem(new MenuItem("Recording Settings", "Change the recording settings"));
+   m_IndexRecording = addMenuItem(new MenuItem(L("Recording Settings"), L("Change the recording settings")));
    //m_pMenuItems[m_IndexRecording]->showArrow();
 
    ControllerSettings* pCS = get_ControllerSettings();
@@ -122,19 +139,11 @@ void MenuController::onShow()
       m_pMenuItems[m_IndexDeveloper]->setTextColor(get_Color_Dev());
    }
 
-   addMenuItem(new MenuItemSection("Management"));
+   addMenuItem(new MenuItemSection(L("Management")));
 
-   m_IndexPlugins = addMenuItem(new MenuItem("Manage Plugins", "Configure, add and remove controller software plugins."));
-   m_IndexUpdate = addMenuItem(new MenuItem("Update Software", "Updates software on this controller using a USB memory stick."));
-   m_IndexReboot = addMenuItem(new MenuItem("Restart", "Restarts the controller."));
-   
-   Menu::onShow();
-
-   m_SelectedIndex = iTmp;
-   if ( m_SelectedIndex < 0 )
-      m_SelectedIndex = 0;
-   if ( m_SelectedIndex >= m_ItemsCount )
-      m_SelectedIndex = m_ItemsCount-1;
+   m_IndexPlugins = addMenuItem(new MenuItem(L("Manage Plugins"), L("Configure, add and remove controller software plugins.")));
+   m_IndexUpdate = addMenuItem(new MenuItem(L("Update Software"), L("Updates software on this controller using a USB memory stick.")));
+   m_IndexReboot = addMenuItem(new MenuItem(L("Restart Controller"), L("Restarts the controller.")));
 }
 
 void MenuController::valuesToUI()
@@ -356,7 +365,7 @@ void MenuController::onSelectItem()
 
       sprintf(szBuff, "Your controller has software version %s (b.%d)", szBuff2, SYSTEM_SW_BUILD_NUMBER);
 
-      MenuConfirmation* pMC = new MenuConfirmation("Update Controller Software","Insert an USB stick containing the Ruby update archive file and then press Ok to start the update process.",1, true);
+      MenuConfirmation* pMC = new MenuConfirmation(L("Update Controller Software"), L("Insert an USB stick containing the Ruby update archive file and then press Ok to start the update process."), 1, true);
       pMC->m_yPos = 0.3;
       add_menu_to_stack(pMC);
       return;
@@ -372,11 +381,11 @@ void MenuController::onSelectItem()
             sprintf(szText, "Your %s is armed. Are you sure you want to reboot the controller?", g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel->getVehicleTypeString());
          else
             strcpy(szText, "Your vehicle is armed. Are you sure you want to reboot the controller?");
-         MenuConfirmation* pMC = new MenuConfirmation("Warning! Reboot Confirmation", szText, 10);
+         MenuConfirmation* pMC = new MenuConfirmation(L("Warning! Reboot Confirmation"), szText, 10);
          if ( g_pCurrentModel->rc_params.rc_enabled )
          {
             pMC->addTopLine(" ");
-            pMC->addTopLine("Warning: You have the RC link enabled, the vehicle flight controller might not go into failsafe mode during reboot.");
+            pMC->addTopLine(L("Warning: You have the RC link enabled, the vehicle flight controller might not go into failsafe mode during reboot."));
          }
          add_menu_to_stack(pMC);
          return;
@@ -394,7 +403,7 @@ void MenuController::onSelectItem()
 
 void MenuController::updateControllerSoftware()
 {
-   Popup* p = new Popup("Updating. Please wait...",0.36,0.4, 0.5, 60);
+   Popup* p = new Popup(L("Updating. Please wait..."), 0.36,0.4, 0.5, 60);
    popups_add_topmost(p);
 
    ruby_processing_loop(true);
@@ -411,13 +420,13 @@ void MenuController::updateControllerSoftware()
       ruby_signal_alive();
 
       if ( 0 == iMountRes )
-         addMessage("No USB memory stick detected. Please insert a USB stick.");
+         addMessage(L("No USB memory stick detected. Please insert a USB stick."));
       else
       {
          if ( -1 == iMountRes )
             iMountRes = hardware_try_mount_usb();
          if ( 1 != iMountRes )
-            addMessage("USB memory stick detected but could not be mounted. Please try again.");
+            addMessage(L("USB memory stick detected but could not be mounted. Please try again."));
       }
       ruby_signal_alive();
       ruby_processing_loop(true);
@@ -635,7 +644,7 @@ void MenuController::updateControllerSoftware()
    if ( iCounter[1] >= 500 )
    {
       m_bWaitingForUserFinishUpdateConfirmation = true;
-      MenuConfirmation* pMC = new MenuConfirmation("Update Failed", "Update timedout and failed.", 5, true);
+      MenuConfirmation* pMC = new MenuConfirmation(L("Update Failed"), L("Update timedout and failed."), 5, true);
       pMC->m_yPos = 0.3;
       add_menu_to_stack(pMC);
       log_line("Exit from main update procedure (1).");
@@ -648,25 +657,25 @@ void MenuController::updateControllerSoftware()
       MenuConfirmation* pMC = NULL;
       
       if ( iResult[1] == -1 )
-         pMC = new MenuConfirmation("Update Failed", "No update archive file found on the USB memory stick. No update done.",5, true);
+         pMC = new MenuConfirmation(L("Update Failed"), L("No update archive file found on the USB memory stick. No update done."), 5, true);
       else if ( iResult[1] == -2 )
-         pMC = new MenuConfirmation("Update Failed", "Can't do update. Can't access the controller files.",5, true);
+         pMC = new MenuConfirmation(L("Update Failed"), "Can't do update. Can't access the controller files.",5, true);
       else if ( iResult[1] == -3 )
-         pMC = new MenuConfirmation("Update Failed", "Update failed. Can't access the controller files.",5, true);
+         pMC = new MenuConfirmation(L("Update Failed"), "Update failed. Can't access the controller files.",5, true);
       else if ( iResult[1] == -4 )
-         pMC = new MenuConfirmation("Update Info", "Files unchanged. Either you applyed the same update twice, either the update failed to write the new files.",5, true);
+         pMC = new MenuConfirmation(L("Update Info"), "Files unchanged. Either you applyed the same update twice, either the update failed to write the new files.",5, true);
       else if ( iResult[1] == -10 )
-         pMC = new MenuConfirmation("Update Failed", "The update archive file found on the USB memory stick looks to be invalid.",5, true);
+         pMC = new MenuConfirmation(L("Update Failed"), "The update archive file found on the USB memory stick looks to be invalid.",5, true);
       else if ( iResult[1] < 0 )
       {
          char szMsg[256];
          sprintf(szMsg, "The update procedure failed, error code %d.", iResult[1]);
-         pMC = new MenuConfirmation("Update Failed", szMsg, 5, true);
+         pMC = new MenuConfirmation(L("Update Failed"), szMsg, 5, true);
          if ( iFinalResult < 0 )
             pMC->addTopLine(szFinalResult);
       }
       else
-         pMC = new MenuConfirmation("Update Failed", "Update failed.", 5, true);
+         pMC = new MenuConfirmation(L("Update Failed"), "Update failed.", 5, true);
 
       pMC->m_yPos = 0.3;
       add_menu_to_stack(pMC);
@@ -681,9 +690,9 @@ void MenuController::updateControllerSoftware()
    hw_execute_bash_command_raw(szComm, szOutput);
 
 
-   MenuConfirmation* pMC = new MenuConfirmation("Update Complete", "Update complete. You can now remove the USB stick. The system will reboot now.",3, true);
+   MenuConfirmation* pMC = new MenuConfirmation(L("Update Complete"), L("Update complete. You can now remove the USB stick. The system will reboot now."), 3, true);
    pMC->m_yPos = 0.3;
-   pMC->addTopLine("(If it does not reboot, you can power it off and on)");
+   pMC->addTopLine(L("(If it does not reboot, you can power it off and on)"));
    if ( 0 < strlen(szOutput) )
    {
       char* pSt = szOutput;

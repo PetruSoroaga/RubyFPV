@@ -1255,7 +1255,9 @@ int _consume_ipc_messages()
          break;
 
       t_packet_header* pPH = (t_packet_header*)pBuffer;
+      log_line("Received local packet from central, type: %s", str_get_packet_type(pPH->packet_type));
       process_local_control_packet(pPH);
+      log_line("Done handling received local packet from central, type: %s", str_get_packet_type(pPH->packet_type));
       iConsumed++;
    }
    return iConsumed;

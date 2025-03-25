@@ -9,6 +9,7 @@ class MenuVehicleGeneral: public Menu
    public:
       MenuVehicleGeneral();
       virtual ~MenuVehicleGeneral();
+      virtual void onShow();
       virtual void Render();
       virtual void valuesToUI();
       virtual int onBack();

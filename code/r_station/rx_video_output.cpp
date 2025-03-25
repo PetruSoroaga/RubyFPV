@@ -87,6 +87,7 @@ sem_t* s_pSemaphoreSMData = NULL;
 u8* s_pSMVideoStreamerWrite = NULL;
 u32 s_uSMVideoStreamWritePosition = 0;
 bool s_bEnableVideoStreamerOutput = false;
+bool s_bDidSentAnyDataToVideoStreamerSM = false;
 bool s_bDidSentAnyDataToVideoStreamerPipe = false;
 u8 s_uCurrentReceivedVideoStreamType = 0;
 ParserH264 s_ParserH264StreamOutput;
@@ -389,6 +390,20 @@ static void * _thread_rx_video_output_streamer_watchdog(void *argument)
       log_line("[VideoOutputThread] Semaphore and flag to restart video streamer is set.");
 
       rx_video_output_stop_video_streamer();
+      if ( s_bRxVideoOutputUseSM )
+      {
+         s_uSMVideoStreamWritePosition = 2*sizeof(u32);
+         if ( NULL != s_pSMVideoStreamerWrite )
+         {
+            u32* pTmp1 = (u32*)(&(s_pSMVideoStreamerWrite[0]));
+            u32* pTmp2 = (u32*)(&(s_pSMVideoStreamerWrite[sizeof(u32)]));
+            *pTmp1 = s_uSMVideoStreamWritePosition;
+            *pTmp2 = s_uSMVideoStreamWritePosition;
+         }
+         s_bDidSentAnyDataToVideoStreamerSM = false;
+         log_line("[VideoOutputThread] Reseted SM video output position.");
+      }
+
       if ( ! s_bRxVideoOutputStreamerThreadMustStop )
       {
          rx_video_output_start_video_streamer();
@@ -555,6 +570,7 @@ void rx_video_output_init()
    s_iLocalVideoPlayerUDPSocket = -1;
    s_uLastVideoFrameTime= MAX_U32;
    s_bDidSentAnyDataToVideoStreamerPipe = false;
+   s_bDidSentAnyDataToVideoStreamerSM = false;
    
    s_ParserH264StreamOutput.init();
    s_ParserH264VideoOutput.init();
@@ -593,7 +609,7 @@ void rx_video_output_init()
                u32* pTmp2 = (u32*)(&(s_pSMVideoStreamerWrite[sizeof(u32)]));
                *pTmp1 = s_uSMVideoStreamWritePosition;
                *pTmp2 = s_uSMVideoStreamWritePosition;
-               log_line("[VideoOutput] Successfully opened and cleared shared mem: %s", SM_STREAMER_NAME);
+               log_line("[VideoOutput] Successfully opened and cleared SM for video output: %s", SM_STREAMER_NAME);
             }
          }
       }
@@ -719,6 +735,7 @@ void rx_video_output_uninit()
    }
    s_fPipeVideoOutToStreamer = -1;
    s_bDidSentAnyDataToVideoStreamerPipe = false;
+   s_bDidSentAnyDataToVideoStreamerSM = false;
 
    if ( -1 != s_VideoUSBOutputInfo.socketUSBOutput )
       close(s_VideoUSBOutputInfo.socketUSBOutput);
@@ -737,7 +754,7 @@ void rx_video_output_uninit()
       munmap(s_pSMVideoStreamerWrite, SM_STREAMER_SIZE);
       s_pSMVideoStreamerWrite = NULL;
       s_uSMVideoStreamWritePosition = 2*sizeof(u32);
-      log_line("[VideoOutput] Closes streamer shardemem: %S", SM_STREAMER_NAME);
+      log_line("[VideoOutput] Closes streamer SM for video output: %S", SM_STREAMER_NAME);
    }
    log_line("[VideoOutput] Uninit complete.");
 }
@@ -753,6 +770,7 @@ void rx_video_output_enable_streamer_output()
       u32* pTmp2 = (u32*)(&(s_pSMVideoStreamerWrite[sizeof(u32)]));
       *pTmp1 = s_uSMVideoStreamWritePosition;
       *pTmp2 = s_uSMVideoStreamWritePosition;
+      log_line("[VideoOutput] Reseted SM video output position.");
    }
 
    _rx_video_output_check_start_streamer();
@@ -765,6 +783,8 @@ void rx_video_output_enable_streamer_output()
    }
 
    s_bEnableVideoStreamerOutput = true;
+   s_bDidSentAnyDataToVideoStreamerSM = false;
+   s_bDidSentAnyDataToVideoStreamerPipe = false;
 
    if ( s_bRxVideoOutputUsePipe )
       _rx_video_output_open_pipe_to_streamer();
@@ -782,6 +802,7 @@ void rx_video_output_disable_streamer_output()
    }
    s_fPipeVideoOutToStreamer = -1;
    s_bDidSentAnyDataToVideoStreamerPipe = false;
+   s_bDidSentAnyDataToVideoStreamerSM = false;
 }
 
 bool rx_video_out_is_stream_output_disabled()
@@ -872,11 +893,16 @@ void _rx_video_output_parse_h264_stream(u32 uVehicleId, u8* pBuffer, int iLength
 
 void _rx_video_output_to_sharedmem(u8* pBuffer, u32 uLength)
 {
-   if ( (NULL == pBuffer) || (uLength == 0 ) || (NULL == s_pSMVideoStreamerWrite) || (!s_bEnableVideoStreamerOutput) )
+   if ( (NULL == pBuffer) || (uLength == 0 ) || (NULL == s_pSMVideoStreamerWrite) || (!s_bEnableVideoStreamerOutput) || s_bRxVideoOutputStreamerMustReinitialize )
       return;
 
    s_uTimeLastOutputDataToLocalVideoPlayer = g_TimeNow;
-   
+   if ( ! s_bDidSentAnyDataToVideoStreamerSM )
+   {
+      log_line("[VideoOutput] Send first data to video output SM for local video streamer");
+      s_bDidSentAnyDataToVideoStreamerSM = true;
+   }
+
    if ( uLength <= (SM_STREAMER_SIZE-s_uSMVideoStreamWritePosition) )
    {
       memcpy(&(s_pSMVideoStreamerWrite[s_uSMVideoStreamWritePosition]), pBuffer, uLength);

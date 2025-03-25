@@ -42,12 +42,11 @@
 #include "../../base/encr.h"
 
 MenuVehicleGeneral::MenuVehicleGeneral(void)
-:Menu(MENU_ID_VEHICLE_GENERAL, "General Vehicle Settings", NULL)
+:Menu(MENU_ID_VEHICLE_GENERAL, L("General Vehicle Settings"), NULL)
 {
    m_Width = 0.26;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.21;
    m_IndexBoardType = -1;
-   valuesToUI();
 }
 
 MenuVehicleGeneral::~MenuVehicleGeneral()
@@ -104,32 +103,51 @@ void MenuVehicleGeneral::addTopDescription()
    addTopLine("");
 }
 
+void MenuVehicleGeneral::onShow()
+{
+   int iTmp = getSelectedMenuItemIndex();
+   populate();
+   Menu::onShow();
+   if ( iTmp >= 0 )
+   {
+      m_SelectedIndex = iTmp;
+      onFocusedItemChanged();
+   }
+}
+
 void MenuVehicleGeneral::populate()
 {
+   int iTmp = getSelectedMenuItemIndex();
+
    removeAllItems();
    addTopDescription();
 
-   m_pItemEditName = new MenuItemEdit("Name", g_pCurrentModel->vehicle_name);
+   m_pItemEditName = new MenuItemEdit(L("Name"), g_pCurrentModel->vehicle_name);
    m_pItemEditName->setMaxLength(MAX_VEHICLE_NAME_LENGTH-1);
    addMenuItem(m_pItemEditName);
 
-   m_pItemsSelect[0] = new MenuItemSelect("Vehicle Type", "Changes the vehicle type Ruby is using. Has impact on things like OSD elements, telemetry parsing.");
-   m_pItemsSelect[0]->addSelection("Generic");
-   m_pItemsSelect[0]->addSelection("Drone");
-   m_pItemsSelect[0]->addSelection("Airplane");
-   m_pItemsSelect[0]->addSelection("Helicopter");
-   m_pItemsSelect[0]->addSelection("Car");
-   m_pItemsSelect[0]->addSelection("Boat");
-   m_pItemsSelect[0]->addSelection("Robot");
+   m_pItemsSelect[0] = new MenuItemSelect(L("Vehicle Type"), L("Changes the vehicle type Ruby is using. Has impact on things like OSD elements, telemetry parsing."));
+   m_pItemsSelect[0]->addSelection(L("Generic"));
+   m_pItemsSelect[0]->addSelection(L("Drone"));
+   m_pItemsSelect[0]->addSelection(L("Airplane"));
+   m_pItemsSelect[0]->addSelection(L("Helicopter"));
+   m_pItemsSelect[0]->addSelection(L("Car"));
+   m_pItemsSelect[0]->addSelection(L("Boat"));
+   m_pItemsSelect[0]->addSelection(L("Robot"));
    m_pItemsSelect[0]->setIsEditable();
    m_IndexVehicleType = addMenuItem(m_pItemsSelect[0]);
 
    m_IndexBoardType = -1;
    if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
    {
-      MenuItem* pMenuItem = new MenuItem("Board Type", "Sets the board type variant.");
+      MenuItem* pMenuItem = new MenuItem(L("Board Type"), L("Sets the board type variant."));
       pMenuItem->showArrow();
       m_IndexBoardType = addMenuItem(pMenuItem);
+   }
+   if ( iTmp >= 0 )
+   {
+      m_SelectedIndex = iTmp;
+      onFocusedItemChanged();
    }
 }
 

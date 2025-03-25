@@ -156,7 +156,7 @@ unsigned int RenderEngineUI::loadFontSize(float fSize)
       }
    }
    
-   s_uRenderEngineUIFontsListSizes[nSize] = s_pRenderEngineUI->loadRawFont(szFileName);
+   s_uRenderEngineUIFontsListSizes[nSize] = s_pRenderEngineUI->loadRawFont(pP->iOSDFont, szFileName, 0);
    if ( 0 == s_uRenderEngineUIFontsListSizes[nSize] )
    {
       log_softerror_and_alarm("[RenderEngineOSD] Can't load font %s (%s)", szFont, szFileName);

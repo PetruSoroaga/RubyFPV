@@ -23,6 +23,9 @@ typedef struct
 
 typedef struct
 {
+   char szName[128];
+   int iFamilyId;
+   bool bBold;
    //struct _fbg_img* pImage;
    void* pImageObject;
    int lineHeight;
@@ -84,7 +87,7 @@ class RenderEngine
      virtual void setFontBackgroundBoundingBoxSameTextColor(bool bSameColor);
      virtual bool getFontBackgroundBoundingBoxSameTextColor();
 
-     virtual int loadRawFont(const char* szFontFile);
+     virtual int loadRawFont(int iFamilyId, const char* szFontFile, int iBold);
      virtual void freeRawFont(u32 idFont);
      virtual void setFontOutlineColor(u32 idFont, u8 r, u8 g, u8 b, u8 a);
      virtual u32 loadImage(const char* szFile);
@@ -98,6 +101,7 @@ class RenderEngine
 
      virtual void startFrame();
      virtual void endFrame();
+     virtual bool isFrameStarted();
 
      virtual void rotate180();
 
@@ -139,6 +143,7 @@ class RenderEngine
    protected:
       virtual int _getRawFontIndexFromId(u32 fontId);
       virtual RenderEngineRawFont* _getRawFontFromId(u32 fontId);
+      virtual u32 _getRawFontId(RenderEngineRawFont* pRawFont);
       virtual void* _loadRawFontImageObject(const char* szFileName);
       virtual void _freeRawFontImageObject(void* pImageObject);
 
@@ -148,6 +153,7 @@ class RenderEngine
       virtual void _drawSimpleText(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos);
       virtual void _drawSimpleTextScaled(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos, float fScale);
 
+      bool m_bStartedFrame;
       int m_iRenderDepth;
       int m_iRenderWidth;
       int m_iRenderHeight;

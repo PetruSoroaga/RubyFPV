@@ -93,6 +93,7 @@ type_drm_object_info* ruby_drm_get_plane_info();
 int ruby_drm_set_object_property(type_drm_object_info* pObject, const char *szName, uint64_t uValue);
 
 void ruby_drm_set_video_source_size(int iWidth, int iHeight);
+void ruby_drm_enable_vsync(int iEnableVSync);
 
 #ifdef __cplusplus
 }  

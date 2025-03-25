@@ -9,6 +9,8 @@ class MenuVehicleCamera: public Menu
    public:
       MenuVehicleCamera();
       virtual ~MenuVehicleCamera();
+      void showCompact();
+      virtual void onShow();
       virtual void Render();
       virtual void onSelectItem();
       virtual void onItemValueChanged(int itemIndex);
@@ -45,6 +47,8 @@ class MenuVehicleCamera: public Menu
       int m_IndexIRCut, m_IndexOpenIPCDayNight;
       int m_IndexOpenIPC3A;
       int m_IndexCalibrateHDMI;
+      int m_IndexShowFull;
 
+      bool m_bShowCompact;
       bool m_bDidAnyLiveUpdates;
 };

@@ -49,6 +49,7 @@ type_drm_runtime_state s_DRMRuntimeState;
 
 
 int s_iDRMCoreInitialized = 0;
+int s_iDRMEnableVSync = 1;
 
 static const char *_ruby_drm_core_get_connector_str(uint32_t conn_type)
 {
@@ -976,7 +977,7 @@ int ruby_drm_core_set_plane_buffer(uint32_t uBufferId)
    drmModeAtomicSetCursor(s_DRMRuntimeState.pAtomicRequest, 0);
 
    ruby_drm_set_object_property(&s_DRMRuntimeState.objInfoPlane, "FB_ID", uBufferId );
-   int iRet = drmModeAtomicCommit(s_fdDRM, s_DRMRuntimeState.pAtomicRequest, DRM_MODE_ATOMIC_ALLOW_MODESET, NULL);
+   int iRet = drmModeAtomicCommit(s_fdDRM, s_DRMRuntimeState.pAtomicRequest, s_iDRMEnableVSync?DRM_MODE_ATOMIC_ALLOW_MODESET:DRM_MODE_ATOMIC_NONBLOCK, NULL);
    return iRet;
 }
 
@@ -1019,4 +1020,9 @@ void ruby_drm_set_video_source_size(int iWidth, int iHeight)
 {
    s_DRMRuntimeState.iVideoSourceWidth = iWidth;
    s_DRMRuntimeState.iVideoSourceHeight = iHeight;
+}
+
+void ruby_drm_enable_vsync(int iEnableVSync)
+{
+   s_iDRMEnableVSync = iEnableVSync;
 }

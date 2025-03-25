@@ -15,6 +15,7 @@ class MenuController: public Menu
       virtual void onSelectItem();
 
    private:
+      void addItems();
       MenuItemSelect* m_pItemsSelect[15];
       MenuItemSlider* m_pItemsSlider[10];
 

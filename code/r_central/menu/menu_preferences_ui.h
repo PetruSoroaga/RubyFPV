@@ -12,6 +12,8 @@ class MenuPreferencesUI: public Menu
       virtual void valuesToUI();
       
    private:
+      void addItems();
+      
       bool m_bShowOnlyOSD;
       MenuItemSelect* m_pItemsSelect[20];
       int m_IndexScaleMenu, m_IndexMenuStacked;
@@ -22,6 +24,7 @@ class MenuPreferencesUI: public Menu
       int m_IndexOSDOutlineThickness;
       int m_IndexColorPickerAHI;
       int m_IndexOSDFont;
+      int m_IndexOSDFontBold;
       int m_IndexMonitor;
       int m_IndexUnits;
       int m_IndexUnitsHeight;

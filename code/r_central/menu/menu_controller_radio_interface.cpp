@@ -44,7 +44,7 @@
 #include <semaphore.h>
 
 MenuControllerRadioInterface::MenuControllerRadioInterface(int iInterfaceIndex)
-:Menu(MENU_ID_CONTROLLER_RADIO_INTERFACE, "Controller Radio Interface Settings", NULL)
+:Menu(MENU_ID_CONTROLLER_RADIO_INTERFACE, L("Controller Radio Interface Settings"), NULL)
 {
    m_Width = 0.3;
    m_xPos = 0.08;
@@ -56,49 +56,49 @@ MenuControllerRadioInterface::MenuControllerRadioInterface(int iInterfaceIndex)
 
    char szBuff[1024];
 
-   sprintf(szBuff, "Controller Radio Interface %d Settings", iInterfaceIndex+1);
+   sprintf(szBuff, L("Controller Radio Interface %d Settings"), iInterfaceIndex+1);
    setTitle(szBuff);
    
    m_IndexName = -1;
 
    if ( 0 == hardware_get_radio_interfaces_count() )
    {
-      addTopLine("No radio interfaces detected on the system!");
+      addTopLine(L("No radio interfaces detected on the system!"));
       return;
    }
 
-   m_pItemsSelect[0] = createMenuItemCardModelSelector("Card Model");
+   m_pItemsSelect[0] = createMenuItemCardModelSelector(L("Card Model"));
    m_IndexCardModel = addMenuItem(m_pItemsSelect[0]);
 
-   m_pItemsSelect[1] = new MenuItemSelect("Enabled", "Enables or disables this card.");
-   m_pItemsSelect[1]->addSelection("No");
-   m_pItemsSelect[1]->addSelection("Yes");
+   m_pItemsSelect[1] = new MenuItemSelect(L("Enabled"), L("Enables or disables this card."));
+   m_pItemsSelect[1]->addSelection(L("No"));
+   m_pItemsSelect[1]->addSelection(L("Yes"));
    m_pItemsSelect[1]->setIsEditable();
    m_IndexEnabled = addMenuItem(m_pItemsSelect[1]);
 
-   m_pItemsSelect[2] = new MenuItemSelect("Preferred Uplink Card", "Sets this card as preffered one for uplink.");
-   m_pItemsSelect[2]->addSelection("No");
-   m_pItemsSelect[2]->addSelection("Yes");
+   m_pItemsSelect[2] = new MenuItemSelect(L("Preferred Uplink Card"), L("Sets this card as preffered one for uplink."));
+   m_pItemsSelect[2]->addSelection(L("No"));
+   m_pItemsSelect[2]->addSelection(L("Yes"));
    m_pItemsSelect[2]->setIsEditable();
    m_IndexTXPreferred = addMenuItem(m_pItemsSelect[2]);
 
    if ( 1 == hardware_get_radio_interfaces_count() )
-      addMenuItem(new MenuItemText("You have a single radio interface on this controller. You can not change it's main functionality."));
+      addMenuItem(new MenuItemText(L("You have a single radio interface on this controller. You can not change it's main functionality.")));
 
-   m_pItemsSelect[3] = new MenuItemSelect("Capabilities", "Sets the uplink/downlink capabilities of the card. If the card has attached an external LNA or a unidirectional booster, it can't be used for both uplink and downlink, so it must be marked to be used only for uplink or downlink accordingly.");
-   m_pItemsSelect[3]->addSelection("Uplink & Downlink");
-   m_pItemsSelect[3]->addSelection("Downlink Only");
-   m_pItemsSelect[3]->addSelection("Uplink Only");
+   m_pItemsSelect[3] = new MenuItemSelect(L("Capabilities"), L("Sets the uplink/downlink capabilities of the card. If the card has attached an external LNA or a unidirectional booster, it can't be used for both uplink and downlink, so it must be marked to be used only for uplink or downlink accordingly."));
+   m_pItemsSelect[3]->addSelection(L("Uplink & Downlink"));
+   m_pItemsSelect[3]->addSelection(L("Downlink Only"));
+   m_pItemsSelect[3]->addSelection(L("Uplink Only"));
    m_pItemsSelect[3]->setIsEditable();
    m_IndexCapabilities = addMenuItem(m_pItemsSelect[3]);
 
-   m_pItemsSelect[4] = new MenuItemSelect("Card Location", "Marks this card as internal or external.");
-   m_pItemsSelect[4]->addSelection("External");
-   m_pItemsSelect[4]->addSelection("Internal");
+   m_pItemsSelect[4] = new MenuItemSelect(L("Card Location"), L("Marks this card as internal or external."));
+   m_pItemsSelect[4]->addSelection(L("External"));
+   m_pItemsSelect[4]->addSelection(L("Internal"));
    m_pItemsSelect[4]->setIsEditable();
    m_IndexInternal = addMenuItem(m_pItemsSelect[4]);
 
-   m_pItemsEdit[0] = new MenuItemEdit("Custom Name", "Sets a custom name for this unique physical radio interface; This name is to be displayed in the OSD and menus, to easily identify and distinguish each physical radio interface from the others.", "");
+   m_pItemsEdit[0] = new MenuItemEdit(L("Custom Name"), L("Sets a custom name for this unique physical radio interface; This name is to be displayed in the OSD and menus, to easily identify and distinguish each physical radio interface from the others."), "");
    m_pItemsEdit[0]->setMaxLength(48);
    m_IndexName = addMenuItem(m_pItemsEdit[0]);
 }
@@ -228,7 +228,7 @@ void MenuControllerRadioInterface::Render()
 void MenuControllerRadioInterface::showProgressInfo()
 {
    ruby_pause_watchdog();
-   m_pPopupProgress = new Popup("Updating Radio Configuration. Please wait...",0.3,0.4, 0.5, 15);
+   m_pPopupProgress = new Popup(L("Updating Radio Configuration. Please wait..."), 0.3,0.4, 0.5, 15);
    popups_add_topmost(m_pPopupProgress);
 
    g_pRenderEngine->startFrame();
@@ -265,7 +265,7 @@ bool MenuControllerRadioInterface::checkFlagsConsistency()
       
       if ( iCountInterfacesNowEnabled < 2 )
       {
-         addMessage("You can't disable all the radio interfaces!");
+         addMessage(L("You can't disable all the radio interfaces!"));
          return false;
       }
    }
@@ -382,7 +382,7 @@ void MenuControllerRadioInterface::onSelectItem()
             pCardInfo->cardModel = pNIC->iCardModel;
             char szMsg[128];
             sprintf(szMsg, "The radio interface was autodetected as: %s", str_get_radio_card_model_string(pCardInfo->cardModel));
-            addMessage2(0, szMsg, "The selected value was updated.");
+            addMessage2(0, szMsg, L("The selected value was updated."));
          }
          else
          {
@@ -402,7 +402,7 @@ void MenuControllerRadioInterface::onSelectItem()
       if ( 0 == m_pItemsSelect[1]->getSelectedIndex() )
       {
          m_pItemsSelect[1]->setSelectedIndex(1);
-         addMessage("You can't disable the single active radio interface.");
+         addMessage(L("You can't disable the single active radio interface."));
          return;
       }
 
@@ -422,10 +422,10 @@ void MenuControllerRadioInterface::onSelectItem()
    {
       if ( iCountInterfacesNowEnabled < 2 )
       {
-            Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE,"Invalid option",NULL);
+            Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE, L("Invalid option"), NULL);
             pm->m_xPos = 0.4; pm->m_yPos = 0.4;
             pm->m_Width = 0.36;
-            pm->addTopLine("Can't set the interface as RX or TX only because it's the only active interface on the system.");
+            pm->addTopLine( L("Can't set the interface as RX or TX only because it's the only active interface on the system."));
             add_menu_to_stack(pm);
             valuesToUI();
             return;

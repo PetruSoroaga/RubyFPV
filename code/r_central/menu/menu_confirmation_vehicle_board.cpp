@@ -43,23 +43,23 @@
 #include "../events.h"
 
 MenuConfirmationVehicleBoard::MenuConfirmationVehicleBoard()
-:Menu(MENU_ID_VEHICLE_BOARD, "Select your vehicle board type", NULL)
+:Menu(MENU_ID_VEHICLE_BOARD, L("Select your vehicle board type"), NULL)
 {
    m_xPos = 0.35; m_yPos = 0.35;
    m_Width = 0.30;
    char szText[256];
-   sprintf(szText, "Select your %s board type", g_pCurrentModel->getVehicleTypeString());
+   sprintf(szText, L("Select your %s board type"), g_pCurrentModel->getVehicleTypeString());
    setTitle(szText);
    sprintf(szText, "The hardware detected on the %s has multiple variants.", g_pCurrentModel->getVehicleTypeString());
    addTopLine(szText);
    sprintf(szText, "Select the type of your %s board:", g_pCurrentModel->getVehicleTypeString());
    addTopLine(szText);
-   addTopLine("(You can later change it from vehicle menu)");
+   addTopLine(L("(You can later change it from vehicle menu)"));
 
-   for( u32 u=BOARD_SUBTYPE_OPENIPC_GENERIC; u<BOARD_SUBTYPE_OPENIPC_LAST; u++ )
+   for( int i=0; i<hardware_get_board_subtypes_count(); i++ )
    {
-      strcpy(szText, str_get_hardware_board_name((g_pCurrentModel->hwCapabilities.uBoardType &BOARD_TYPE_MASK) | (u<<BOARD_SUBTYPE_SHIFT)) );
-      addMenuItem(new MenuItem(szText));
+      const char* szBoard = str_get_hardware_board_name( (BOARD_TYPE_OPENIPC_SIGMASTAR_338Q & BOARD_TYPE_MASK) | (hardware_get_board_subtype_at_index(i)<<BOARD_SUBTYPE_SHIFT));
+      addMenuItem(new MenuItem(szBoard));
    }
    m_SelectedIndex = 0;
 }
@@ -76,8 +76,9 @@ void MenuConfirmationVehicleBoard::onShow()
    if ( NULL != g_pCurrentModel )
    {
      uSubType = (g_pCurrentModel->hwCapabilities.uBoardType & BOARD_SUBTYPE_MASK) >> BOARD_SUBTYPE_SHIFT;
-     if ( (uSubType > BOARD_SUBTYPE_OPENIPC_UNKNOWN) && (uSubType < BOARD_SUBTYPE_OPENIPC_LAST) )
-        m_SelectedIndex = ((int)uSubType) - 1;
+     int iIndex = hardware_get_board_subtype_index(uSubType);
+     if ( iIndex >= 0 )
+        m_SelectedIndex = iIndex;
    }
 }
 
@@ -103,7 +104,7 @@ void MenuConfirmationVehicleBoard::onSelectItem()
 
    u32 uBoardType = g_pCurrentModel->hwCapabilities.uBoardType;
    uBoardType &= ~(u32)BOARD_SUBTYPE_MASK;
-   uBoardType |= ((u32)m_SelectedIndex+1) << BOARD_SUBTYPE_SHIFT;
+   uBoardType |= (hardware_get_board_subtype_at_index(m_SelectedIndex)) << BOARD_SUBTYPE_SHIFT;
    
    if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_VEHICLE_BOARD_TYPE, uBoardType, NULL, 0) )
       valuesToUI();

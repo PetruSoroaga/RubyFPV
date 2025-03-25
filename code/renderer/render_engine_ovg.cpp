@@ -208,14 +208,14 @@ void RenderEngineOVG::freeIcon(u32 idIcon)
 
 void RenderEngineOVG::startFrame()
 {
-   m_iRenderDepth++;
+   RenderEngine::startFrame();
    if ( 1 == m_iRenderDepth )
       Start(m_iRenderWidth, m_iRenderHeight);
 }
 
 void RenderEngineOVG::endFrame()
 {
-   m_iRenderDepth--;
+   RenderEngine::endFrame();
    if ( 0 == m_iRenderDepth )
       End();
 }

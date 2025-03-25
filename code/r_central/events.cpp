@@ -38,7 +38,7 @@
 #include "../base/ctrl_preferences.h"
 #include "../radio/radiolink.h"
 #include "../common/string_utils.h"
-#include "../common/strings_table.h"
+#include "../common/strings_loc.h"
 #include "../utils/utils_controller.h"
 #include <ctype.h>
 #include "events.h"
@@ -1083,7 +1083,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    if ( bUnsolicited )
       warnings_add(pCurrentlyStoredModel->uVehicleId, "Received vehicle settings.", g_idIconCheckOK);
    else
-      warnings_add(pCurrentlyStoredModel->uVehicleId, "Synchronised vehicle settings.", g_idIconCheckOK);
+      warnings_add(pCurrentlyStoredModel->uVehicleId, "Synchronized vehicle settings.", g_idIconCheckOK);
 
    log_line("The currently stored vehicle has Ruby version %d.%d (b%d) (%u) and the controller %d.%d (b%d) (%u)", ((pCurrentlyStoredModel->sw_version)>>8) & 0xFF, (pCurrentlyStoredModel->sw_version) & 0xFF, ((pCurrentlyStoredModel->sw_version)>>16), pCurrentlyStoredModel->sw_version, SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR, SYSTEM_SW_BUILD_NUMBER, (SYSTEM_SW_VERSION_MAJOR*256+SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER<<16) );
 
@@ -1097,7 +1097,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    
    pCurrentlyStoredModel->is_spectator = bOldIsSpectator;
    pCurrentlyStoredModel->b_mustSyncFromVehicle = false;
-   log_line("[Events] Did set 'settings synchronised' flag to true for the vehicle (%u)", pCurrentlyStoredModel->uVehicleId);
+   log_line("[Events] Did set 'settings synchronized' flag to true for the vehicle (%u)", pCurrentlyStoredModel->uVehicleId);
    if ( pCurrentlyStoredModel->is_spectator )
    {
       log_line("Vehicle is spectator!");

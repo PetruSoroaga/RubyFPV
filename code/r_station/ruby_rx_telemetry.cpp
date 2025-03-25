@@ -448,7 +448,7 @@ void try_read_messages_from_router()
                if ( uChangeType == MODEL_CHANGED_SYNCHRONISED_SETTINGS_FROM_VEHICLE )
                {
                   g_pCurrentModel->b_mustSyncFromVehicle = false;
-                  log_line("Model settings where synchronised from vehicle. Reset model must sync flag.");
+                  log_line("Model settings where synchronized from vehicle. Reset model must sync flag.");
                }
                s_LastReceivedStreamPacketIndexFromRouter = MAX_U32;
                s_uDataLinkLastReceivedDownloadedSegmentIndex = MAX_U32;

@@ -12,6 +12,8 @@ class MenuVehicleVideo: public Menu
    public:
       MenuVehicleVideo();
       virtual ~MenuVehicleVideo();
+      void showCompact();
+      virtual void onShow();
       virtual void Render();
       virtual void onReturnFromChild(int iChildMenuId, int returnValue);  
       virtual void onSelectItem();
@@ -28,6 +30,7 @@ class MenuVehicleVideo: public Menu
       int m_IndexVideoLinkMode;
       int m_IndexBidirectionalVideoSettings;
       int m_IndexRecording;
+      int m_IndexShowFull;
       MenuItem* m_pMenuItemVideoWarning;
       MenuItem* m_pMenuItemVideoKeyframeWarning;
       MenuItem* m_pMenuItemVideoRecording;
@@ -35,7 +38,10 @@ class MenuVehicleVideo: public Menu
       MenuItemSelect* m_pItemsSelect[20];
       MenuItemRadio* m_pItemsRadio[5];
 
+      void addItems();
       void checkAddWarningInMenu();
       void showFPSWarning(int w, int h, int fps);
       void sendVideoLinkProfiles();
+
+      bool m_bShowCompact;
 };

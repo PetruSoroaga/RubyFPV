@@ -39,7 +39,7 @@
 #include "../radio/radiopackets2.h"
 #include <ctype.h>
 #include "string_utils.h"
-#include "strings_table.h"
+#include "strings_loc.h"
 
 
 void str_sanitize_modelname(char* szName)
@@ -695,7 +695,8 @@ const char* str_get_hardware_board_name(u32 board_type)
    static const char* s_szBoardTypeOpenIPCSigmasterGeneric30KQ = "OpenIPC SSC30KQ Generic";
    static const char* s_szBoardTypeOpenIPCSigmasterUltrasight = "Ultrasight AIO";
    static const char* s_szBoardTypeOpenIPCSigmasterMario = "Mario AIO";
-   static const char* s_szBoardTypeOpenIPCSigmasterRuncam = "Runcam";
+   static const char* s_szBoardTypeOpenIPCSigmasterRuncam = "Runcam V1";
+   static const char* s_szBoardTypeOpenIPCSigmasterRuncam2 = "Runcam V2";
    static const char* s_szBoardTypeOpenIPCSigmasterEMax = "EMax";
    static const char* s_szBoardTypeOpenIPCSigmasterEMaxMini = "EMax-Mini";
    static const char* s_szBoardTypeOpenIPCSigmasterThinker = "OpenIPC Thinker (builtin radio)";
@@ -743,7 +744,8 @@ const char* str_get_hardware_board_name(u32 board_type)
          case BOARD_SUBTYPE_OPENIPC_GENERIC_30KQ: return s_szBoardTypeOpenIPCSigmasterGeneric30KQ;
          case BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT: return s_szBoardTypeOpenIPCSigmasterUltrasight;
          case BOARD_SUBTYPE_OPENIPC_AIO_MARIO: return s_szBoardTypeOpenIPCSigmasterMario;
-         case BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM: return s_szBoardTypeOpenIPCSigmasterRuncam;
+         case BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM_V1: return s_szBoardTypeOpenIPCSigmasterRuncam;
+         case BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM_V2: return s_szBoardTypeOpenIPCSigmasterRuncam2;
          case BOARD_SUBTYPE_OPENIPC_AIO_EMAX: return s_szBoardTypeOpenIPCSigmasterEMax;
          case BOARD_SUBTYPE_OPENIPC_AIO_EMAX_MINI: return s_szBoardTypeOpenIPCSigmasterEMaxMini;
          case BOARD_SUBTYPE_OPENIPC_AIO_THINKER: return s_szBoardTypeOpenIPCSigmasterThinker;
@@ -779,7 +781,8 @@ const char* str_get_hardware_board_name_short(u32 board_type)
    static const char* s_szBoardSTypeOpenIPCSigmasterGeneric30KQ = "SSC30KQ";
    static const char* s_szBoardSTypeOpenIPCSigmasterUltrasight = "Ultrasight";
    static const char* s_szBoardSTypeOpenIPCSigmasterMario = "Mario";
-   static const char* s_szBoardSTypeOpenIPCSigmasterRuncam = "Runcam";
+   static const char* s_szBoardSTypeOpenIPCSigmasterRuncam = "Runcam V1";
+   static const char* s_szBoardSTypeOpenIPCSigmasterRuncam2 = "Runcam V2";
    static const char* s_szBoardSTypeOpenIPCSigmasterEMax = "EMax";
    static const char* s_szBoardSTypeOpenIPCSigmasterEMaxMini = "EMax-Mini";
    static const char* s_szBoardSTypeOpenIPCSigmasterThinker = "Thinker";
@@ -825,7 +828,8 @@ const char* str_get_hardware_board_name_short(u32 board_type)
          case BOARD_SUBTYPE_OPENIPC_GENERIC_30KQ: return s_szBoardSTypeOpenIPCSigmasterGeneric30KQ;
          case BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT: return s_szBoardSTypeOpenIPCSigmasterUltrasight;
          case BOARD_SUBTYPE_OPENIPC_AIO_MARIO: return s_szBoardSTypeOpenIPCSigmasterMario;
-         case BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM: return s_szBoardSTypeOpenIPCSigmasterRuncam;
+         case BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM_V1: return s_szBoardSTypeOpenIPCSigmasterRuncam;
+         case BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM_V2: return s_szBoardSTypeOpenIPCSigmasterRuncam2;
          case BOARD_SUBTYPE_OPENIPC_AIO_EMAX: return s_szBoardSTypeOpenIPCSigmasterEMax;
          case BOARD_SUBTYPE_OPENIPC_AIO_EMAX_MINI: return s_szBoardSTypeOpenIPCSigmasterEMaxMini;
          case BOARD_SUBTYPE_OPENIPC_AIO_THINKER: return s_szBoardSTypeOpenIPCSigmasterThinker;

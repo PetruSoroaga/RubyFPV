@@ -77,6 +77,7 @@ typedef struct
    int iRadioBypassSocketBuffers;
    int iStreamerOutputMode; // 0 - sm, 1 - pipe, 2 - udp
    int iVideoMPPBuffersSize;
+   int iHDMIVSync;
 } ControllerSettings;
 
 int save_ControllerSettings();

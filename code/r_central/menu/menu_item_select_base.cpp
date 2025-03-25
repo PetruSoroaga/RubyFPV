@@ -104,7 +104,7 @@ void MenuItemSelectBase::updateSelectionText(int iIndex, const char* szText)
 
 void MenuItemSelectBase::setSelection(int index)
 {
-   if ( index >= 0 && index < m_SelectionsCount )
+   if ( (index >= 0) && (index < m_SelectionsCount) )
       m_SelectedIndex = index;
    else
       m_SelectedIndex = 0;

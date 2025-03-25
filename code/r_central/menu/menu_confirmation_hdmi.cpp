@@ -47,9 +47,9 @@ MenuConfirmationHDMI::MenuConfirmationHDMI(const char* szTitle, const char* szTe
    m_xPos = 0.35; m_yPos = 0.35;
    m_Width = 0.3;
    addTopLine(szText);
-   addTopLine("(If you don't select anything, it will auto revert to old HDMI configuration after a timeout)");
-   addMenuItem(new MenuItem("No"));
-   addMenuItem(new MenuItem("Yes"));
+   addTopLine(L("(If you don't select anything, it will auto revert to old HDMI configuration after a timeout)"));
+   addMenuItem(new MenuItem(L("No")));
+   addMenuItem(new MenuItem(L("Yes")));
    m_SelectedIndex = 1;
 }
 

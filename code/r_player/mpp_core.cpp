@@ -60,6 +60,7 @@ u32 g_uTimeMPPPeriodicChecks = 0;
 bool g_bMPPFramesBuffersInitialised = false;
 bool g_bMPPFrameEOS = false;
 bool g_bMPPStreamChangedFlag = false;
+bool g_bMPPEnableVSync = true;
 
 pthread_t g_MPPDecodeThread;
 pthread_t g_MPPUpdateDisplayThread;
@@ -531,6 +532,12 @@ int mpp_uninit()
    g_uTimeFirstFrame = 0;
    log_line("[MPP] Done MPP Un-initialization.");
    return 0;
+}
+
+void mpp_enable_vsync(bool bEnableVSync)
+{
+   g_bMPPEnableVSync = bEnableVSync;
+   ruby_drm_enable_vsync(g_bMPPEnableVSync?1:0);
 }
 
 

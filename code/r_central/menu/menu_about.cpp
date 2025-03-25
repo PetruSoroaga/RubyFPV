@@ -42,7 +42,7 @@
 extern u32 g_idIconOpenIPC;
 
 MenuAbout::MenuAbout(void)
-:Menu(MENU_ID_ABOUT, "About", NULL)
+:Menu(MENU_ID_ABOUT, L("About"), NULL)
 {
    m_Width = 0.46;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.18;
@@ -63,7 +63,7 @@ MenuAbout::MenuAbout(void)
       szOutput[0] = 0;
       if ( 1 == fscanf(fd, "%s", szOutput) )
       {
-         strcpy(szBuff, "Ruby base version: ");
+         strcpy(szBuff, L("Ruby base version: "));
          strcat(szBuff, szOutput);
       }
       fclose(fd);
@@ -127,17 +127,17 @@ MenuAbout::MenuAbout(void)
    addTopLine(" ");
    addTopLine("---");
    addTopLine(" ");
-   addTopLine("Ruby system developed by: Petru Soroaga");
+   addTopLine(L("Ruby system developed by: Petru Soroaga"));
    addTopLine("");
    addTopLine("IP cameras firmware support provided by:");
    addTopLine("OpenIPC: https://openipc.org");
    addTopLine("https://github.com/OpenIPC");
    addTopLine("");
-   addTopLine("For info on the licence terms, check the license.txt file.");
+   addTopLine(L("For info on the licence terms, check the license.txt file."));
    addTopLine("For more info, questions and suggestions find us on www.rubyfpv.com");
    addTopLine("---");
    addTopLine(" ");
-   m_IndexOK = addMenuItem(new MenuItem("Ok", "Close the menu."));
+   m_IndexOK = addMenuItem(new MenuItem(L("Ok"), L("Close the menu.")));
 }
 
 void MenuAbout::valuesToUI()

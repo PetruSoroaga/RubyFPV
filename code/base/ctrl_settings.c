@@ -114,6 +114,7 @@ void reset_ControllerSettings()
    s_CtrlSettings.iRadioBypassSocketBuffers = DEFAULT_BYPASS_SOCKET_BUFFERS;
    s_CtrlSettings.iStreamerOutputMode = 0;
    s_CtrlSettings.iVideoMPPBuffersSize = DEFAULT_MPP_BUFFERS_SIZE;
+   s_CtrlSettings.iHDMIVSync = 1;
    if ( s_CtrlSettingsLoaded )
       log_line("Reseted controller settings.");
 }
@@ -168,6 +169,7 @@ int save_ControllerSettings()
    fprintf(fd, "%d %d %d\n", s_CtrlSettings.iRadioTxUsesPPCAP, s_CtrlSettings.iRadioBypassSocketBuffers, s_CtrlSettings.iFixedTxPower);
    fprintf(fd, "%d %d\n", s_CtrlSettings.iCoresAdjustment, s_CtrlSettings.iPrioritiesAdjustment);
    fprintf(fd, "%d %d\n", s_CtrlSettings.iStreamerOutputMode, s_CtrlSettings.iVideoMPPBuffersSize);
+   fprintf(fd, "%d\n", s_CtrlSettings.iHDMIVSync);
    fclose(fd);
 
    log_line("Saved controller settings to file: %s", szFile);
@@ -288,15 +290,20 @@ int load_ControllerSettings()
       { log_softerror_and_alarm("Load ctrl settings, failed on line 25");
         s_CtrlSettings.iCoresAdjustment = 1; s_CtrlSettings.iPrioritiesAdjustment = 1; }
 
-   if ( 1 != fscanf(fd, "%d ", &s_CtrlSettings.iStreamerOutputMode) )
+   if ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iStreamerOutputMode) )
       { log_softerror_and_alarm("Load ctrl settings, failed on line 26");
         s_CtrlSettings.iStreamerOutputMode = 0;
       }
-   if ( 1 != fscanf(fd, "%d ", &s_CtrlSettings.iVideoMPPBuffersSize) )
+   if ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iVideoMPPBuffersSize) )
       { log_softerror_and_alarm("Load ctrl settings, failed on line 27");
          s_CtrlSettings.iVideoMPPBuffersSize = DEFAULT_MPP_BUFFERS_SIZE;
          iWriteOptionalValues = 1; }
 
+   if ( 1 != fscanf(fd, "%d", &s_CtrlSettings.iHDMIVSync) )
+   {
+      s_CtrlSettings.iHDMIVSync = 1;
+      iWriteOptionalValues = 1;
+   }
    fclose(fd);
 
    //--------------------------------------------------------
@@ -337,6 +344,8 @@ int load_ControllerSettings()
    if ( (s_CtrlSettings.iSiKPacketSize < 10) || (s_CtrlSettings.iSiKPacketSize > 250 ) )
       s_CtrlSettings.iSiKPacketSize = DEFAULT_SIK_PACKET_SIZE;
 
+   if ( (s_CtrlSettings.iHDMIVSync != 0) && (s_CtrlSettings.iHDMIVSync != 1) )
+      s_CtrlSettings.iHDMIVSync = 1;
    if ( failed )
    {
       log_line("Invalid settings file %s, error code: %d. Reseted to default.", szFile, failed);

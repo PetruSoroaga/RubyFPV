@@ -696,6 +696,54 @@ u32 hardware_getBoardType()
    return s_uHardwareBoardType;
 }
 
+
+static u32 s_uBoardSubTypesPopulatedIndexes[256];
+static int s_iBoardSubTypesCount = 0;
+
+void _hardware_compute_board_subtypes_populated_indexes()
+{
+   s_iBoardSubTypesCount = 0;
+   s_uBoardSubTypesPopulatedIndexes[s_iBoardSubTypesCount++] = BOARD_SUBTYPE_OPENIPC_GENERIC;
+   s_uBoardSubTypesPopulatedIndexes[s_iBoardSubTypesCount++] = BOARD_SUBTYPE_OPENIPC_GENERIC_30KQ;
+   s_uBoardSubTypesPopulatedIndexes[s_iBoardSubTypesCount++] = BOARD_SUBTYPE_OPENIPC_AIO_ULTRASIGHT;
+   s_uBoardSubTypesPopulatedIndexes[s_iBoardSubTypesCount++] = BOARD_SUBTYPE_OPENIPC_AIO_MARIO;
+   s_uBoardSubTypesPopulatedIndexes[s_iBoardSubTypesCount++] = BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM_V1;
+   s_uBoardSubTypesPopulatedIndexes[s_iBoardSubTypesCount++] = BOARD_SUBTYPE_OPENIPC_AIO_RUNCAM_V2;
+   s_uBoardSubTypesPopulatedIndexes[s_iBoardSubTypesCount++] = BOARD_SUBTYPE_OPENIPC_AIO_EMAX_MINI;
+   s_uBoardSubTypesPopulatedIndexes[s_iBoardSubTypesCount++] = BOARD_SUBTYPE_OPENIPC_AIO_EMAX;
+   s_uBoardSubTypesPopulatedIndexes[s_iBoardSubTypesCount++] = BOARD_SUBTYPE_OPENIPC_AIO_THINKER;
+   s_uBoardSubTypesPopulatedIndexes[s_iBoardSubTypesCount++] = BOARD_SUBTYPE_OPENIPC_AIO_THINKER_E;
+}
+
+int hardware_get_board_subtypes_count()
+{
+   if ( 0 == s_iBoardSubTypesCount )
+      _hardware_compute_board_subtypes_populated_indexes();
+   return s_iBoardSubTypesCount;
+}
+
+u32 hardware_get_board_subtype_at_index(int iIndex)
+{
+   if ( 0 == s_iBoardSubTypesCount )
+      _hardware_compute_board_subtypes_populated_indexes();
+
+   if ( (iIndex < 0) || (iIndex >= s_iBoardSubTypesCount) )
+      return BOARD_SUBTYPE_OPENIPC_UNKNOWN;
+   return s_uBoardSubTypesPopulatedIndexes[iIndex];
+}
+
+int hardware_get_board_subtype_index(u32 uBoardSubType)
+{
+   if ( 0 == s_iBoardSubTypesCount )
+      _hardware_compute_board_subtypes_populated_indexes();
+   for( int i=0; i<s_iBoardSubTypesCount; i++ )
+   {
+      if ( s_uBoardSubTypesPopulatedIndexes[i] == uBoardSubType )
+         return i;
+   }
+   return -1;
+}
+
 void hardware_detectBoardAndSystemType()
 {
    if ( ! s_bHarwareHasDetectedSystemType )

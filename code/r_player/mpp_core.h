@@ -18,6 +18,8 @@ extern shared_mem_process_stats* g_pSMProcessStats;
 
 int mpp_init(bool bUseH265Decoder, int iMPPBuffersSize);
 int mpp_uninit();
+void mpp_enable_vsync(bool bEnableVSync);
+
 int mpp_start_decoding_thread();
 int mpp_feed_data_to_decoder(void* pData, int iLength);
 int mpp_mark_end_of_stream();

@@ -37,7 +37,7 @@
 
 MenuSearchConnect::MenuSearchConnect(void)
 //:Menu(MENU_ID_SEARCH_CONNECT, "Found Vehicle", "")
-:Menu(MENU_ID_CONFIRMATION+1000*1, "Found Vehicle", "") // Id confirmation to keep the parent menu on screen too
+:Menu(MENU_ID_CONFIRMATION+1000*1, L("Found Vehicle"), "") // Id confirmation to keep the parent menu on screen too
 {
    m_iSearchModelTypes = 0;
    float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
@@ -81,12 +81,12 @@ void MenuSearchConnect::onShow()
    if ( iCountLinks > 1 )
       m_Width = 0.46;
    if ( (!m_bSpectatorOnlyMode) && (m_iSearchModelTypes == 0) )
-      m_iIndexController = addMenuItem(new MenuItem("Connect for control", "Connect to this vehicle as controller"));
+      m_iIndexController = addMenuItem(new MenuItem( L("Connect for control"), L("Connect to this vehicle as controller")));
    else
       addExtraHeightAtEnd(g_pRenderEngine->textHeight(g_idFontMenu));
 
-   m_iIndexSpectator = addMenuItem(new MenuItem("View as spectator", "Connect to this vehicle as spectator"));
-   m_iIndexSkip = addMenuItem(new MenuItem("Skip", "Skip this vehicle"));
+   m_iIndexSpectator = addMenuItem(new MenuItem(L("View as spectator"), L("Connect to this vehicle as spectator")));
+   m_iIndexSkip = addMenuItem(new MenuItem(L("Skip"), L("Skip this vehicle")));
 }
 
 void MenuSearchConnect::Render()
@@ -120,7 +120,7 @@ void MenuSearchConnect::Render()
    y += height_text *(1.0+MENU_ITEM_SPACING);
    if ( ! g_SearchVehicleRuntimeInfo.bGotRubyTelemetryInfo )
    {
-      sprintf(szBuff, "Can't get vehicle info");
+      sprintf(szBuff, L("Can't get vehicle info"));
       g_pRenderEngine->drawMessageLines(xPos, y, szBuff, MENU_TEXTLINE_SPACING, fMaxWidth, g_idFontMenu);
       y += height_text *(1.0+MENU_ITEM_SPACING);
       RenderEnd(yTop);

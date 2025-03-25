@@ -42,7 +42,7 @@
 #include "../events.h"
 
 MenuConfirmationDeleteLogs::MenuConfirmationDeleteLogs(u32 uFreeSpaceMb, u32 uLogsSizeBytes)
-:Menu(MENU_ID_CONFIRMATION_DELETE_LOGS, "Delete vehicle logs", NULL)
+:Menu(MENU_ID_CONFIRMATION_DELETE_LOGS, L("Delete vehicle logs"), NULL)
 {
    m_xPos = 0.35; m_yPos = 0.35;
    m_Width = 0.3;
@@ -60,9 +60,9 @@ MenuConfirmationDeleteLogs::MenuConfirmationDeleteLogs(u32 uFreeSpaceMb, u32 uLo
       sprintf(szBuff, "Vehicle logs take up %u bytes of storage.", m_uLogSizeBytes);
    addTopLine(szBuff);
 
-   addTopLine("Do you want to delete the logs?");
-   addMenuItem(new MenuItem("No"));
-   addMenuItem(new MenuItem("Yes"));
+   addTopLine(L("Do you want to delete the logs?"));
+   addMenuItem(new MenuItem(L("No")));
+   addMenuItem(new MenuItem(L("Yes")));
    m_SelectedIndex = 1;
 }
 

@@ -193,7 +193,7 @@ void try_read_pipes()
                if ( uChangeType == MODEL_CHANGED_SYNCHRONISED_SETTINGS_FROM_VEHICLE )
                {
                   g_pCurrentModel->b_mustSyncFromVehicle = false;
-                  log_line("Model settings where synchronised from vehicle. Reset model must sync flag.");
+                  log_line("Model settings where synchronized from vehicle. Reset model must sync flag.");
                }
                if ( uChangeType == MODEL_CHANGED_RC_PARAMS )
                   log_line("RC parameters have changed. Updating local model.");

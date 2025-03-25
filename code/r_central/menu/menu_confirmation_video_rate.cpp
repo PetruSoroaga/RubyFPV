@@ -42,7 +42,7 @@
 #include "../events.h"
 
 MenuConfirmationVideoRate::MenuConfirmationVideoRate(int iNewDataRate)
-:Menu(MENU_ID_CONFIRMATION_VIDEO_RATE, "Video Bitrate Adjustment", NULL)
+:Menu(MENU_ID_CONFIRMATION_VIDEO_RATE, L("Video Bitrate Adjustment"), NULL)
 {
    m_xPos = 0.35; m_yPos = 0.35;
    m_Width = 0.3;

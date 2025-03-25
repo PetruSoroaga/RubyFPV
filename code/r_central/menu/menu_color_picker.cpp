@@ -49,7 +49,7 @@
 
 
 MenuColorPicker::MenuColorPicker(void)
-:Menu(MENU_ID_COLOR_PICKER, "Color Picker", NULL)
+:Menu(MENU_ID_COLOR_PICKER, L("Color Picker"), NULL)
 {
    m_Width = 0.1;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.40;

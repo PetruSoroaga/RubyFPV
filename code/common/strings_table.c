@@ -34,75 +34,532 @@
 #include <ctype.h>
 #include "strings_table.h"
 
-static const char* s_szLanguages[] = { "English", "Spanish", "French" };
-static const char* s_szStringTableEmptyText = "";
-static int s_iActiveLanguage = 0;
-static int s_iLocalizationInited = 0;
+#if defined (HW_PLATFORM_RADXA) || defined (HW_PLATFORM_RASPBERRY)
 
-typedef struct 
+type_localized_strings s_LocalizedStringsTable[] = 
 {
-   const char* szEnglish;
-   const char* szTranslated;
-   u32 uHash;
-} type_localize_string;
+  //-------------------------------------------------
+  // Common string
 
-type_localize_string s_ListFrenchTexts[] = 
-{
-  {"Yes", "Oui", 0},
-  {"No", "No", 0}
+  {"Yes", "是的", "Oui", "Ja", "हाँ", "Да", "Sí", 0},
+  {"No", "不", "Non", "Nein", "नहीं", "Нет", "No", 0},
+  {"Auto", "自动检测", "Auto", "Auto", "", "Автоопределение", "Auto", 0},
+  {"On", "活性", "Activé", "Aktiviert", "", "Активирован", "Activado", 0},
+  {"Off", "离开", "Désactivé", "Aus", "", "Выключенный", "Apagado", 0},
+  {"Cancel", "取消", "Annuler", "Stornieren", "", "Отмена", "Cancelar", 0},
+  {"Back", "后退", "Dos", "Zurück", "", "Назад", "Atrás", 0},
+  {"Ok", "好的", "D'accord", "OK", "", "Хорошо", "De acuerdo", 0},
+  {"None", "没有任何", "Aucun", "Keiner", "", "Никто", "Ninguno", 0},
+  {"Default", "默认", "Défaut", "Standard", "", "По умолчанию", "Por defecto", 0},
+  {"Custom", "风俗", "Coutume", "Brauch", "", "Обычай", "Costumbre", 0},
+  {"Info", "信息", "Informations", "Info", "", "Информация", "Información", 0},
+  {"Enabled", "", "", "", "", "", "", 0},
+  {"Disabled", "", "", "", "", "", "", 0},
+
+  //------------------------------------------------------------
+  // Formated strings
+
+  {"(The default telemetry serial port speed it %d bps)", "（默认遥测串口速度为%d bps）", "", "", "", "", "", 0},
+  {"Connected to %s", "已连接到 %s", "Connecté à %s", "Verbunden mit %s", "", "Подключено к %s", "Conectado a %s", 0},
+  {"Looking for %s", "正在查找 %s", "À la recherche de %s", "Suche nach %s", "", "Ищу %s", "Buscando %s", 0},
+  {"Select your %s board type", "选择您的 %s 板类型", "Sélectionnez votre type de carte %s", "Wählen Sie Ihren %s Boardtyp", "", "Выберите тип доски %s", "Seleccione su tipo de tablero %s", 0},
+  {"Your %s was updated. It will reboot now.", "您的 %s 已更新。它将立即重新启动。", "", "", "", "", "", 0},
+  {"Searching on %s", "正在搜索 %s", "Recherche sur %s", "Suche auf %s", "", "Поиск по %s", "Buscando en %s", 0},
+  {"Radio Uplink %d", "", "", "", "", "", "", 0},
+  {"Controller Radio Interface %d Settings", "", "", "", "", "", "", 0},
+  {"Your radio interface (%s) has multiple cloned variants manufactured. Tx power varies depending on clone manufacturer, so a certain value can't be established.", "", "", "", "", "", "", 0},
+  {"Some of your radio interfaces (%s) have multiple cloned variants manufactured. Tx power varies depending on clone manufacturer, so a certain value can't be established.", "", "", "", "", "", "", 0},
+  {"Radio Link %d Frequency", "", "", "", "", "", "", 0},
+  {"Radio Link %d Data Rate", "", "", "", "", "", "", 0},
+  {"Radio Link %d Tx Power (mw)", "", "", "", "", "", "", 0},
+  {"", "", "", "", "", "", "", 0},
+  {"", "", "", "", "", "", "", 0},
+  {"", "", "", "", "", "", "", 0},
+  {"", "", "", "", "", "", "", 0},
+  {"", "", "", "", "", "", "", 0},
+
+
+  //-------------------------------------------------------
+  // Root menu
+  
+  {"Quick setup", "快速設定", "Configuration rapide", "Schnelle einrichtung", "", "Быстрая настройка", "Configuración rápida", 0},
+  {"Quickly change the most common vehicle settings.", 
+      "快速更改最常见的车辆设置。",
+      "Modifiez rapidement les paramètres les plus courants du véhicule.", 
+      "Ändern Sie schnell die gängigsten Fahrzeugeinstellungen.",
+      "",
+      "Быстро меняйте наиболее распространенные настройки автомобиля.",
+      "Cambie rápidamente las configuraciones más comunes del vehículo.", 0},
+  {"Search", "搜索", "Recherche", "Suchen", "", "Поиск", "Buscar", 0},
+  {"Search for vehicles.", "搜索车辆。", "Rechercher des véhicules.", "Suche nach Fahrzeugen.", "", "Поиск транспортных средств.", "Búsqueda de vehículos.", 0},
+  {"My vehicles", "我的车辆", "Mes véhicules", "Meine Fahrzeuge", "", "Мои транспортные средства", "Mis vehículos", 0},
+  {"Manage my vehicles.", "管理我的车辆。", "Gérer mes véhicules.", "Meine Fahrzeuge verwalten.", "", "Управляйте моими транспортными средствами.", "Administrar mis vehículos.", 0},
+  {"Vehicle settings", "车辆设置", "Paramètres du véhicule", "Fahrzeugeinstellungen", "", "Настройки автомобиля", "Configuración del vehículo", 0},
+  {"Change vehicle settings.", "更改车辆设置。", "Modifier les paramètres du véhicule.", "Fahrzeugeinstellungen ändern.", "", "Измените настройки автомобиля.", "Cambiar la configuración del vehículo.", 0},
+  {"Controller settings", "控制器设置", "Paramètres du contrôleur", "Controller-Einstellungen", "", "Настройки контроллера", "Configuración del controlador", 0},
+  {"Change controller settings and user interface preferences.",
+       "更改控制器设置和用户界面首选项。",
+       "Modifiez les paramètres du contrôleur et les préférences de l'interface utilisateur.",
+       "Ändern Sie die Controllereinstellungen und Benutzeroberflächeneinstellungen.",
+       "",
+       "Измените настройки контроллера и предпочтения пользовательского интерфейса.",
+       "Cambiar la configuración del controlador y las preferencias de la interfaz de usuario.", 0},
+  {"System", "系统", "Système", "System", "", "Система", "Sistema", 0},
+  {"Configure system options, shows detailed information about the system.",
+      "配置系统选项，显示有关系统的详细信息。", 
+      "Configurer les options du système, affiche des informations détaillées sur le système.",
+      "Konfigurieren Sie die Systemoptionen. Zeigt detaillierte Informationen zum System an.",
+      "",
+      "Настройка параметров системы, отображение подробной информации о системе.",
+      "Configurar opciones del sistema, muestra información detallada sobre el sistema.", 0},
+  {"Media & storage", "媒体和存储", "Médias et stockage", "Medien und Speicher", "", "Медиа и хранение", "Medios y almacenamiento", 0},
+  {"Manage saved logs, screenshots and videos.", "管理已保存的日志、屏幕截图和视频。", "Gérez les journaux enregistrés, les captures d'écran et les vidéos.", "Verwalten Sie gespeicherte Protokolle, Screenshots und Videos.", "", "Управляйте сохраненными журналами, снимками экрана и видео.", "Administrar registros, capturas de pantalla y vídeos guardados.", 0},
+  {"Not paired with any vehicle", "未与任何车辆配对", "Non jumelé à aucun véhicule", "Nicht mit einem Fahrzeug gekoppelt", "", "Не сопряжено ни с одним транспортным средством", "No emparejada con ningún vehículo", 0},
+  {"Search for a vehicle to find one and connect to or select one from your paired vehicles.", "", "", "", "", "", "", 0},
+  {"Spectator mode", "观战模式", "Mode spectateur", "Zuschauermodus", "", "Режим наблюдателя", "Modo espectador", 0},
+  {"Full control mode", "完全控制模式", "Mode contrôle total", "Vollzugriffsmodus", "", "Режим полного контроля", "Modo de control total", 0},
+  {"flights", "航班", "vols", "Flüge", "", "полеты", "vuelos", 0},
+  {"flight time", "飞行时间", "temps de vol", "Flugzeit", "", "время полета", "tiempo de vuelo", 0},
+  {"Not paired with any vehicle", "未与任何车辆配对", "Non jumelé à aucun véhicule", "Nicht mit einem Fahrzeug gekoppelt", "", "Не сопряжено ни с одним транспортным средством", "No emparejada con ningún vehículo", 0},
+  {"Search for a vehicle to find one and connect to or select one of your paired vehicles.",
+      "搜索车辆以找到一辆并连接或选择一辆配对的车辆。",
+      "Recherchez un véhicule pour en trouver un et connectez-vous ou sélectionnez l'un de vos véhicules jumelés.",
+      "Suchen Sie nach einem Fahrzeug, um eines zu finden und eine Verbindung herzustellen oder eines Ihrer gekoppelten Fahrzeuge auszuwählen.",
+      "",
+      "Найдите транспортное средство, подключитесь к нему или выберите одно из сопряженных транспортных средств.",
+      "Busque un vehículo para encontrar uno y conectarse o seleccionar uno de sus vehículos emparejados.", 0},
+
+  //----------------------------------------------------------------------
+  // Controller Menu
+  
+  {"Audio & Video Output", "音频和视频输出", "", "", "", "", "", 0},
+  {"Telemetry Input/Output", "遥测输入/输出", "", "", "", "", "", 0},
+  {"Radio", "收音机", "", "", "", "", "", 0},
+  {"CPU and Processes", "CPU 和进程", "", "", "", "", "", 0},
+  {"Peripherals & Ports", "外围设备和端口", "", "", "", "", "", 0},
+  {"Local Network Settings", "本地网络设置", "", "", "", "", "", 0},
+  {"Buttons", "按钮", "", "", "", "", "", 0},
+  {"User Interface", "Interface utilisateur", "", "", "", "", "", 0},
+  {"Change user interface preferences: language, fonts, colors, sizes, display units.",
+      "更改用户界面偏好：语言、字体、颜色、大小、显示单位。",
+      "", "", "", "", "", 0},
+  {"Recording Settings", "录制设置", "", "", "", "", "", 0},
+  {"Management", "管理", "", "", "", "", "", 0},
+  {"Manage Plugins", "管理插件", "", "", "", "", "", 0},
+  {"Update Software", "更新软件", "", "", "", "", "", 0},
+  {"Restart Controller", "重启控制器", "", "", "", "", "", 0},
+
+  //---------------------------------------------------------------------
+  // Controller User Interface menu
+  
+  {"Controller User Interface", "控制器用户界面", "Interface utilisateur du contrôleur", "Controller-Benutzeroberfläche", "", "Пользовательский интерфейс контроллера", "Interfaz de usuario del controlador", 0},
+  {"Menus", "菜单", "", "", "मेनू", "Меню", "", 0},
+  {"Menus layout", "菜单布局", "", "", "", "Макет меню", "", 0},
+  {"Changes how the menus appear on screen.", "改变菜单在屏幕上的显示方式。", "", "", "", "Изменяет внешний вид меню на экране.", "", 0},
+  {"Menu font size", "菜单字体大小", "", "", "मेनू फ़ॉन्ट आकार", "Размер шрифта меню", "", 0},
+  {"Change how big the menus appear on screen.", "更改屏幕上菜单的显示大小。", "", "", "स्क्रीन पर मेनू कितना बड़ा दिखाई देगा, इसे बदलें.", "Измените размер меню на экране.", "", 0},
+  {"Invert colors", "反转颜色", "", "", "रंग उलटें", "Инвертировать цвета", "", 0},
+  {"Invert colors on OSD and menus.", "反转 OSD 和菜单上的颜色。", "", "", "OSD और मेनू पर रंग उलटें।", "Инвертируйте цвета в OSD и меню.", "", 0},
+  {"OSD text color", "OSD文本颜色", "", "", "OSD पाठ रंग", "Цвет текста OSD", "", 0},
+  {"Change color of the text in the OSD.", "更改 OSD 中文本的颜色。", "", "", "OSD में पाठ का रंग बदलें।", "Измените цвет текста в OSD.", "", 0},
+  {"OSD outline color", "OSD 轮廓颜色", "", "", "OSD रूपरेखा रंग", "Цвет контура OSD", "", 0},
+  {"Change color of the outline in the OSD.", "改变 OSD 中的轮廓颜色。", "", "", "", "Измените цвет контура в OSD.", "", 0},
+  {"OSD outline thickness", "OSD 轮廓厚度", "", "", "", "Толщина контура OSD", "", 0},
+  {"Increase/decrease OSD outline thickness.", "增加/减少 OSD 轮廓粗细。", "", "", "", "Увеличить/уменьшить толщину контура OSD.", "", 0},
+  {"OSD screen size", "OSD 屏幕尺寸", "", "", "", "Размер экрана OSD", "", 0},
+  {"Change how big is the OSD relative to the screen.", "更改 OSD 相对于屏幕的大小。", "", "", "", "Измените размер OSD относительно экрана.", "", 0},
+  {"OSD flip vertical", "OSD 垂直翻转", "", "", "", "Перевернуть OSD по вертикали", "", 0},
+  {"Flips the OSD info vertically for rotated displays.", "垂直翻转 OSD 信息以适应旋转的显示。", "", "", "", "Переворачивает информацию OSD по вертикали для повернутых дисплеев.", "", 0},
+  {"Instruments color", "乐器颜色", "", "", "", "Цвет инструментов", "", 0},
+  {"Change color of the instruments/gauges.", "改变仪器/仪表的颜色。", "", "", "", "Изменение цвета приборов/датчиков.", "", 0},
+  {"Ruby OSD font", "Ruby OSD 字体", "", "", "", "Шрифт OSD Ruby", "", 0},
+  {"Changes the OSD font used for Ruby OSD elements.", "", "", "", "", "", "", 0},
+  {"OSD font", "OSD 字体", "", "", "", "Шрифт OSD", "", 0},
+  {"Changes the OSD font.", "", "", "", "", "", "", 0},
+  {"Ruby OSD font style", "Ruby OSD 字体样式", "", "", "", "Стиль шрифта OSD Ruby", "", 0},
+  {"Changes the OSD font style used for Ruby OSD elements.", "", "", "", "", "", "", 0},
+  {"OSD font style", "OSD 字体样式", "", "", "", "Стиль шрифта OSD", "", 0},
+  {"Changes the OSD font style.", "", "", "", "", "", "", 0},
+  {"MSP OSD font", "MSP OSD 字体", "", "", "", "Шрифт OSD MSP", "", 0},
+  {"Changes the OSD font used for MSP OSD.", "", "", "", "", "", "", 0},
+  {"Side by side", "并排", "", "", "", "Бок о бок", "", 0},
+  {"Stacked", "堆叠", "", "", "", "Сложенный", "", 0},
+  {"Sticky Left", "粘性左侧", "", "", "", "Прикрепленный левый", "", 0},
+  {"X-Small", "特小", "", "", "", "X-маленький", "", 0},
+  {"Small", "小的", "", "", "", "Маленький", "", 0},
+  {"Normal", "普通的", "", "", "", "Нормальный", "", 0},
+  {"Large", "大的", "", "", "", "Большой", "", 0},
+  {"X-Large", "特大", "", "", "", "Очень большой", "", 0},
+  {"Inverted", "倒", "", "", "", "Перевернутый", "", 0},
+  {"None", "没有任何", "", "", "कोई नहीं", "Никто", "", 0},
+  {"Smallest", "最小", "", "", "सबसे छोटा", "Самый маленький", "", 0},
+  {"Small", "小的", "", "", "छोटा", "Маленький", "", 0},
+  {"Normal", "普通的", "", "", "सामान्य", "Нормальный", "", 0},
+  {"Large", "大的", "", "", "बड़ा", "Большой", "", 0},
+  {"Larger", "更大", "", "", "बड़ा", "Больше", "", 0},
+  {"Largest", "最大", "", "", "सबसे बड़ा", "Самый большой", "", 0},
+
+  {"General", "一般的", "", "", "सामान्य", "Общий", "", 0},
+  {"Language", "语言", "Langue", "Sprache", "भाषा", "Язык", "Idioma", 0},
+  {"Change the user interface language.", "更改用户界面语言。", "Changer la langue de l'interface utilisateur.", "Ändern Sie die Sprache der Benutzeroberfläche.", "उपयोगकर्ता इंटरफ़ेस भाषा बदलें.", "Измените язык пользовательского интерфейса.", "Cambiar el idioma de la interfaz de usuario.", 0},
+  {"Display units", "显示单位", "", "", "", "Дисплейные блоки", "", 0},
+  {"Changes how the OSD displays data: in metric system or imperial system.", "", "", "", "", "", "", 0},
+  {"Display units (Heights)", "显示单位（高度）", "", "", "", "Единицы отображения (высоты)", "", 0},
+  {"Changes how the OSD displays heights: in metric system or imperial system.", "", "", "", "", "", "", 0},
+  {"Persist messages longer", "保留消息更长时间", "", "", "", "Сохранять сообщения дольше", "", 0},
+  {"Keep the various messages and warnings longer on the screen.", "", "", "", "", "", "", 0},
+  {"Log messages window", "日志消息窗口", "", "", "", "Окно сообщений журнала", "", 0},
+  {"Shows the log messages window.", "", "", "", "", "", "", 0},
+  {"Bold", "大胆的", "", "", "", "Смелый", "", 0},
+  {"Regular", "常规的", "", "", "", "Обычный", "", 0},
+  {"On New Content", "关于新内容", "", "", "", "", "", 0},
+  {"Always On", "始终开启", "", "", "", "", "", 0},
+  {"", "", "", "", "", "", "", 0},
+
+  //------------------------------------------------------------
+  // Menu vehicle simple setup
+
+
+  {"First time pairing setup:", "", "", "", "", "", "", 0},
+  {"(You can later change the values again from menus)", "", "", "", "", "", "", 0},
+  {"Missing vehicle configuration.", "", "", "", "", "", "", 0},
+  {"Closes this settings.", "", "", "", "", "", "", 0},
+  {"Camera settings", "", "", "", "", "", "", 0},
+  {"Change camera settings: brightness, constrast, saturation, hue, etc.", "", "", "", "", "", "", 0},
+  {"Video settings", "", "", "", "", "", "", 0},
+  {"Change video settings: resolution, FPS, bitrate, etc.", "", "", "", "", "", "", 0},
+  {"Select the OSD layout you want, how many OSD elements to show by default on your screen:", "", "", "", "", "", "", 0},
+  {"OSD Layout", "", "", "", "", "", "", 0},
+  {"Set the default layout of this OSD screen (what elements are shown on this screen).", "", "", "", "", "", "", 0},
+  {"Minimal", "", "", "", "", "", "", 0},
+  {"Compact", "", "", "", "", "", "", 0},
+  {"If you have a flight controller, select the telemetry type used by the flight controller:", "", "", "", "", "", "", 0},
+  {"FC Telemetry Type", "", "", "", "", "", "", 0},
+  {"The telemetry type that is sent/received from the flight controller. This should match the telemetry type generated by the flight controller.", "", "", "", "", "", "", 0},
+  {"If you have a flight controller, select the air unit's serial port the flight controller is connected to:", "", "", "", "", "", "", 0},
+  {"Telemetry Port", "", "", "", "", "", "", 0},
+  {"The Ruby vehicle port at which the flight controller telemetry connects to.", "", "", "", "", "", "", 0},
+  {"Looks Good! Done", "", "", "", "", "", "", 0},
+  {"Applies the selections and closes this settings page.", "", "", "", "", "", "", 0},
+  {"Full Vehicle Settings", "", "", "", "", "", "", 0},
+  {"Configure/change all vehicle settings.", "", "", "", "", "", "", 0},
+  {"Sets the radio link frequency for this radio link.", "", "", "", "", "", "", 0},
+  {"Change the radio link frequency.", "", "", "", "", "", "", 0},
+  {"Please wait", "", "", "", "", "", "", 0},
+  {"Autodetecting telemetry settings", "", "", "", "", "", "", 0},
+  {"User Data Link Disabled", "", "", "", "", "", "", 0},
+  {"The serial port was used by your custom data link. It was reasigned to the telemetry link.", "", "", "", "", "", "", 0},
+  {"Not paired with any vehicle.", "", "", "", "", "", "", 0},
+  {"Search for vehicles to find one and connect to.", "", "", "", "", "", "", 0},
+  {"Configuration In Progress", "", "", "", "", "", "", 0},
+  {"Another radio link configuration change is in progress. Please wait.", "", "", "", "", "", "", 0},
+  {"Invalid option", "", "", "", "", "", "", 0},
+  {"Confirmation", "", "", "", "", "", "", 0},
+  {"Can't update radio links", "", "", "", "", "", "", 0},
+  {"You need to update your vehicle to version 9.2 or newer", "", "", "", "", "", "", 0},
+
+
+  //-----------------------------------------------------
+  // Menus confirmations
+
+  {"Update Info", "", "", "", "", "", "", 0},
+  {"Unsuppoerted video codec", "", "", "", "", "", "", 0},
+  {"Unsuppoerted video slices", "", "", "", "", "", "", 0},
+  {"Hardware Info", "", "", "", "", "", "", 0},
+  {"Do not show again", "", "", "", "", "", "", 0},
+  {"Delete vehicle logs", "", "", "", "", "", "", 0},
+  {"Do you want to delete the logs?", "", "", "", "", "", "", 0},
+  {"(If you don't select anything, it will auto revert to old HDMI configuration after a timeout)", "", "", "", "", "", "", 0},
+  {"Failed to import settings from USB memory stick.", "", "", "", "", "", "", 0},
+  {"A Ruby update is present on the SD card.", "", "", "", "", "", "", 0},
+  {"Do you want to update Ruby from the SD card?", "", "", "", "", "", "", 0},
+  {"Your controller will reboot now.", "", "", "", "", "", "", 0},
+  {"Failed to do the SD card update.", "", "", "", "", "", "", 0},
+  {"Doing the SD card update. Please wait...", "", "", "", "", "", "", 0},
+  {"(You can later change it from vehicle menu)", "", "", "", "", "", "", 0},
+  {"Select your vehicle board type", "", "", "", "", "", "", 0},
+  {"Update from SD card", "", "", "", "", "", "", 0},
+  {"Video Bitrate Adjustment", "", "", "", "", "", "", 0},
+  {"Update Controller Software", "", "", "", "", "", "", 0},
+  {"Insert an USB stick containing the Ruby update archive file and then press Ok to start the update process.", "", "", "", "", "", "", 0},
+  {"Warning! Reboot Confirmation", "", "", "", "", "", "", 0},
+  {"Warning: You have the RC link enabled, the vehicle flight controller might not go into failsafe mode during reboot.", "", "", "", "", "", "", 0},
+  {"Updating. Please wait...", "", "", "", "", "", "", 0},
+  {"No USB memory stick detected. Please insert a USB stick.", "", "", "", "", "", "", 0},
+  {"USB memory stick detected but could not be mounted. Please try again.", "", "", "", "", "", "", 0},
+  {"Update Failed", "", "", "", "", "", "", 0},
+  {"Update timedout and failed.", "", "", "", "", "", "", 0},
+  {"Update Info", "", "", "", "", "", "", 0},
+  {"No update archive file found on the USB memory stick. No update done.", "", "", "", "", "", "", 0},
+  {"Update Complete", "", "", "", "", "", "", 0},
+  {"Update complete. You can now remove the USB stick. The system will reboot now.", "", "", "", "", "", "", 0},
+  {"(If it does not reboot, you can power it off and on)", "", "", "", "", "", "", 0},
+  {"Your vehicle is armed, you can't perform this operation now. Please stop/disarm your vehicle first.", "", "", "", "", "", "", 0},
+  {"Update was canceled.", "", "", "", "", "", "", 0},
+  {"There was an error generating software upload file.", "", "", "", "", "", "", 0},
+  {"There was an error generating upload software archive.", "", "", "", "", "", "", 0},
+  {"Vehicle update binary files are missing or update procedure changed. Please update (again) your controller.", "", "", "", "", "", "", 0},
+  {"There was an error updating your vehicle.", "", "", "", "", "", "", 0},
+  {"Sets the radio interface model.", "", "", "", "", "", "", 0},
+  {"Sets the radio Tx power level.", "", "", "", "", "", "", 0},
+  {"There was an error generating the software package.", "", "", "", "", "", "", 0},
+  {"There was an error uploading the software package.", "", "", "", "", "", "", 0},
+  {"Not connected", "", "", "", "", "", "", 0},
+  {"Video Bitrate Warning", "", "", "", "", "", "", 0},
+  {"Functionality not supported", "", "", "", "", "", "", 0},
+  {"Can't update", "", "", "", "", "", "", 0},
+  {"This vehicle does not support OTA (over the air) updates.", "", "", "", "", "", "", 0},
+  {"Upgrade Confirmation", "", "", "", "", "", "", 0},
+  {"Confirmation", "", "", "", "", "", "", 0},
+  {"You will need to search and pair with the vehicle again after that.", "", "", "", "", "", "", 0},
+  {"Warning! Reboot Confirmation", "", "", "", "", "", "", 0},
+  {"Warning: You have the RC link enabled, the vehicle flight controller will go into RC failsafe mode during reboot.", "", "", "", "", "", "", 0},
+  {"Upload Succeeded", "", "", "", "", "", "", 0},
+  {"Reset Complete", "", "", "", "", "", "", 0},
+  {"Your vehicle was reseted to default settings. It will reboot now.", "", "", "", "", "", "", 0},
+  {"Vehicle is offline", "", "", "", "", "", "", 0},
+  {"Vehicle settings can not be changed on a spectator vehicle.", "", "", "", "", "", "", 0},
+  {"You need to update your vehicle sowftware to be able to use core plugins.", "", "", "", "", "", "", 0},
+  {"Please insert a USB memory stick.", "", "", "", "", "", "", 0},
+  {"USB memory stick invalid. Please try again.", "", "", "", "", "", "", 0},
+  {"Export Succeeded", "", "", "", "", "", "", 0},
+  {"Your vehicle settings have been stored to the USB stick. You can now remove the USB stick.", "", "", "", "", "", "", 0},
+  {"Info", "", "", "", "", "", "", 0},
+  {"You have no vehicles. Search and connect to a vehicle first.", "", "", "", "", "", "", 0},
+  {"You are currently paired with a vehicle in spectator mode. You can not change any vehicle settings while in spectator mode.", "", "", "", "", "", "", 0},
+
+
+  //------------------------------------------------------------------
+  // Menu about
+  {"About", "", "", "", "", "", "", 0},
+  {"Ruby base version: ", "", "", "", "", "", "", 0},
+  {"Ruby system developed by: Petru Soroaga", "", "", "", "", "", "", 0},
+  {"For info on the licence terms, check the license.txt file.", "", "", "", "", "", "", 0},
+  {"Close the menu.", "", "", "", "", "", "", 0},
+
+
+  //----------------------------------------------------------------------
+  // Menus Search
+  {"Select Frequencies", "", "", "", "", "", "", 0},
+  {"Select All", "", "", "", "", "", "", 0},
+  {"Deselect All", "", "", "", "", "", "", 0},
+  {"Search for vehicles", "", "", "", "", "", "", 0},
+  {"Make sure your vehicle is powered on when you start searching.", "", "", "", "", "", "", 0},
+  {"Note: Long press on [Cancel] key or choose 'Stop Search' to cancel a search in progress.", "", "", "", "", "", "", 0},
+  {"Manual Search", "", "", "", "", "", "", 0},
+  {"Manualy search on a particular frequency", "", "", "", "", "", "", 0},
+  {"No supported frequencies", "", "", "", "", "", "", 0},
+  {"Band:", "", "", "", "", "", "", 0},
+  {"Change the frequency bands to search on.", "", "", "", "", "", "", 0},
+  {"No bands supported.", "", "", "", "", "", "", 0},
+  {"Start Search", "", "", "", "", "", "", 0},
+  {"Start/Stop searching for vehicles on current band.", "", "", "", "", "", "", 0},
+  {"SiK Radio Data Rate", "", "", "", "", "", "", 0},
+  {"Sets the physical radio air data rate to use while searching.", "", "", "", "", "", "", 0},
+  {"Search for vehicles to connect to as spectator only:", "", "", "", "", "", "", 0},
+  {"Note: Long press on [Cancel] or 'Stop Search' to cancel a search in progress.", "", "", "", "", "", "", 0},
+  {"None of your radio cards support this frequency band. Please choose another frequency band to search on.", "", "", "", "", "", "", 0},
+  {"Stop Search", "", "", "", "", "", "", 0},
+  {"Start Search", "", "", "", "", "", "", 0},
+  {"No vehicles found!", "", "", "", "", "", "", 0},
+  {"Vehicle found and skipped.", "", "", "", "", "", "", 0},
+  {"You could search on other bands and channels.", "", "", "", "", "", "", 0},
+  {"Searching..", "", "", "", "", "", "", 0},
+  {"No active radio interfaces.", "", "", "", "", "", "", 0},
+  {"All your controller's radio interfaces are disabled. Enable at least a radio interface (from the Radio menu) to be able to search for vehicles.", "", "", "", "", "", "", 0},
+  {"Searching ...", "", "", "", "", "", "", 0},
+  {"Long press on [Back] to stop the search.", "", "", "", "", "", "", 0},
+  {"Found Vehicle", "", "", "", "", "", "", 0},
+  {"Connect for control", "", "", "", "", "", "", 0},
+  {"Connect to this vehicle as controller", "", "", "", "", "", "", 0},
+  {"View as spectator", "", "", "", "", "", "", 0},
+  {"Connect to this vehicle as spectator", "", "", "", "", "", "", 0},
+  {"Skip", "", "", "", "", "", "", 0},
+  {"Skip this vehicle", "", "", "", "", "", "", 0},
+  {"Can't get vehicle info", "", "", "", "", "", "", 0},
+
+  //-----------------------------------------------------------
+  // Menus
+
+
+  {"CPU and Processes Settings", "", "", "", "", "", "", 0},
+  {"Enable CPU Overclocking", "", "", "", "", "", "", 0},
+  {"Enables overclocking of the main CPU.", "", "", "", "", "", "", 0},
+  {"Modules versions", "", "", "", "", "", "", 0},
+  {"Get all modules versions.", "", "", "", "", "", "", 0},
+  {"Reset Priorities", "", "", "", "", "", "", 0},
+  {"Resets all controller priorities.", "", "", "", "", "", "", 0},
+  {"Restart", "", "", "", "", "", "", 0},
+  {"Restarts the controller.", "", "", "", "", "", "", 0},
+  {"Color Picker", "", "", "", "", "", "", 0},
+  {"Initial Auto Radio Link Adjustment", "", "", "", "", "", "", 0},
+  {"Doing the initial radio link parameters adjustment for best performance...", "", "", "", "", "", "", 0},
+  {"(This is done on first installation and on first pairing with a vehicle or when hardware has changed on the vehicle)", "", "", "", "", "", "", 0},
+  {"Please wait, it will take a minute (you can press [Cancel] to cancel).", "", "", "", "", "", "", 0},
+  {"Computing Link Quality", "", "", "", "", "", "", 0},
+  {"Done. Sending message to vehicle to save parameters.", "", "", "", "", "", "", 0},
+  {"Canceling, please wait.", "", "", "", "", "", "", 0},
+  {"Testing modulation schemes parameters", "", "", "", "", "", "", 0},
+  {"Aborts the autoadjustment procedure without making any changes.", "", "", "", "", "", "", 0},
+  {"Failed to negociate radio links.", "", "", "", "", "", "", 0},
+  {"You radio links quality is very poor. Please fix the physical radio links quality and try again later.", "", "", "", "", "", "", 0},
+  {"Negociated radio links", "", "", "", "", "", "", 0},
+  {"Negociated radio links was canceled", "", "", "", "", "", "", 0},
+  {"Controller Radio Settings", "", "", "", "", "", "", 0},
+  {"Controller Tx Power Mode", "", "", "", "", "", "", 0},
+  {"Sets the radio transmission power mode selector for the controller side: custom fixed power or auto computed for each radio link based on vechile radio links tx powers.", "", "", "", "", "", "", 0},
+  {"Fixed uplink Tx power", "", "", "", "", "", "", 0},
+  {"Match current vehicle", "", "", "", "", "", "", 0},
+  {"Full Radio Config", "", "", "", "", "", "", 0},
+  {"Full radio configuration", "", "", "", "", "", "", 0},
+  {"Controller Tx power is set to fixed values.", "", "", "", "", "", "", 0},
+  {"Mode", "", "", "", "", "", "", 0},
+  {"Radio Tx Power (mW)", "", "", "", "", "", "", 0},
+  {"Controller Tx power is computed automatically for each radio link based on vehicle's radio links Tx power and the Tx capabilities of the controller's radio interfaces.", "", "", "", "", "", "", 0},
+  {"No vehicle", "", "", "", "", "", "", 0},
+  {"You are not connected to any vehicles. The Tx power is set automatically to a low value.", "", "", "", "", "", "", 0},
+  {"Radio Uplink", "", "", "", "", "", "", 0},
+  {"Controller Radio Interface Settings", "", "", "", "", "", "", 0},
+  {"No radio interfaces detected on the system!", "", "", "", "", "", "", 0},
+  {"Card Model", "", "", "", "", "", "", 0},
+  {"Enables or disables this card.", "", "", "", "", "", "", 0},
+  {"Preferred Uplink Card", "", "", "", "", "", "", 0},
+  {"Sets this card as preffered one for uplink.", "", "", "", "", "", "", 0},
+  {"You have a single radio interface on this controller. You can not change it's main functionality.", "", "", "", "", "", "", 0},
+  {"Capabilities", "", "", "", "", "", "", 0},
+  {"Sets the uplink/downlink capabilities of the card. If the card has attached an external LNA or a unidirectional booster, it can't be used for both uplink and downlink, so it must be marked to be used only for uplink or downlink accordingly.", "", "", "", "", "", "", 0},
+  {"Uplink & Downlink", "", "", "", "", "", "", 0},
+  {"Downlink Only", "", "", "", "", "", "", 0},
+  {"Uplink Only", "", "", "", "", "", "", 0},
+  {"Card Location", "", "", "", "", "", "", 0},
+  {"Marks this card as internal or external.", "", "", "", "", "", "", 0},
+  {"External", "", "", "", "", "", "", 0},
+  {"Internal", "", "", "", "", "", "", 0},
+  {"Custom Name", "", "", "", "", "", "", 0},
+  {"Sets a custom name for this unique physical radio interface; This name is to be displayed in the OSD and menus, to easily identify and distinguish each physical radio interface from the others.", "", "", "", "", "", "", 0},
+  {"Updating Radio Configuration. Please wait...", "", "", "", "", "", "", 0},
+  {"You can't disable all the radio interfaces!", "", "", "", "", "", "", 0},
+  {"The selected value was updated.", "", "", "", "", "", "", 0},
+  {"You can't disable the single active radio interface.", "", "", "", "", "", "", 0},
+  {"Invalid option", "", "", "", "", "", "", 0},
+  {"Can't set the interface as RX or TX only because it's the only active interface on the system.", "", "", "", "", "", "", 0},
+  {"Vehicle Settings", "", "", "", "", "", "", 0},
+  {"You are connected in spectator mode. Can't change vehicle settings.", "", "", "", "", "", "", 0},
+  {"General", "", "", "", "", "", "", 0},
+  {"Change general settings like name, type of vehicle and so on.", "", "", "", "", "", "", 0},
+  {"Radio Links", "", "", "", "", "", "", 0},
+  {"Change the radio links configuration of this vehicle.", "", "", "", "", "", "", 0},
+  {"Warnings/Alarms", "", "", "", "", "", "", 0},
+  {"Change which alarms and warnings to enable/disable.", "", "", "", "", "", "", 0},
+  {"OSD / Instruments", "", "", "", "", "", "", 0},
+  {"Change OSD type, layout and settings.", "", "", "", "", "", "", 0},
+  {"Camera", "", "", "", "", "", "", 0},
+  {"Change camera parameters: brightness, contrast, sharpness and so on.", "", "", "", "", "", "", 0},
+  {"Video", "", "", "", "", "", "", 0},
+  {"Change video resolution, fps so on.", "", "", "", "", "", "", 0},
+  {"Audio", "", "", "", "", "", "", 0},
+  {"Change the audio settings", "", "", "", "", "", "", 0},
+  {"Telemetry", "", "", "", "", "", "", 0},
+  {"Change telemetry parameters between flight controller and ruby vehicle.", "", "", "", "", "", "", 0},
+  {"Auxiliary Data Link", "", "", "", "", "", "", 0},
+  {"Create and configure a general purpose data link between the vehicle and the controller.", "", "", "", "", "", "", 0},
+  {"Remote Control", "", "", "", "", "", "", 0},
+  {"Change your remote control type, channels, protocols and so on.", "", "", "", "", "", "", 0},
+  {"Functions and Triggers", "", "", "", "", "", "", 0},
+  {"Configure special functions and triggers.", "", "", "", "", "", "", 0},
+  {"Relaying", "", "", "", "", "", "", 0},
+  {"Configure this vehicle as a relay.", "", "", "", "", "", "", 0},
+  {"Peripherals", "", "", "", "", "", "", 0},
+  {"Change vehicle's serial ports settings and other peripherals.", "", "", "", "", "", "", 0},
+  {"CPU Settings", "", "", "", "", "", "", 0},
+  {"Change CPU overclocking settings and processes priorities.", "", "", "", "", "", "", 0},
+  {"Management", "", "", "", "", "", "", 0},
+  {"Updates, deletes, back-up, restore the vehicle data and firmware.", "", "", "", "", "", "", 0},
+  {"Vehicle Settings", "", "", "", "", "", "", 0},
+  {"No hardware alarms.", "", "", "", "", "", "", 0},
+  {"Connected to:", "", "", "", "", "", "", 0},
+  {"Looking for:", "", "", "", "", "", "", 0},
+  {"Vehicle is offline", "", "", "", "", "", "", 0},
+  {"Vehicle Settings can not be changed on a spectator vehicle.", "", "", "", "", "", "", 0},
+  {"OSD functionality has changed. You need to update your vehicle sowftware.", "", "", "", "", "", "", 0},
+  {"You need to update your vehicle sowftware to be able to use this menu.", "", "", "", "", "", "", 0},
+  {"Can't change settings when not connected to the vehicle.", "", "", "", "", "", "", 0},
+  {"Vehicle Settings not synched yet", "", "", "", "", "", "", 0},
+  {"This vehicle has no cameras.", "", "", "", "", "", "", 0},
+  {"You can't change camera settings for a spectator vehicle.", "", "", "", "", "", "", 0},
+  {"This vehicle has no cameras or video streams.", "", "", "", "", "", "", 0},
+  {"This vehicle doesn't have any audio capture device. Audio can't be used on this vehicle.", "", "", "", "", "", "", 0},
+  {"You need to update your vehicle sowftware to be able to use this menu.", "", "", "", "", "", "", 0},
+  {"OSD functionality has changed. You need to update your vehicle sowftware.", "", "", "", "", "", "", 0},
+  {"No Suitable Hardware", "", "", "", "", "", "", 0},
+  {"You need at least two radio interfaces on the vehicle to be able to use the relay functionality.", "", "", "", "", "", "", 0},
+  {"General Vehicle Settings", "", "", "", "", "", "", 0},
+  {"Name", "", "", "", "", "", "", 0},
+  {"Vehicle Type", "", "", "", "", "", "", 0},
+  {"Changes the vehicle type Ruby is using. Has impact on things like OSD elements, telemetry parsing.", "", "", "", "", "", "", 0},
+  {"Generic", "", "", "", "", "", "", 0},
+  {"Drone", "", "", "", "", "", "", 0},
+  {"Airplane", "", "", "", "", "", "", 0},
+  {"Helicopter", "", "", "", "", "", "", 0},
+  {"Car", "", "", "", "", "", "", 0},
+  {"Boat", "", "", "", "", "", "", 0},
+  {"Robot", "", "", "", "", "", "", 0},
+  {"Board Type", "", "", "", "", "", "", 0},
+  {"Sets the board type variant.", "", "", "", "", "", "", 0},
+  {"Vehicle Radio Configuration", "", "", "", "", "", "", 0},
+  {"Variable Tx Power", "", "", "", "", "", "", 0},
+  {"No radio interfaces detected on this vehicle!", "", "", "", "", "", "", 0},
+  {"Full Radio Config", "", "", "", "", "", "", 0},
+  {"Full radio configuration", "", "", "", "", "", "", 0},
+  {"Disable Uplinks", "", "", "", "", "", "", 0},
+  {"Disable all uplinks, makes the system a one way system. Except for initial pairing and synching and sending commands to the vehicle. No video retransmissions happen, adaptive video is also disabled.", "", "", "", "", "", "", 0},
+  {"Prioritize Uplink", "", "", "", "", "", "", 0},
+  {"Prioritize Uplink data over Downlink data. Enable it when uplink data resilience and consistentcy is more important than downlink data.", "", "", "", "", "", "", 0},
+  {"Optmize Radio Links Wizard", "", "", "", "", "", "", 0},
+  {"Runs a process to optimize radio links parameters.", "", "", "", "", "", "", 0},
+  {"Sets the radio link frequency for this radio link.", "", "", "", "", "", "", 0},
+  {"Radio Link Frequency", "", "", "", "", "", "", 0},
+  {"Change the radio link frequency.", "", "", "", "", "", "", 0},
+  {"Radio Link Data Rate", "", "", "", "", "", "", 0},
+  {"Radio Link Tx Power (mW)", "", "", "", "", "", "", 0},
+  {"Missing Pass Code", "", "", "", "", "", "", 0},
+  {"Configuration In Progress", "", "", "", "", "", "", 0},
+  {"Another radio link configuration change is in progress. Please wait.", "", "", "", "", "", "", 0},
+  {"Invalid option", "", "", "", "", "", "", 0},
+  {"Can't update radio links", "", "", "", "", "", "", 0},
+  {"You must update your vehicle first.", "", "", "", "", "", "", 0},
+  {"CPU Speed (Mhz)", "", "", "", "", "", "", 0},
+  {"Sets the main CPU frequency. Requires a reboot.", "", "", "", "", "", "", 0},
+  {"Enable GPU Overclocking", "", "", "", "", "", "", 0},
+  {"Enables overclocking of the GPU cores.", "", "", "", "", "", "", 0},
+  {"GPU Speed (Mhz)", "", "", "", "", "", "", 0},
+  {"Sets the GPU frequency. Requires a reboot.", "", "", "", "", "", "", 0},
+  {"Enable Overvoltage", "", "", "", "", "", "", 0},
+  {"Enables overvotage on the CPU and GPU cores. You need to increase voltage as you increase speed.", "", "", "", "", "", "", 0},
+  {"Overvoltage (steps)", "", "", "", "", "", "", 0},
+  {"Sets the overvoltage value, in 0.025V increments. Requires a reboot.", "", "", "", "", "", "", 0},
+  {"Reset CPU Freq", "", "", "", "", "", "", 0},
+  {"Resets the controller CPU and GPU frequencies to default values.", "", "", "", "", "", "", 0},
+ 
+  {"", "", "", "", "", "", "", 0},
+  {"", "", "", "", "", "", "", 0},
+  {"", "", "", "", "", "", "", 0},
+  {"", "", "", "", "", "", "", 0}
 };
 
-int getLanguagesCount()
+#else
+type_localized_strings s_LocalizedStringsTable[] = 
 {
-   return sizeof(s_szLanguages)/sizeof(s_szLanguages[0]);
+  {"NA", "NA", "NA", "NA", "NA", "NA", "NA", 0}
+};
+#endif
+
+type_localized_strings* string_get_table()
+{
+   return s_LocalizedStringsTable;
 }
 
-const char* getLanguageName(int iIndex)
+int string_get_table_size()
 {
-   if ( (iIndex < 0) || (iIndex >= getLanguagesCount()) )
-      return s_szStringTableEmptyText;
-   return s_szLanguages[iIndex];
-}
-
-void setActiveLanguage(int iLanguage)
-{
-   s_iActiveLanguage = iLanguage;
-}
-
-u32 _loc_string_compute_hash(const char* szString)
-{
-   if ( (NULL == szString) || (0 == szString[0]) )
-      return MAX_U32;
-   return 0;
-}
-
-void initLocalizationData()
-{
-   s_iLocalizationInited = 1;
-}
-
-const char* L(const char* szString)
-{
-   if ( (s_iActiveLanguage == 0) || (!s_iLocalizationInited) )
-      return szString;
-
-   if ( (NULL == szString) || (0 == szString[0] ) )
-      return s_szStringTableEmptyText;
-
-   type_localize_string* pArray = NULL;
-
-   if ( s_iActiveLanguage == 1 )
-      pArray = s_ListFrenchTexts;
-
-   if ( NULL == pArray )
-      return szString;
-
-   /*
-   for( int i=0; i<sizeof(pArray); i++ )
-   {
-      if ( 0 == strcmp(szString, pArray[i].szEnglish) )
-         return pArray[i].szTranslated;
-   }
-   */
-   return szString;
+   return sizeof(s_LocalizedStringsTable)/sizeof(s_LocalizedStringsTable[0]);
 }

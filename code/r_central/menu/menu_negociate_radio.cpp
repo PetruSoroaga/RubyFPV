@@ -45,7 +45,7 @@ int s_ArrayTestRadioRates[] = {6000000, 12000000, 18000000, 24000000, 36000000, 
 #define MAX_FAILING_RADIO_NEGOCIATE_STEPS 9
 
 MenuNegociateRadio::MenuNegociateRadio(void)
-:Menu(MENU_ID_NEGOCIATE_RADIO, "Initial Auto Radio Link Adjustment", NULL)
+:Menu(MENU_ID_NEGOCIATE_RADIO, L("Initial Auto Radio Link Adjustment"), NULL)
 {
    m_Width = 0.72;
    m_xPos = 0.14; m_yPos = 0.26;
@@ -54,8 +54,8 @@ MenuNegociateRadio::MenuNegociateRadio(void)
    m_uShowTime = g_TimeNow;
    m_MenuIndexCancel = -1;
    m_iLoopCounter = 0;
-   addTopLine("Doing the initial radio link parameters adjustment for best performance...");
-   addTopLine("(This is done on first installation and on first pairing with a vehicle or when hardware has changed on the vehicle)");
+   addTopLine(L("Doing the initial radio link parameters adjustment for best performance..."));
+   addTopLine(L("(This is done on first installation and on first pairing with a vehicle or when hardware has changed on the vehicle)"));
 
    strcpy(m_szStatusMessage, L("Please wait, it will take a minute (you can press [Cancel] to cancel)."));
    strcpy(m_szStatusMessage2, L("Computing Link Quality"));
@@ -356,11 +356,11 @@ void MenuNegociateRadio::_switch_to_step(int iStep)
    log_line("[NegociateRadioLink] Switched to step %d, current test index: %d of %d+%d", m_iStep, m_iCurrentTestIndex, m_iIndexFirstRadioFlagsTest, m_iTestsCount - m_iIndexFirstRadioFlagsTest);
    if ( m_iStep == NEGOCIATE_RADIO_STEP_END )
    {
-      strcpy(m_szStatusMessage, "Done. Sending message to vehicle to save parameters.");
+      strcpy(m_szStatusMessage, L("Done. Sending message to vehicle to save parameters."));
       _apply_new_settings(true);
    }
    if ( m_iStep == NEGOCIATE_RADIO_STEP_CANCEL )
-      strcpy(m_szStatusMessage, "Canceling, please wait.");
+      strcpy(m_szStatusMessage, L("Canceling, please wait."));
 
    m_bWaitingVehicleConfirmation = true;
    m_uStepStartTime = g_TimeNow;
@@ -578,7 +578,7 @@ bool MenuNegociateRadio::periodicLoop()
    if ( -1 == m_MenuIndexCancel )
    if ( g_TimeNow > m_uShowTime + 4000 )
    {
-      m_MenuIndexCancel = addMenuItem(new MenuItem("Cancel", "Aborts the autoadjustment procedure without making any changes."));
+      m_MenuIndexCancel = addMenuItem(new MenuItem(L("Cancel"), L("Aborts the autoadjustment procedure without making any changes.")));
       invalidate();
    }
 
