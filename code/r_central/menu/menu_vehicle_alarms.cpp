@@ -37,23 +37,23 @@
 #include "menu_item_range.h"
 
 MenuVehicleAlarms::MenuVehicleAlarms(void)
-:Menu(MENU_ID_VEHICLE_ALARMS, "Vehicle Alarms and Warnings Settings", NULL)
+:Menu(MENU_ID_VEHICLE_ALARMS, L("Vehicle Alarms and Warnings Settings"), NULL)
 {
    m_Width = 0.36;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.20;
 
-   m_pItemsSelect[0] = new MenuItemSelect("Enable Voltage Alarm", "Shows an alarm on screen when vehicle battery voltage drops below a value.");  
-   m_pItemsSelect[0]->addSelection("No");
-   m_pItemsSelect[0]->addSelection("Yes");
+   m_pItemsSelect[0] = new MenuItemSelect(L("Enable Voltage Alarm"), L("Shows an alarm on screen when vehicle battery voltage drops below a value."));  
+   m_pItemsSelect[0]->addSelection(L("No"));
+   m_pItemsSelect[0]->addSelection(L("Yes"));
    m_pItemsSelect[0]->setIsEditable();
    addMenuItem(m_pItemsSelect[0]);
 
-   m_pItemsRange[0] = new MenuItemRange("Alarm voltage:", "Voltage at which the alarm will trigger.", 2.0, 4.6, g_pCurrentModel->osd_params.voltage_alarm, 0.1 );  
+   m_pItemsRange[0] = new MenuItemRange(L("Alarm voltage"), L("Voltage at which the alarm will trigger."), 2.0, 4.6, g_pCurrentModel->osd_params.voltage_alarm, 0.1 );  
    m_pItemsRange[0]->setSufix("V");
    addMenuItem(m_pItemsRange[0]);
 
 
-   m_pItemsSelect[3] =  new MenuItemSelect("Enable Motor Alarm", "Shows an alarm on screen when throttle is active but motor is not responding (not consumming current). Set the threshold for current consumed by the vehicle when idle. Works only with MAVLink telemetry.");
+   m_pItemsSelect[3] =  new MenuItemSelect(L("Enable Motor Alarm"), L("Shows an alarm on screen when throttle is active but motor is not responding (not consumming current). Set the threshold for current consumed by the vehicle when idle. Works only with MAVLink telemetry."));
    m_pItemsSelect[3]->addSelection("No");
    m_pItemsSelect[3]->addSelection("0.5 Amp threshold");
    m_pItemsSelect[3]->addSelection("1.0 Amp threshold");
@@ -67,7 +67,7 @@ MenuVehicleAlarms::MenuVehicleAlarms(void)
    m_IndexAlarmMotorCurrent = addMenuItem(m_pItemsSelect[3]);
 
 
-   m_pItemsRange[1] = new MenuItemRange("Pitch/Roll warning angle:", "Pitch and roll angle at witch to show a OSD warning indication about attitude (0 for disabled).", 0, 80, g_pCurrentModel->osd_params.ahi_warning_angle, 5 );  
+   m_pItemsRange[1] = new MenuItemRange(L("Pitch/Roll warning angle"), L("Pitch and roll angle at witch to show a OSD warning indication about attitude (0 for disabled)."), 0, 80, g_pCurrentModel->osd_params.ahi_warning_angle, 5 );  
    m_pItemsRange[1]->setSufix("°");
    addMenuItem(m_pItemsRange[1]);
 
@@ -77,16 +77,16 @@ MenuVehicleAlarms::MenuVehicleAlarms(void)
    //m_IndexOverload = addMenuItem(m_pItemsSelect[1]);
    m_IndexOverload = -1;
 
-   m_pItemsSelect[2] = new MenuItemSelect("Link to Controller Lost Alarm", "Shows an alarm when the vehicle looses connection with the controller. That is, vehicle does not receive the uplink data for a period of time.");  
-   m_pItemsSelect[2]->addSelection("Disabled");
-   m_pItemsSelect[2]->addSelection("Enabled");
+   m_pItemsSelect[2] = new MenuItemSelect(L("Link to Controller Lost Alarm"), L("Shows an alarm when the vehicle looses connection with the controller. That is, vehicle does not receive the uplink data for a period of time."));  
+   m_pItemsSelect[2]->addSelection(L("Disabled"));
+   m_pItemsSelect[2]->addSelection(L("Enabled"));
    m_pItemsSelect[2]->setIsEditable();
    m_IndexLinkLost = addMenuItem(m_pItemsSelect[2]);
 
-   m_pItemsSelect[4] = new MenuItemSelect("Flash OSD on Telemetry Lost", "Flashes the OSD whenever a telemetry data packet is lost.");
-   m_pItemsSelect[4]->addSelection("No");
-   m_pItemsSelect[4]->addSelection("Yes");
-   m_pItemsSelect[4]->addSelection("Only for some OSD screens");
+   m_pItemsSelect[4] = new MenuItemSelect(L("Flash OSD on Telemetry Lost"), L("Flashes the OSD whenever a telemetry data packet is lost."));
+   m_pItemsSelect[4]->addSelection(L("No"));
+   m_pItemsSelect[4]->addSelection(L("Yes"));
+   m_pItemsSelect[4]->addSelection(L("On individual OSD screens"));
    m_pItemsSelect[4]->setIsEditable();
    m_iIndexFlashOSDOnTelemLost = addMenuItem(m_pItemsSelect[4]);
 }

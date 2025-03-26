@@ -40,7 +40,7 @@
 #include "../osd/osd_common.h"
 
 MenuVehicleOSDElements::MenuVehicleOSDElements(void)
-:Menu(MENU_ID_VEHICLE_OSD_ELEMENTS, "OSD Elements", NULL)
+:Menu(MENU_ID_VEHICLE_OSD_ELEMENTS, L("OSD Elements"), NULL)
 {
    m_Width = 0.56;
    //m_xPos = menu_get_XStartPos(m_Width);
@@ -58,87 +58,87 @@ MenuVehicleOSDElements::MenuVehicleOSDElements(void)
    for( int i=0; i<50; i++ )
       m_pItemsSelect[i] = NULL;
 
-   m_pItemsSelect[32] = new MenuItemSelect("OSD Elements Arrangement", "How the OSD elements are arranged on the screen: fluid around margins or only on the left/right sides of the screen.");  
-   m_pItemsSelect[32]->addSelection("Fluid");
-   m_pItemsSelect[32]->addSelection("Left/Right");
+   m_pItemsSelect[32] = new MenuItemSelect(L("OSD Elements Arrangement"), L("How the OSD elements are arranged on the screen: fluid around margins or only on the left/right sides of the screen."));  
+   m_pItemsSelect[32]->addSelection(L("Fluid"));
+   m_pItemsSelect[32]->addSelection(L("Left/Right"));
    //if ( bUseMultiSelection )
    //   m_pItemsSelect[32]->setUseMultiViewLayout();
    m_pItemsSelect[32]->setIsEditable();
    m_IndexOSDOrientation = addMenuItem(m_pItemsSelect[32]);
 
-   m_pItemsSelect[25] = new MenuItemSelect("Background bars", "Shows background bars behind the OSD to increase readability");  
-   m_pItemsSelect[25]->addSelection("No");
-   m_pItemsSelect[25]->addSelection("Yes");
+   m_pItemsSelect[25] = new MenuItemSelect(L("Background bars"), L("Shows background bars behind the OSD to increase readability"));  
+   m_pItemsSelect[25]->addSelection(L("No"));
+   m_pItemsSelect[25]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[25]->setUseMultiViewLayout();
    m_IndexShowBg = addMenuItem(m_pItemsSelect[25]);
 
-   m_pItemsSelect[1] = new MenuItemSelect("Voltage/Current", "Shows the voltage/current on the OSD");  
-   m_pItemsSelect[1]->addSelection("No");
-   m_pItemsSelect[1]->addSelection("Yes");
+   m_pItemsSelect[1] = new MenuItemSelect(L("Voltage/Current"), L("Shows the voltage/current on the OSD."));  
+   m_pItemsSelect[1]->addSelection(L("No"));
+   m_pItemsSelect[1]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[1]->setUseMultiViewLayout();
    m_IndexVoltage = addMenuItem(m_pItemsSelect[1]);
 
-   m_pItemsSelect[2] = new MenuItemSelect("Voltage per cell", "Shows also the voltage per cell of the battery.");  
-   m_pItemsSelect[2]->addSelection("No");
-   m_pItemsSelect[2]->addSelection("Yes");
+   m_pItemsSelect[2] = new MenuItemSelect(L("Voltage per cell"), L("Shows also the voltage per cell of the battery."));  
+   m_pItemsSelect[2]->addSelection(L("No"));
+   m_pItemsSelect[2]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[2]->setUseMultiViewLayout();
    m_IndexVoltagePerCell = addMenuItem(m_pItemsSelect[2]);
 
-   m_pItemsSelect[31] = new MenuItemSelect("Controller Voltage & Current", "Shows controller voltage and current on the OSD");  
-   m_pItemsSelect[31]->addSelection("No");
-   m_pItemsSelect[31]->addSelection("Yes");
+   m_pItemsSelect[31] = new MenuItemSelect(L("Controller Voltage & Current"), L("Shows controller voltage and current on the OSD."));  
+   m_pItemsSelect[31]->addSelection(L("No"));
+   m_pItemsSelect[31]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[31]->setUseMultiViewLayout();
    m_IndexControllerVoltage = addMenuItem(m_pItemsSelect[31]);
 
-   m_pItemsSelect[3] = new MenuItemSelect("Distance", "Shows the distance from home on the OSD");
-   m_pItemsSelect[3]->addSelection("No");
-   m_pItemsSelect[3]->addSelection("Yes");
+   m_pItemsSelect[3] = new MenuItemSelect(L("Distance"), L("Shows the distance from home on the OSD."));
+   m_pItemsSelect[3]->addSelection(L("No"));
+   m_pItemsSelect[3]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[3]->setUseMultiViewLayout();
    m_IndexDistance = addMenuItem(m_pItemsSelect[3]);
 
-   m_pItemsSelect[10] = new MenuItemSelect("Total distance", "Shows on the OSD the total distance traveled, not just current distance from home.");  
-   m_pItemsSelect[10]->addSelection("No");
-   m_pItemsSelect[10]->addSelection("Yes");
+   m_pItemsSelect[10] = new MenuItemSelect(L("Total distance"), L("Shows on the OSD the total distance traveled, not just current distance from home."));  
+   m_pItemsSelect[10]->addSelection(L("No"));
+   m_pItemsSelect[10]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[10]->setUseMultiViewLayout();
    m_IndexTotalDistance = addMenuItem(m_pItemsSelect[10]);
 
-   m_pItemsSelect[33] = new MenuItemSelect("Speed", "Shows the ground and/or air speed on the OSD");  
-   m_pItemsSelect[33]->addSelection("None");
-   m_pItemsSelect[33]->addSelection("Ground Speed");
-   m_pItemsSelect[33]->addSelection("Air Speed");
-   m_pItemsSelect[33]->addSelection("Both");
+   m_pItemsSelect[33] = new MenuItemSelect(L("Speed"), L("Shows the ground and/or air speed on the OSD."));  
+   m_pItemsSelect[33]->addSelection(L("None"));
+   m_pItemsSelect[33]->addSelection(L("Ground Speed"));
+   m_pItemsSelect[33]->addSelection(L("Air Speed"));
+   m_pItemsSelect[33]->addSelection(L("Both"));
    m_pItemsSelect[33]->setIsEditable();
    m_IndexSpeed = addMenuItem(m_pItemsSelect[33]);
 
 
-   m_pItemsSelect[4] = new MenuItemSelect("Altitude", "Shows the altitude on the OSD");  
-   m_pItemsSelect[4]->addSelection("No");
-   m_pItemsSelect[4]->addSelection("Yes");
+   m_pItemsSelect[4] = new MenuItemSelect(L("Altitude"), L("Shows the altitude on the OSD."));  
+   m_pItemsSelect[4]->addSelection(L("No"));
+   m_pItemsSelect[4]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[4]->setUseMultiViewLayout();
    m_IndexAltitude = addMenuItem(m_pItemsSelect[4]);
  
-   m_pItemsSelect[6] = new MenuItemSelect("Home", "Shows the home heading on the OSD");
-   m_pItemsSelect[6]->addSelection("No");
-   m_pItemsSelect[6]->addSelection("Yes");
+   m_pItemsSelect[6] = new MenuItemSelect(L("Home"), L("Shows the home heading on the OSD."));
+   m_pItemsSelect[6]->addSelection(L("No"));
+   m_pItemsSelect[6]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[6]->setUseMultiViewLayout();
    m_IndexHome = addMenuItem(m_pItemsSelect[6]);
 
-   m_pItemsSelect[7] = new MenuItemSelect("Mirror home arrow", "Flips the rotation of the home arrow.");  
-   m_pItemsSelect[7]->addSelection("No");
-   m_pItemsSelect[7]->addSelection("Yes");
+   m_pItemsSelect[7] = new MenuItemSelect(L("Mirror home arrow"), L("Flips the rotation of the home arrow."));  
+   m_pItemsSelect[7]->addSelection(L("No"));
+   m_pItemsSelect[7]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[7]->setUseMultiViewLayout();
    m_IndexHomeInvert = addMenuItem(m_pItemsSelect[7]);
 
-   m_pItemsSelect[8] = new MenuItemSelect("Home arrow rotation", "Changes the orientation of the home arrow by a set amount.");
+   m_pItemsSelect[8] = new MenuItemSelect(L("Home arrow rotation"), L("Changes the orientation of the home arrow by a set amount."));
    m_pItemsSelect[8]->addSelection("0°");
    m_pItemsSelect[8]->addSelection("90°");
    m_pItemsSelect[8]->addSelection("180°");
@@ -146,42 +146,42 @@ MenuVehicleOSDElements::MenuVehicleOSDElements(void)
    m_pItemsSelect[8]->setIsEditable();
    m_IndexHomeRotate = addMenuItem(m_pItemsSelect[8]);
 
-   m_pItemsSelect[26] = new MenuItemSelect("GPS Satelites", "Shows the GPS satelites information");  
-   m_pItemsSelect[26]->addSelection("No");
-   m_pItemsSelect[26]->addSelection("Yes");
+   m_pItemsSelect[26] = new MenuItemSelect(L("GPS Satellites"), L("Shows the GPS satellites information."));  
+   m_pItemsSelect[26]->addSelection(L("No"));
+   m_pItemsSelect[26]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[26]->setUseMultiViewLayout();
    m_IndexShowGPSInfo = addMenuItem(m_pItemsSelect[26]);
 
-   m_pItemsSelect[9] = new MenuItemSelect("GPS position", "Shows the current GPS position (long,lat)");  
-   m_pItemsSelect[9]->addSelection("No");
-   m_pItemsSelect[9]->addSelection("Yes");
-   m_pItemsSelect[9]->addSelection("Scrambled");
+   m_pItemsSelect[9] = new MenuItemSelect(L("GPS position"), L("Shows the current GPS position (long,lat)."));  
+   m_pItemsSelect[9]->addSelection(L("No"));
+   m_pItemsSelect[9]->addSelection(L("Yes"));
+   m_pItemsSelect[9]->addSelection(L("Scrambled"));
    m_pItemsSelect[9]->setIsEditable();
    m_IndexShowGPSPos = addMenuItem(m_pItemsSelect[9]);
 
-   m_pItemsSelect[11] = new MenuItemSelect("Flight mode", "Shows flight mode on the OSD");  
-   m_pItemsSelect[11]->addSelection("No");
-   m_pItemsSelect[11]->addSelection("Yes");
-   m_pItemsSelect[11]->addSelection("Only when changing");
-   m_pItemsSelect[11]->addSelection("Both");
+   m_pItemsSelect[11] = new MenuItemSelect(L("Flight mode"), L("Shows flight mode on the OSD."));  
+   m_pItemsSelect[11]->addSelection(L("No"));
+   m_pItemsSelect[11]->addSelection(L("Yes"));
+   m_pItemsSelect[11]->addSelection(L("Only when changing"));
+   m_pItemsSelect[11]->addSelection(L("Both"));
    m_pItemsSelect[11]->setIsEditable();
    //if ( bUseMultiSelection )
    //   m_pItemsSelect[11]->setUseMultiViewLayout();
    m_IndexMode = addMenuItem(m_pItemsSelect[11]);
 
-   m_pItemsSelect[12] = new MenuItemSelect("Time", "Shows the arm/flight time on the OSD");  
-   m_pItemsSelect[12]->addSelection("No");
-   m_pItemsSelect[12]->addSelection("Yes (Top)");
-   m_pItemsSelect[12]->addSelection("Yes (Bottom)");
+   m_pItemsSelect[12] = new MenuItemSelect(L("Time"), L("Shows the arm/flight time on the OSD."));  
+   m_pItemsSelect[12]->addSelection(L("No"));
+   m_pItemsSelect[12]->addSelection(L("Yes (Top)"));
+   m_pItemsSelect[12]->addSelection(L("Yes (Bottom)"));
    //if ( bUseMultiSelection )
    //   m_pItemsSelect[12]->setUseMultiViewLayout();
    m_pItemsSelect[12]->setIsEditable();
    m_IndexTime = addMenuItem(m_pItemsSelect[12]);
 
-   m_pItemsSelect[28] = new MenuItemSelect("Wind", "Shows the wind direction and speed on the OSD");  
-   m_pItemsSelect[28]->addSelection("No");
-   m_pItemsSelect[28]->addSelection("Yes");
+   m_pItemsSelect[28] = new MenuItemSelect(L("Wind"), L("Shows the wind direction and speed on the OSD."));  
+   m_pItemsSelect[28]->addSelection(L("No"));
+   m_pItemsSelect[28]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[28]->setUseMultiViewLayout();
    m_IndexWind = addMenuItem(m_pItemsSelect[28]);
@@ -190,112 +190,117 @@ MenuVehicleOSDElements::MenuVehicleOSDElements(void)
    if ( (g_pCurrentModel->vehicle_type & MODEL_TYPE_MASK) != MODEL_TYPE_DRONE )
       m_pItemsSelect[28]->setEnabled(false);
 
-   m_pItemsSelect[29] = new MenuItemSelect("Temperature", "Shows the temperature (if reported by the flight controller) on the OSD");  
-   m_pItemsSelect[29]->addSelection("No");
-   m_pItemsSelect[29]->addSelection("Yes");
+   m_pItemsSelect[29] = new MenuItemSelect(L("Temperature"), L("Shows the temperature (if reported by the flight controller) on the OSD."));  
+   m_pItemsSelect[29]->addSelection(L("No"));
+   m_pItemsSelect[29]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[29]->setUseMultiViewLayout();
    m_IndexTemperature = addMenuItem(m_pItemsSelect[29]);
 
-
-   m_pItemsSelect[13] = new MenuItemSelect("Throttle", "Shows the throttle on the OSD");  
-   m_pItemsSelect[13]->addSelection("No");
-   m_pItemsSelect[13]->addSelection("Yes");
+   m_pItemsSelect[13] = new MenuItemSelect(L("Throttle"), L("Shows the throttle on the OSD."));  
+   m_pItemsSelect[13]->addSelection(L("No"));
+   m_pItemsSelect[13]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[13]->setUseMultiViewLayout();
    m_IndexThrottle = addMenuItem(m_pItemsSelect[13]);
 
-   m_pItemsSelect[14] = new MenuItemSelect("Pitch", "Shows vehicle pitch on the OSD");  
-   m_pItemsSelect[14]->addSelection("No");
-   m_pItemsSelect[14]->addSelection("Yes");
+   m_pItemsSelect[14] = new MenuItemSelect(L("Pitch"), L("Shows vehicle pitch on the OSD."));  
+   m_pItemsSelect[14]->addSelection(L("No"));
+   m_pItemsSelect[14]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[14]->setUseMultiViewLayout();
    m_IndexPitch = addMenuItem(m_pItemsSelect[14]);
 
-   m_pItemsSelect[15] = new MenuItemSelect("Vehicle CPU Info", "Shows vehicle CPU info on the OSD");  
-   m_pItemsSelect[15]->addSelection("No");
-   m_pItemsSelect[15]->addSelection("Yes");
+   m_pItemsSelect[15] = new MenuItemSelect(L("Vehicle CPU Info"), L("Shows vehicle CPU info on the OSD."));  
+   m_pItemsSelect[15]->addSelection(L("No"));
+   m_pItemsSelect[15]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[15]->setUseMultiViewLayout();
    m_IndexCPU = addMenuItem(m_pItemsSelect[15]);
    
-   m_pItemsSelect[30] = new MenuItemSelect("Controller CPU Info", "Shows controller CPU info on the OSD");  
-   m_pItemsSelect[30]->addSelection("No");
-   m_pItemsSelect[30]->addSelection("Yes");
+   m_pItemsSelect[30] = new MenuItemSelect(L("Controller CPU Info"), L("Shows controller CPU info on the OSD."));  
+   m_pItemsSelect[30]->addSelection(L("No"));
+   m_pItemsSelect[30]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[30]->setUseMultiViewLayout();
    m_IndexControllerCPU = addMenuItem(m_pItemsSelect[30]);
 
 
-   m_pItemsSelect[16] = new MenuItemSelect("Video Mode", "Shows current video mode on the OSD");
-   m_pItemsSelect[16]->addSelection("No");
-   m_pItemsSelect[16]->addSelection("Yes");
+   m_pItemsSelect[16] = new MenuItemSelect(L("Video Mode"), L("Shows current video mode on the OSD."));
+   m_pItemsSelect[16]->addSelection(L("No"));
+   m_pItemsSelect[16]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[16]->setUseMultiViewLayout();
    m_IndexVideo = addMenuItem(m_pItemsSelect[16]);
 
-   m_pItemsSelect[17] = new MenuItemSelect("Video Mbps", "Shows the video link total Mbps and video Mbps generated by the camera");
-   m_pItemsSelect[17]->addSelection("No");
-   m_pItemsSelect[17]->addSelection("Yes");
+   m_pItemsSelect[17] = new MenuItemSelect(L("Video Mbps"), L("Shows the video link total Mbps and video Mbps generated by the camera."));
+   m_pItemsSelect[17]->addSelection(L("No"));
+   m_pItemsSelect[17]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[17]->setUseMultiViewLayout();
    m_IndexShowDetailedBPS = addMenuItem(m_pItemsSelect[17]);
 
-   m_pItemsSelect[18] = new MenuItemSelect("Video Info (Extended)", "Shows video resolution and video FPS on the OSD");
-   m_pItemsSelect[18]->addSelection("No");
-   m_pItemsSelect[18]->addSelection("Yes");
+   m_pItemsSelect[18] = new MenuItemSelect(L("Video Info (Extended)"), L("Shows video resolution and video FPS on the OSD."));
+   m_pItemsSelect[18]->addSelection(L("No"));
+   m_pItemsSelect[18]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[18]->setUseMultiViewLayout();
    m_IndexVideoExtended = addMenuItem(m_pItemsSelect[18]);
 
-   m_pItemsSelect[19] = new MenuItemSelect("Radio Links", "Shows info about the radio links (Downlinks = controller Rx, from vehicle to controller; Uplinks = vehicle Rx, from controller to vehicle) in the OSD.");
-   m_pItemsSelect[19]->addSelection("No");
-   m_pItemsSelect[19]->addSelection("Downlinks");
-   m_pItemsSelect[19]->addSelection("Uplinks");
-   m_pItemsSelect[19]->addSelection("Both");
+   m_pItemsSelect[19] = new MenuItemSelect(L("Radio Links"), L("Shows info about the radio links (Downlinks = controller Rx, from vehicle to controller; Uplinks = vehicle Rx, from controller to vehicle) in the OSD."));
+   m_pItemsSelect[19]->addSelection(L("No"));
+   m_pItemsSelect[19]->addSelection(L("Downlinks"));
+   m_pItemsSelect[19]->addSelection(L("Uplinks"));
+   m_pItemsSelect[19]->addSelection(L("Both"));
    m_pItemsSelect[19]->setIsEditable();
    m_IndexRadioLinks = addMenuItem(m_pItemsSelect[19]);
 
-   m_pItemsSelect[20] = new MenuItemSelect("   Radio Links Info", "What info to show about the radio links (uplinks and downlinks) in the OSD.");
-   m_pItemsSelect[20]->addSelection("Quality Bars");
-   m_pItemsSelect[20]->addSelection("Quality Numbers");
-   m_pItemsSelect[20]->addSelection("Both");
+   m_pItemsSelect[20] = new MenuItemSelect(L("   Radio Links Info"), L("What info to show about the radio links (uplinks and downlinks) in the OSD."));
+   m_pItemsSelect[20]->addSelection(L("Quality Bars"));
+   m_pItemsSelect[20]->addSelection(L("Quality Numbers"));
+   m_pItemsSelect[20]->addSelection(L("Both"));
    m_pItemsSelect[20]->setIsEditable();
    m_IndexRadioLinkBars = addMenuItem(m_pItemsSelect[20]);
 
+   m_pItemsSelect[35] = new MenuItemSelect(L("   Radio Links Numbers"), L("What numerical info to show about the radio links (uplinks and downlinks) in the OSD."));
+   m_pItemsSelect[35]->addSelection(L("dBm & Quality"));
+   m_pItemsSelect[35]->addSelection(L("dBm & SNR"));
+   m_pItemsSelect[35]->addSelection(L("SNR & Quality"));
+   m_pItemsSelect[35]->setIsEditable();
+   m_IndexRadioLinksNumbers = addMenuItem(m_pItemsSelect[35]);
 
-   m_pItemsSelect[21] = new MenuItemSelect("   Radio Interfaces Info", "Shows information in OSD radio links about the radio interfaces associated with each radio link.");
-   m_pItemsSelect[21]->addSelection("No");
-   m_pItemsSelect[21]->addSelection("Basic");
-   m_pItemsSelect[21]->addSelection("Full");
+   m_pItemsSelect[21] = new MenuItemSelect(L("   Radio Interfaces Info"), L("Shows information in OSD radio links about the radio interfaces associated with each radio link."));
+   m_pItemsSelect[21]->addSelection(L("No"));
+   m_pItemsSelect[21]->addSelection(L("Basic"));
+   m_pItemsSelect[21]->addSelection(L("Full"));
    m_pItemsSelect[21]->setIsEditable();
    m_IndexRadioInterfaces = addMenuItem(m_pItemsSelect[21]);
 
-   m_pItemsSelect[34] = new MenuItemSelect("RC RSSI", "Shows the RC RSSI indicator on the OSD.");
-   m_pItemsSelect[34]->addSelection("No");
-   m_pItemsSelect[34]->addSelection("Yes");
+   m_pItemsSelect[34] = new MenuItemSelect(L("RC RSSI"), L("Shows the RC RSSI indicator on the OSD."));
+   m_pItemsSelect[34]->addSelection(L("No"));
+   m_pItemsSelect[34]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[34]->setUseMultiViewLayout();
    m_IndexRCRSSI = addMenuItem(m_pItemsSelect[34]);
 
-   m_pItemsSelect[22] = new MenuItemSelect("Signal strength bars", "Shows signal strength bars on the OSD");  
-   m_pItemsSelect[22]->addSelection("No");
-   m_pItemsSelect[22]->addSelection("Yes");
+   m_pItemsSelect[22] = new MenuItemSelect(L("Signal strength bars"), L("Shows signal strength bars on the OSD."));  
+   m_pItemsSelect[22]->addSelection(L("No"));
+   m_pItemsSelect[22]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[22]->setUseMultiViewLayout();
    m_IndexSignalBars = addMenuItem(m_pItemsSelect[22]);
 
-   m_pItemsSelect[23] = new MenuItemSelect("Signal bars position", "Sets the position on the screen of the signal strength bars");
-   m_pItemsSelect[23]->addSelection("Top");
-   m_pItemsSelect[23]->addSelection("Bottom");
-   m_pItemsSelect[23]->addSelection("Left");
-   m_pItemsSelect[23]->addSelection("Right");
+   m_pItemsSelect[23] = new MenuItemSelect(L("Signal bars position"), L("Sets the position on the screen of the signal strength bars."));
+   m_pItemsSelect[23]->addSelection(L("Top"));
+   m_pItemsSelect[23]->addSelection(L("Bottom"));
+   m_pItemsSelect[23]->addSelection(L("Left"));
+   m_pItemsSelect[23]->addSelection(L("Right"));
    m_pItemsSelect[23]->setIsEditable();
    m_IndexSignalBarsPosition = addMenuItem(m_pItemsSelect[23]);
 
-   m_pItemsSelect[24] = new MenuItemSelect("RC Sticks and channels", "Shows the RC input sticks and RC channels on the OSD as they are actually reported back by the vehicle");
-   m_pItemsSelect[24]->addSelection("No");
-   m_pItemsSelect[24]->addSelection("Yes");
+   m_pItemsSelect[24] = new MenuItemSelect(L("RC Sticks and channels"), L("Shows the RC input sticks and RC channels on the OSD as they are actually reported back by the vehicle."));
+   m_pItemsSelect[24]->addSelection(L("No"));
+   m_pItemsSelect[24]->addSelection(L("Yes"));
    if ( bUseMultiSelection )
       m_pItemsSelect[24]->setUseMultiViewLayout();
    m_IndexHIDOSD = addMenuItem(m_pItemsSelect[24]);
@@ -307,13 +312,13 @@ MenuVehicleOSDElements::MenuVehicleOSDElements(void)
    if ( g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexHIDOSD]->setEnabled(false);
 
-   m_pItemsSelect[27] = new MenuItemSelect("Grid Overlay", "Shows a grid over the screen.");
-   m_pItemsSelect[27]->addSelection("None");
-   m_pItemsSelect[27]->addSelection("Crosshair");
-   m_pItemsSelect[27]->addSelection("Diagonal Lines");
-   m_pItemsSelect[27]->addSelection("Thirds Lines");
-   m_pItemsSelect[27]->addSelection("Both");
-   m_pItemsSelect[27]->addSelection("Thirds Lines Small");
+   m_pItemsSelect[27] = new MenuItemSelect(L("Grid Overlay"), L("Shows a grid over the screen."));
+   m_pItemsSelect[27]->addSelection(L("None"));
+   m_pItemsSelect[27]->addSelection(L("Crosshair"));
+   m_pItemsSelect[27]->addSelection(L("Diagonal Lines"));
+   m_pItemsSelect[27]->addSelection(L("Thirds Lines"));
+   m_pItemsSelect[27]->addSelection(L("Both"));
+   m_pItemsSelect[27]->addSelection(L("Thirds Lines Small"));
    m_pItemsSelect[27]->setIsEditable();
    m_IndexGrid = addMenuItem(m_pItemsSelect[27]);
 }
@@ -421,6 +426,20 @@ void MenuVehicleOSDElements::valuesToUI()
    else
       m_pItemsSelect[20]->setSelectedIndex(1);
 
+   if ( m_pItemsSelect[20]->getSelectedIndex() == 0 )
+      m_pItemsSelect[35]->setEnabled(false);
+   else
+      m_pItemsSelect[35]->setEnabled(true);
+
+   if ( g_pCurrentModel->osd_params.osd_flags3[iScreenIndex] & OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM )
+   {
+      if ( g_pCurrentModel->osd_params.osd_flags3[iScreenIndex] & OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_PERCENT )
+         m_pItemsSelect[35]->setSelectedIndex(0);
+      else
+         m_pItemsSelect[35]->setSelectedIndex(1);
+   }
+   else
+      m_pItemsSelect[35]->setSelectedIndex(2);
    if ( (g_pCurrentModel->osd_params.osd_flags[iScreenIndex] & OSD_FLAG_SHOW_RADIO_INTERFACES_INFO) &&
         (g_pCurrentModel->osd_params.osd_flags2[iScreenIndex] & OSD_FLAG2_SHOW_RADIO_LINK_INTERFACES_EXTENDED) )
       m_pItemsSelect[21]->setSelectedIndex(2);
@@ -913,6 +932,18 @@ void MenuVehicleOSDElements::onSelectItem()
          params.osd_flags2[iScreenIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS | OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS;
       
       params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
+      sendToVehicle = true;
+   }
+
+   if ( m_IndexRadioLinksNumbers == m_SelectedIndex )
+   {
+      params.osd_flags3[iScreenIndex] &= ~(OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_PERCENT);
+      if ( 0 == m_pItemsSelect[35]->getSelectedIndex() )
+         params.osd_flags3[iScreenIndex] |= OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_PERCENT;
+      else if ( 1 == m_pItemsSelect[35]->getSelectedIndex() )
+         params.osd_flags3[iScreenIndex] |= OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR;
+      else
+         params.osd_flags3[iScreenIndex] |= OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_PERCENT;
       sendToVehicle = true;
    }
 

@@ -27,6 +27,7 @@ class MenuVehicleOSDElements: public Menu
       int m_IndexWind, m_IndexTemperature;
       int m_IndexControllerCPU;
       int m_IndexControllerVoltage;
+      int m_IndexRadioLinksNumbers;
       
       MenuItemSlider* m_pItemsSlider[50];
       MenuItemSelect* m_pItemsSelect[50];

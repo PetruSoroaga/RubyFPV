@@ -44,7 +44,7 @@
 
 
 MenuVehicleOSDInstruments::MenuVehicleOSDInstruments(void)
-:Menu(MENU_ID_OSD_AHI, "Intruments/Gauges Settings", NULL)
+:Menu(MENU_ID_OSD_AHI, L("Intruments/Gauges Settings"), NULL)
 {
    m_Width = 0.28;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.30;
@@ -60,9 +60,9 @@ MenuVehicleOSDInstruments::MenuVehicleOSDInstruments(void)
       m_IndexPluginsConfigure[i] = -1;
    }
 
-   m_pItemsSelect[6] = new MenuItemSelect("Show Speed/Alt", "Shows the speed and altitude instruments");
-   m_pItemsSelect[6]->addSelection("No");
-   m_pItemsSelect[6]->addSelection("Yes");
+   m_pItemsSelect[6] = new MenuItemSelect(L("Show Speed/Alt"), L("Shows the speed and altitude instruments"));
+   m_pItemsSelect[6]->addSelection(L("No"));
+   m_pItemsSelect[6]->addSelection(L("Yes"));
    m_pItemsSelect[6]->setUseMultiViewLayout();
    m_IndexAHIShowSpeedAlt = addMenuItem(m_pItemsSelect[6]);
 
@@ -72,15 +72,15 @@ MenuVehicleOSDInstruments::MenuVehicleOSDInstruments(void)
    m_pItemsSelect[8]->setUseMultiViewLayout();
    m_IndexAHIToSides = addMenuItem(m_pItemsSelect[8]);
 
-   m_pItemsSelect[9] = new MenuItemSelect("Show Heading", "Shows the heading instrument");  
-   m_pItemsSelect[9]->addSelection("No");
-   m_pItemsSelect[9]->addSelection("Yes");
+   m_pItemsSelect[9] = new MenuItemSelect(L("Show Heading"), L("Shows the heading instrument."));  
+   m_pItemsSelect[9]->addSelection(L("No"));
+   m_pItemsSelect[9]->addSelection(L("Yes"));
    m_pItemsSelect[9]->setUseMultiViewLayout();
    m_IndexAHIShowHeading = addMenuItem(m_pItemsSelect[9]);
 
-   m_pItemsSelect[10] = new MenuItemSelect("Show Altitude Graph/Glide", "Shows the altitude graph and glide efficiency.");
-   m_pItemsSelect[10]->addSelection("No");
-   m_pItemsSelect[10]->addSelection("Yes");
+   m_pItemsSelect[10] = new MenuItemSelect(L("Show Altitude Graph/Glide"), L("Shows the altitude graph and glide efficiency."));
+   m_pItemsSelect[10]->addSelection(L("No"));
+   m_pItemsSelect[10]->addSelection(L("Yes"));
    m_pItemsSelect[10]->setUseMultiViewLayout();
    m_IndexAHIShowAltGraph = addMenuItem(m_pItemsSelect[10]);
 

@@ -217,7 +217,7 @@ float _osd_get_radio_link_new_height()
 }
 
 
-float _osd_show_radio_bars_info(float xPos, float yPos, u32 uLastRxTime, int iMaxRxQuality, int dbm, int iSNR, int iDataRateBps, bool bShowBars, bool bShowNumbers, bool bUplink, bool bHorizontal, bool bDraw, bool bDatarateChanged)
+float _osd_show_radio_bars_info(float xPos, float yPos, u32 uLastRxTime, int iMaxRxQuality, int dbm, int iSNR, int iDataRateBps, bool bShowBars, bool bShowNumbers, bool bUplink, bool bHorizontal, u32 uRadioLinkNumbersFlags, bool bDraw, bool bDatarateChanged)
 {
    if ( ! bShowNumbers )
    if ( ! bShowBars )
@@ -283,17 +283,56 @@ float _osd_show_radio_bars_info(float xPos, float yPos, u32 uLastRxTime, int iMa
    {
       char szLine1[64];
       char szLine2[64];
+      bool bAddedQuality = false;
+      bool bAddedDBM = false;
+      bool bAddedSNR = false;
 
-      //sprintf(szLine1, "%d%%", iMaxRxQuality);
-      if ( dbm < -120 )
-         strcpy(szLine1, "--- dBm");
-      else
-         sprintf(szLine1, "%d dBm", dbm);
-      
-      if ( iSNR <= 0 )
-         strcpy(szLine2, "SNR: ---");
-      else
-         sprintf(szLine2, "SNR: %d", iSNR);
+      if ( uRadioLinkNumbersFlags & OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_PERCENT )
+      {
+         sprintf(szLine1, "%d%%", iMaxRxQuality);
+         bAddedQuality = true;
+      }
+      else if ( uRadioLinkNumbersFlags & OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM )
+      {
+         if ( dbm < -120 )
+            strcpy(szLine1, "--- dBm");
+         else
+            sprintf(szLine1, "%d dBm", dbm);
+         bAddedDBM = true;
+      }
+      else if ( uRadioLinkNumbersFlags & OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR )
+      {
+         if ( iSNR <= 0 )
+            strcpy(szLine1, "SNR: ---");
+         else
+            sprintf(szLine1, "SNR: %d", iSNR);
+         bAddedSNR = true;
+      }
+
+      if ( ! bAddedQuality )
+      if ( uRadioLinkNumbersFlags & OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_PERCENT )
+      {
+         sprintf(szLine2, "%d%%", iMaxRxQuality);
+         bAddedQuality = true;
+      }
+      if ( ! bAddedDBM )
+      if ( uRadioLinkNumbersFlags & OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM )
+      {
+         if ( dbm < -120 )
+            strcpy(szLine2, "--- dBm");
+         else
+            sprintf(szLine2, "%d dBm", dbm);
+         bAddedDBM = true;
+      }
+      if ( ! bAddedSNR )
+      if ( uRadioLinkNumbersFlags & OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR )
+      {
+         if ( iSNR <= 0 )
+            strcpy(szLine2, "SNR: ---");
+         else
+            sprintf(szLine2, "SNR: %d", iSNR);
+         bAddedSNR = true;
+      }
 
       float fWidthLine1 = g_pRenderEngine->textWidth(g_idFontOSDSmall, "-110 dBm");
       float fWidthLine2 = g_pRenderEngine->textWidth(g_idFontOSDSmall, "SNR: -100");
@@ -372,6 +411,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
    bool bShowSummary = true;
    bool bShowInterfaces = false;
    bool bShowInterfacesExtended = false;
+   u32  uRadioLinkNumbersFlags = pModelToUse->osd_params.osd_flags3[pModelToUse->osd_params.iCurrentOSDScreen];
 
    if ( pModelToUse->osd_params.osd_flags[pModelToUse->osd_params.iCurrentOSDScreen] & OSD_FLAG_SHOW_RADIO_LINKS )
       bShowControllerSide = true;
@@ -478,7 +518,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
          bool bAsUplink = true;
          if ( pModelToUse->radioLinksParams.link_capabilities_flags[iVehicleRadioLinkId] & RADIO_HW_CAPABILITY_FLAG_USED_FOR_RELAY )
             bAsUplink = false;
-         float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iDataRateUplinkBPS, bShowBars, bShowNumbers, bAsUplink, bHorizontal, false, false);
+         float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iDataRateUplinkBPS, bShowBars, bShowNumbers, bAsUplink, bHorizontal, uRadioLinkNumbersFlags, false, false);
          if ( bHorizontal )
          {
             xPos -= fSize;
@@ -488,7 +528,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
             fTotalWidthLink = fSize;
 
          if ( bRender )
-            _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iDataRateUplinkBPS, bShowBars, bShowNumbers, bAsUplink, bHorizontal, true, false);
+            _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iDataRateUplinkBPS, bShowBars, bShowNumbers, bAsUplink, bHorizontal, uRadioLinkNumbersFlags, true, false);
          if ( ! bHorizontal )
          {
              yPos += fSize;
@@ -565,7 +605,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
             if ( g_TimeNow < s_uLastOSDVehRadioLinkInterfacesRecvDataratesChangeTimes[iVehicleRadioLinkId][i] + g_uOSDElementChangeTimeout )
                bDRChanged = true;
 
-            float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iDataRateUplinkBPS, bShowBars, bShowNumbers, bAsUplink, bHorizontal, false, false);
+            float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iDataRateUplinkBPS, bShowBars, bShowNumbers, bAsUplink, bHorizontal, uRadioLinkNumbersFlags, false, false);
             if ( bHorizontal )
             {
                xPos -= fSize;
@@ -575,7 +615,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
                fTotalWidthLink = fSize;
 
             if ( bRender )
-               _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iDataRateUplinkBPS, bShowBars, bShowNumbers, bAsUplink, bHorizontal, true, false);
+               _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iDataRateUplinkBPS, bShowBars, bShowNumbers, bAsUplink, bHorizontal, uRadioLinkNumbersFlags, true, false);
             if ( ! bHorizontal )
             {
                 yPos += fSize;
@@ -702,7 +742,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
       
       if ( bShowSummary )
       {
-         float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iRecvDataRateVideo, bShowBars, bShowNumbers, false, bHorizontal, false, false);
+         float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iRecvDataRateVideo, bShowBars, bShowNumbers, false, bHorizontal, uRadioLinkNumbersFlags, false, false);
          if ( bHorizontal )
          {
             xPos -= fSize;
@@ -712,7 +752,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
             fTotalWidthLink = fSize;
 
          if ( bRender )
-            _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iRecvDataRateVideo, bShowBars, bShowNumbers, false, bHorizontal, true, true);
+            _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, dbm, iSNR, iRecvDataRateVideo, bShowBars, bShowNumbers, false, bHorizontal, uRadioLinkNumbersFlags, true, true);
          if ( ! bHorizontal )
          {
              yPos += fSize;
@@ -779,7 +819,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
                   fTotalHeightLink += osd_getSpacingV()*0.5;
                }
             }
-            float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, g_fOSDDbm[i], g_fOSDSNR[i], iRecvDataRateVideo, bShowBars, bShowNumbers, false, bHorizontal, false, false);
+            float fSize = _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, g_fOSDDbm[i], g_fOSDSNR[i], iRecvDataRateVideo, bShowBars, bShowNumbers, false, bHorizontal, uRadioLinkNumbersFlags, false, false);
             if ( bHorizontal )
             {
                xPos -= fSize;
@@ -789,7 +829,7 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
                fTotalWidthLink = fSize;
 
             if ( bRender )
-               _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, g_fOSDDbm[i], g_fOSDSNR[i], iRecvDataRateVideo, bShowBars, bShowNumbers, false, bHorizontal, true, true);
+               _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, g_fOSDDbm[i], g_fOSDSNR[i], iRecvDataRateVideo, bShowBars, bShowNumbers, false, bHorizontal, uRadioLinkNumbersFlags, true, true);
             
             if ( bIsTxCard && (1<iCountInterfacesForCurrentLink) )
             if ( bRender )

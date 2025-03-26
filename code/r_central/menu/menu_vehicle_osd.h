@@ -14,8 +14,11 @@ class MenuVehicleOSD: public Menu
       virtual void onShow();
       virtual void onReturnFromChild(int iChildMenuId, int returnValue);
       virtual void onSelectItem();
+
+      void showCompact();
             
    private:
+      void addItems();
       int m_IndexSettings;
       int m_IndexAlarms;
       int m_IndexPlugins;
@@ -35,4 +38,6 @@ class MenuVehicleOSD: public Menu
       MenuItemSlider* m_pItemsSlider[3];
       MenuItemSelect* m_pItemsSelect[20];
       MenuItemRange* m_pItemsRange[10];
+
+      bool m_bShowCompact;
 };

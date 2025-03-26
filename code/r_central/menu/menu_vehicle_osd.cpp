@@ -52,6 +52,29 @@ MenuVehicleOSD::MenuVehicleOSD(void)
 {
    m_Width = 0.30;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.15;
+   m_bShowCompact = false;
+
+   m_IndexAlarms = -1;
+   m_IndexPlugins = -1;
+   m_IndexOSDShowMSPOSD = -1;
+   //m_IndexOSDReset = -1;
+
+}
+
+MenuVehicleOSD::~MenuVehicleOSD()
+{
+}
+
+void MenuVehicleOSD::showCompact()
+{
+   m_bShowCompact = true;
+}
+
+void MenuVehicleOSD::addItems()
+{
+   int iTmp = m_SelectedIndex;
+   removeAllItems();
+   removeAllTopLines();
 
    m_IndexSettings = addMenuItem(new MenuItem(L("General OSD Settings"), L("Sets global settings for all OSD/instruments/gauges")));
    m_pMenuItems[m_IndexSettings]->showArrow();
@@ -59,10 +82,6 @@ MenuVehicleOSD::MenuVehicleOSD(void)
    m_IndexOSDController = addMenuItem( new MenuItem(L("OSD Size, Color, Fonts"), L("Sets colors, size and fonts for OSD.")));
    m_pMenuItems[m_IndexOSDController]->showArrow();
 
-   m_IndexAlarms = -1;
-   m_IndexPlugins = -1;
-   m_IndexOSDShowMSPOSD = -1;
-   //m_IndexOSDReset = -1;
    addMenuItem(new MenuItemSection(L("OSD Layouts and Settings"))); 
 
    int iScreenIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
@@ -127,7 +146,6 @@ MenuVehicleOSD::MenuVehicleOSD(void)
    m_pItemsSelect[5]->setIsEditable();
    m_IndexHighlightChangeElements = addMenuItem(m_pItemsSelect[5]);
 
-
    m_pItemsSelect[6] = new MenuItemSelect(L("Don't show FC messages"), L("Do not show messages/texts from flight controller."));  
    m_pItemsSelect[6]->addSelection(L("No"));
    m_pItemsSelect[6]->addSelection(L("Yes"));
@@ -155,11 +173,14 @@ MenuVehicleOSD::MenuVehicleOSD(void)
    m_IndexOSDStats = addMenuItem(new MenuItem(L("Layout OSD Stats Windows"), L("Configure which statistics windows show up on current screen.")));
    m_pMenuItems[m_IndexOSDStats]->showArrow();
 
-   //m_IndexOSDReset = addMenuItem(new MenuItem("Reset OSD Screen", "Resets this OSD screen to default layout and style."));
-}
+   //m_IndexOSDReset = addMenuItem(new MenuItem("Reset OSD Screen", "Resets this OSD screen to default layout and style."));   
 
-MenuVehicleOSD::~MenuVehicleOSD()
-{
+   valuesToUI();
+   if ( iTmp >= 0 )
+   {
+      m_SelectedIndex = iTmp;
+      onFocusedItemChanged();
+   }
 }
 
 void MenuVehicleOSD::valuesToUI()
@@ -255,11 +276,14 @@ void MenuVehicleOSD::valuesToUI()
 
 void MenuVehicleOSD::onShow()
 {
-   int iTemp = m_SelectedIndex;
+   int iTmp = getSelectedMenuItemIndex();
+   
+   addItems();
    Menu::onShow();
-   valuesToUI();
-   if ( iTemp >= 0 )
-      m_SelectedIndex = iTemp;
+
+   if ( iTmp >= 0 )
+      m_SelectedIndex = iTmp;
+   onFocusedItemChanged();
 }
 
 void MenuVehicleOSD::onReturnFromChild(int iChildMenuId, int returnValue)

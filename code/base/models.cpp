@@ -3280,6 +3280,7 @@ void Model::resetOSDFlags(int iScreen)
          osd_params.osd_flags3[i] = OSD_FLAG3_SHOW_GRID_THIRDS_SMALL;
       osd_params.osd_flags3[i] |= OSD_FLAG3_HIGHLIGHT_CHANGING_ELEMENTS;
       osd_params.osd_flags3[i] |= OSD_FLAG3_RENDER_MSP_OSD;
+      osd_params.osd_flags3[i] |= OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR;
       osd_params.osd_preferences[i] = ((u32)2) | (((u32)2)<<8) | (((u32)2)<<16) | (((u32)1)<<20) | OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM;
    }
 
@@ -3306,6 +3307,8 @@ void Model::resetOSDFlags(int iScreen)
       osd_params.osd_flags2[2] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS;
       osd_params.osd_flags2[2] |= OSD_FLAG2_SHOW_GROUND_SPEED;
       //osd_params.osd_flags2[2] |= OSD_FLAG2_SHOW_BACKGROUND_ON_TEXTS_ONLY;
+
+      osd_params.osd_flags3[2] |= OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR;
    }
    resetOSDStatsFlags();
 }
@@ -3358,6 +3361,7 @@ void Model::resetOSDScreenToLayout(int iScreen, int iLayout)
       osd_params.osd_flags[iScreen] |= OSD_FLAG_SHOW_ALTITUDE;
       osd_params.osd_flags[iScreen] |= OSD_FLAG_SHOW_FLIGHT_MODE | OSD_FLAG_SHOW_FLIGHT_MODE_CHANGE;      
       osd_params.osd_flags2[iScreen] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS;
+      osd_params.osd_flags3[iScreen] |= OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR;
 
       if ( iScreen < 3 )
          osd_params.osd_flags[iScreen] |= OSD_FLAG_SHOW_VIDEO_MODE | OSD_FLAG_SHOW_VIDEO_MBPS | OSD_FLAG_SHOW_VIDEO_MODE_EXTENDED;
@@ -3369,6 +3373,8 @@ void Model::resetOSDScreenToLayout(int iScreen, int iLayout)
       osd_params.osd_flags2[iScreen] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS | OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS;
       osd_params.osd_flags2[iScreen] |= OSD_FLAG2_SHOW_GROUND_SPEED;
       osd_params.osd_flags2[iScreen] |= OSD_FLAG2_SHOW_RC_RSSI;
+
+      osd_params.osd_flags3[iScreen] |= OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR;
 
       osd_params.osd_flags[iScreen] |= OSD_FLAG_SHOW_DISTANCE | OSD_FLAG_SHOW_HOME;
       osd_params.osd_flags[iScreen] |= OSD_FLAG_SHOW_GPS_INFO;

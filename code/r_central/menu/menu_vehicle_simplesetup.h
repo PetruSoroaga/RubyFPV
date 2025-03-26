@@ -44,6 +44,7 @@ class MenuVehicleSimpleSetup: public Menu
       int m_iIndexMenuOk;
       int m_iIndexMenuCancel;
       int m_iIndexOSDLayout;
+      int m_iIndexOSDSettings;
       int m_iIndexTelemetryType;
       int m_iIndexTelemetryPort;
       int m_iIndexCamera;

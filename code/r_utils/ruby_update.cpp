@@ -136,6 +136,13 @@ void do_update_to_108()
       uBoardSubType = 255;
    pModel->hwCapabilities.uBoardType &= ~(BOARD_SUBTYPE_MASK);
    pModel->hwCapabilities.uBoardType |= (uBoardSubType << BOARD_SUBTYPE_SHIFT);
+
+   for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
+   {
+      pModel->osd_params.osd_flags3[i] &= ~(OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_PERCENT);
+      if ( pModel->osd_params.osd_flags2[i] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS )
+         pModel->osd_params.osd_flags3[i] |= OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR;
+   }
    log_line("Updated model VID %u (%s) to v10.8", pModel->uVehicleId, pModel->getLongName());
 }
 

@@ -40,32 +40,36 @@
 const char* s_szWarningBitrate = "Warning: The current radio datarate is to small for the current video encoding settings.\n You will experience delays in the video stream.\n Increase the radio datarate, or decrease the video bitrate, decrease the encoding params.";
 
 MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
-:Menu(MENU_ID_VEHICLE_EXPERT_ENCODINGS, "Advanced Video Settings (Expert)", NULL)
+:Menu(MENU_ID_VEHICLE_EXPERT_ENCODINGS, L("Advanced Video Settings (Expert)"), NULL)
 {
    m_Width = 0.37;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.18;
    //m_ShowBitrateWarning = false;
    float fSliderWidth = 0.12;
    char szBuff[256];
-   setSubTitle("Change advanced vehicle encoding settings (for expert users)");
+   setSubTitle(L("Change advanced vehicle encoding settings (for expert users)"));
    
   
-   strcpy(szBuff, "Settings for unknown video profile:");
+   strcpy(szBuff, L("Settings for unknown video profile:"));
    if ( g_pCurrentModel->video_params.user_selected_video_link_profile == VIDEO_PROFILE_BEST_PERF ) 
-      strcpy(szBuff, "Settings for High Performance video profile:");
+      strcpy(szBuff, L("Settings for High Performance video profile:"));
    else if ( g_pCurrentModel->video_params.user_selected_video_link_profile == VIDEO_PROFILE_HIGH_QUALITY ) 
-      strcpy(szBuff, "Settings for High Quality video profile:");
+      strcpy(szBuff, L("Settings for High Quality video profile:"));
    else if ( g_pCurrentModel->video_params.user_selected_video_link_profile == VIDEO_PROFILE_USER ) 
-      strcpy(szBuff, "Settings for User video profile:");
+      strcpy(szBuff, L("Settings for User video profile:"));
    else
       sprintf(szBuff, "Settings for %s video profile:", str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile));
    addTopLine(szBuff);
 
-   m_pItemsSelect[1] = new MenuItemSelect("Enable Vehicle Local HDMI Output", "Enables or disables video output the the HDMI port on the vehicle.");  
-   m_pItemsSelect[1]->addSelection("Off");
-   m_pItemsSelect[1]->addSelection("On");
-   m_pItemsSelect[1]->setIsEditable();
-   m_IndexHDMIOutput = addMenuItem(m_pItemsSelect[1]);
+   m_IndexHDMIOutput = -1;
+   if ( ! g_pCurrentModel->isRunningOnOpenIPCHardware() )
+   {
+      m_pItemsSelect[1] = new MenuItemSelect(L("Enable Vehicle Local HDMI Output"), L("Enables or disables video output the the HDMI port on the vehicle."));  
+      m_pItemsSelect[1]->addSelection(L("Off"));
+      m_pItemsSelect[1]->addSelection(L("On"));
+      m_pItemsSelect[1]->setIsEditable();
+      m_IndexHDMIOutput = addMenuItem(m_pItemsSelect[1]);
+   }
 
    m_IndexNoise = -1;
    if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
@@ -78,7 +82,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
       m_IndexNoise = addMenuItem(m_pItemsSelect[20]);
    }
 
-   addMenuItem(new MenuItemSection("Data & Error Correction Settings"));
+   addMenuItem(new MenuItemSection(L("Data & Error Correction Settings")));
 
    /*
    m_pItemsSelect[16] = new MenuItemSelect("Radio Data Rate for Video", "Actual radio data rate to use for this video profile for video data transmission.");
@@ -103,22 +107,22 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    Preferences* p = get_Preferences();
    int iMaxSize = p->iDebugMaxPacketSize-sizeof(t_packet_header)-sizeof(t_packet_header_video_segment);
    iMaxSize = (iMaxSize/10)*10;
-   m_pItemsSlider[0] = new MenuItemSlider("Packet size", "How big is each indivisible video packet over the air link. No major impact in link quality. Smaller packets and more EC packets increase the chance of error correction but also increase the CPU usage.", 100,iMaxSize,iMaxSize/2, fSliderWidth);
+   m_pItemsSlider[0] = new MenuItemSlider(L("Packet size"), L("How big is each indivisible video packet over the air link. No major impact in link quality. Smaller packets and more EC packets increase the chance of error correction but also increases the video latency."), 100,iMaxSize,iMaxSize/2, fSliderWidth);
    m_pItemsSlider[0]->setStep(10);
    m_IndexPacketSize = addMenuItem(m_pItemsSlider[0]);
 
    int iMaxPackets = MAX_TOTAL_PACKETS_IN_BLOCK;
    if ( NULL != g_pCurrentModel )
       iMaxPackets = g_pCurrentModel->hwCapabilities.iMaxTxVideoBlockPackets;
-   m_pItemsSlider[1] = new MenuItemSlider("Data Packets in a Block", "How many indivisible packets are in a block. This has an impact on link recovery and error correction. Bigger values might increase the delay in video stream when link is degraded, but also increase the chance of error correction.", 2, iMaxPackets/2, iMaxPackets/4, fSliderWidth);
+   m_pItemsSlider[1] = new MenuItemSlider(L("Data Packets in a Block"), L("How many indivisible packets are in a block. This has an impact on link recovery and error correction. Bigger values might increase the delay in video stream when link is degraded, but also increase the chance of error correction."), 2, iMaxPackets/2, iMaxPackets/4, fSliderWidth);
    m_IndexBlockPackets = addMenuItem(m_pItemsSlider[1]);
 
-   m_pItemsSlider[2] = new MenuItemSlider("EC Packets in a Block", "How many error correcting packets to add to a block.Bigger values increase the chance of error correction but decrease the usable link data rate buget.", 0, iMaxPackets/2, iMaxPackets/4, fSliderWidth);
+   m_pItemsSlider[2] = new MenuItemSlider(L("EC Packets in a Block"), L("How many error correcting packets to add to a block.Bigger values increase the chance of error correction but decrease the usable link data rate buget."), 0, iMaxPackets/2, iMaxPackets/4, fSliderWidth);
    m_IndexBlockFECs = addMenuItem(m_pItemsSlider[2]);
 
    m_pItemsSlider[2]->setExtraHeight( (1.0 + 2.0*MENU_ITEM_SPACING) * g_pRenderEngine->textHeight(g_idFontMenuSmall));
 
-   m_pItemsSelect[19] = new MenuItemSelect("EC Spreading Factor", "Spreads the EC packets accross multiple video blocks.");
+   m_pItemsSelect[19] = new MenuItemSelect(L("EC Spreading Factor"), L("Spreads the EC packets accross multiple video blocks."));
    m_pItemsSelect[19]->addSelection("0");
    m_pItemsSelect[19]->addSelection("1");
    m_pItemsSelect[19]->addSelection("2");
@@ -126,7 +130,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    m_pItemsSelect[19]->setIsEditable();
    m_IndexECSchemeSpread = addMenuItem(m_pItemsSelect[19]);
 
-   addMenuItem(new MenuItemSection("H264 Encoder Settings"));
+   addMenuItem(new MenuItemSection(L("H264 Encoder Settings")));
 
    m_IndexH264Profile = -1;
    m_IndexH264Level = -1;
@@ -225,7 +229,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    m_pItemsSelect[15]->setIsEditable();
    m_IndexAdaptiveH264QuantizationStrength = addMenuItem(m_pItemsSelect[15]);
 
-   m_IndexResetParams = addMenuItem(new MenuItem("Reset Profile", "Resets the current video profile to the default values."));
+   m_IndexResetParams = addMenuItem(new MenuItem(L("Reset Profile"), L("Resets the current video profile to the default values.")));
 }
 
 void MenuVehicleVideoEncodings::valuesToUI()
@@ -513,7 +517,7 @@ void MenuVehicleVideoEncodings::onSelectItem()
    }
 
    if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
-   if ( (m_IndexHDMIOutput == m_SelectedIndex) ||
+   if ( ((m_IndexHDMIOutput != -1) && (m_IndexHDMIOutput == m_SelectedIndex)) ||
         (m_IndexCustomQuant == m_SelectedIndex) ||
         (m_IndexQuantValue == m_SelectedIndex) ||
         (m_IndexEnableAdaptiveQuantization == m_SelectedIndex) ||
@@ -533,7 +537,7 @@ void MenuVehicleVideoEncodings::onSelectItem()
    //if ( m_IndexDataRate == m_SelectedIndex )
    //   sendVideoLinkProfile();
 
-   if ( m_IndexHDMIOutput == m_SelectedIndex )
+   if ( (-1 != m_IndexHDMIOutput) && (m_IndexHDMIOutput == m_SelectedIndex) )
    {
       if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
       {
@@ -599,7 +603,7 @@ void MenuVehicleVideoEncodings::onSelectItem()
       {
          #if defined HW_PLATFORM_RASPBERRY
          if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
-            addMessage("Slice units might not work properly when a Raspberry Pi controller is paired with a vehicle running on OpenIPC hardware.");
+            addMessage(L("Slice units might not work properly when a Raspberry Pi controller is paired with a vehicle running on OpenIPC hardware."));
          #endif
       }
       return;
