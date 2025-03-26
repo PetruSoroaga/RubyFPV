@@ -48,26 +48,26 @@
 
 
 MenuVehicleOSD::MenuVehicleOSD(void)
-:Menu(MENU_ID_VEHICLE_OSD, "OSD / Instruments Settings", NULL)
+:Menu(MENU_ID_VEHICLE_OSD, L("OSD / Instruments Settings"), NULL)
 {
    m_Width = 0.30;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.15;
 
-   m_IndexSettings = addMenuItem(new MenuItem("General OSD Settings", "Sets global settings for all OSD/instruments/gauges"));
+   m_IndexSettings = addMenuItem(new MenuItem(L("General OSD Settings"), L("Sets global settings for all OSD/instruments/gauges")));
    m_pMenuItems[m_IndexSettings]->showArrow();
 
-   m_IndexOSDController = addMenuItem( new MenuItem("OSD Size, Color, Fonts", "Sets colors, size and fonts for OSD."));
+   m_IndexOSDController = addMenuItem( new MenuItem(L("OSD Size, Color, Fonts"), L("Sets colors, size and fonts for OSD.")));
    m_pMenuItems[m_IndexOSDController]->showArrow();
 
    m_IndexAlarms = -1;
    m_IndexPlugins = -1;
    m_IndexOSDShowMSPOSD = -1;
    //m_IndexOSDReset = -1;
-   addMenuItem(new MenuItemSection("OSD Layouts and Settings")); 
+   addMenuItem(new MenuItemSection(L("OSD Layouts and Settings"))); 
 
    int iScreenIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
 
-   m_pItemsSelect[0] = new MenuItemSelect("Screen", "Changes the active screen of the OSD elements and what information you see on this screen.");
+   m_pItemsSelect[0] = new MenuItemSelect(L("Screen"), L("Changes the active screen of the OSD elements and what information you see on this screen."));
    m_pItemsSelect[0]->addSelection("Screen 1");
    m_pItemsSelect[0]->addSelection("Screen 2");
    m_pItemsSelect[0]->addSelection("Screen 3");
@@ -77,82 +77,82 @@ MenuVehicleOSD::MenuVehicleOSD(void)
    m_IndexOSDScreen = addMenuItem(m_pItemsSelect[0]);
 
 
-   m_pItemsSelect[1] = new MenuItemSelect("Enabled", "Enables or disables this screen");  
-   m_pItemsSelect[1]->addSelection("No");
-   m_pItemsSelect[1]->addSelection("Yes");
-   m_pItemsSelect[1]->addSelection("Only plugins");
+   m_pItemsSelect[1] = new MenuItemSelect(L("Enabled"), L("Enables or disables this screen"));  
+   m_pItemsSelect[1]->addSelection(L("No"));
+   m_pItemsSelect[1]->addSelection(L("Yes"));
+   m_pItemsSelect[1]->addSelection(L("Only plugins"));
    m_pItemsSelect[1]->setIsEditable();
    m_IndexOSDEnabled = addMenuItem(m_pItemsSelect[1]);
 
-   m_pItemsSelect[7] = new MenuItemSelect("Layout", "Set the default layout of this OSD screen (what elements are shown on this screen).");  
-   m_pItemsSelect[7]->addSelection("No elements");
-   m_pItemsSelect[7]->addSelection("Minimal");
-   m_pItemsSelect[7]->addSelection("Compact");
-   m_pItemsSelect[7]->addSelection("Default");
-   m_pItemsSelect[7]->addSelection("Custom", (g_pCurrentModel->osd_params.osd_layout_preset[iScreenIndex] == OSD_PRESET_CUSTOM)?true:false);
+   m_pItemsSelect[7] = new MenuItemSelect(L("Layout"), L("Set the default layout of this OSD screen (what elements are shown on this screen)."));  
+   m_pItemsSelect[7]->addSelection(L("No elements"));
+   m_pItemsSelect[7]->addSelection(L("Minimal"));
+   m_pItemsSelect[7]->addSelection(L("Compact"));
+   m_pItemsSelect[7]->addSelection(L("Default"));
+   m_pItemsSelect[7]->addSelection(L("Custom"), (g_pCurrentModel->osd_params.osd_layout_preset[iScreenIndex] == OSD_PRESET_CUSTOM)?true:false);
    m_pItemsSelect[7]->setIsEditable();
    m_IndexOSDLayout = addMenuItem(m_pItemsSelect[7]);
 
-   m_pItemsSelect[2] = new MenuItemSelect("Font Size", "Increase/decrease OSD font size for current screen.");  
-   m_pItemsSelect[2]->addSelection("Smallest");
-   m_pItemsSelect[2]->addSelection("Smaller");
-   m_pItemsSelect[2]->addSelection("Small");
-   m_pItemsSelect[2]->addSelection("Normal");
-   m_pItemsSelect[2]->addSelection("Large");
-   m_pItemsSelect[2]->addSelection("Larger");
-   m_pItemsSelect[2]->addSelection("Largest");
-   m_pItemsSelect[2]->addSelection("XLarge");
+   m_pItemsSelect[2] = new MenuItemSelect(L("Font Size"), L("Increase/decrease OSD font size for current screen."));  
+   m_pItemsSelect[2]->addSelection(L("Smallest"));
+   m_pItemsSelect[2]->addSelection(L("Smaller"));
+   m_pItemsSelect[2]->addSelection(L("Small"));
+   m_pItemsSelect[2]->addSelection(L("Normal"));
+   m_pItemsSelect[2]->addSelection(L("Large"));
+   m_pItemsSelect[2]->addSelection(L("Larger"));
+   m_pItemsSelect[2]->addSelection(L("Largest"));
+   m_pItemsSelect[2]->addSelection(L("X-Large"));
    m_pItemsSelect[2]->setIsEditable();
    m_IndexOSDFontSize = addMenuItem(m_pItemsSelect[2]);
 
-   m_pItemsSelect[4] = new MenuItemSelect("Background Type", "Change if and how the background behind OSD elements is shown.");  
-   m_pItemsSelect[4]->addSelection("None");
-   m_pItemsSelect[4]->addSelection("On text only");
-   m_pItemsSelect[4]->addSelection("As Bars");
+   m_pItemsSelect[4] = new MenuItemSelect(L("Background Type"), L("Change if and how the background behind OSD elements is shown."));  
+   m_pItemsSelect[4]->addSelection(L("None"));
+   m_pItemsSelect[4]->addSelection(L("On text only"));
+   m_pItemsSelect[4]->addSelection(L("As Bars"));
    m_pItemsSelect[4]->setIsEditable();
    m_IndexBgOnTexts = addMenuItem(m_pItemsSelect[4]);
 
-   m_pItemsSelect[3] = new MenuItemSelect("Background Transparency", "Change how transparent the OSD background is for current screen.");  
-   m_pItemsSelect[3]->addSelection("Max");
-   m_pItemsSelect[3]->addSelection("Medium");
-   m_pItemsSelect[3]->addSelection("Normal");
-   m_pItemsSelect[3]->addSelection("Minimum");
-   m_pItemsSelect[3]->addSelection("None");
+   m_pItemsSelect[3] = new MenuItemSelect(L("Background Transparency"), L("Change how transparent the OSD background is for current screen."));  
+   m_pItemsSelect[3]->addSelection(L("Max"));
+   m_pItemsSelect[3]->addSelection(L("Medium"));
+   m_pItemsSelect[3]->addSelection(L("Normal"));
+   m_pItemsSelect[3]->addSelection(L("Minimum"));
+   m_pItemsSelect[3]->addSelection(L("None"));
    m_pItemsSelect[3]->setIsEditable();
    m_IndexOSDTransparency = addMenuItem(m_pItemsSelect[3]);
 
-   m_pItemsSelect[5] = new MenuItemSelect("Highlight Changing Elements", "Highlight when important OSD elements change (i.e. radio modulation schemes).");  
-   m_pItemsSelect[5]->addSelection("No");
-   m_pItemsSelect[5]->addSelection("Yes");
+   m_pItemsSelect[5] = new MenuItemSelect(L("Highlight Changing Elements"), L("Highlight when important OSD elements change (i.e. radio modulation schemes)."));  
+   m_pItemsSelect[5]->addSelection(L("No"));
+   m_pItemsSelect[5]->addSelection(L("Yes"));
    m_pItemsSelect[5]->setIsEditable();
    m_IndexHighlightChangeElements = addMenuItem(m_pItemsSelect[5]);
 
 
-   m_pItemsSelect[6] = new MenuItemSelect("Don't show FC messages", "Do not show messages/texts from flight controller.");  
-   m_pItemsSelect[6]->addSelection("No");
-   m_pItemsSelect[6]->addSelection("Yes");
+   m_pItemsSelect[6] = new MenuItemSelect(L("Don't show FC messages"), L("Do not show messages/texts from flight controller."));  
+   m_pItemsSelect[6]->addSelection(L("No"));
+   m_pItemsSelect[6]->addSelection(L("Yes"));
    m_pItemsSelect[6]->setIsEditable();
    m_IndexDontShowFCMessages = addMenuItem(m_pItemsSelect[6]);
   
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP) )
    {
-      m_pItemsSelect[11] = new MenuItemSelect("Show MSP OSD Elements", "Render the MSP OSD Elements");
-      m_pItemsSelect[11]->addSelection("No");
-      m_pItemsSelect[11]->addSelection("Yes");
+      m_pItemsSelect[11] = new MenuItemSelect(L("Show MSP OSD Elements"), L("Render the MSP OSD Elements"));
+      m_pItemsSelect[11]->addSelection(L("No"));
+      m_pItemsSelect[11]->addSelection(L("Yes"));
       m_pItemsSelect[11]->setIsEditable();
       m_IndexOSDShowMSPOSD = addMenuItem(m_pItemsSelect[11]);
    }
 
-   m_IndexOSDElements = addMenuItem(new MenuItem("Layout OSD Elements", "Configure which OSD elements show up on current screen"));
+   m_IndexOSDElements = addMenuItem(new MenuItem(L("Layout OSD Elements"), L("Configure which OSD elements show up on current screen")));
    m_pMenuItems[m_IndexOSDElements]->showArrow();
 
-   m_IndexOSDWidgets = addMenuItem(new MenuItem("Layout OSD Widgets & Gauges", "Configure which OSD widgets and gauges show up on current screen and where to show them."));
+   m_IndexOSDWidgets = addMenuItem(new MenuItem(L("Layout OSD Widgets & Gauges"), L("Configure which OSD widgets and gauges show up on current screen and where to show them.")));
    m_pMenuItems[m_IndexOSDWidgets]->showArrow();
 
-   m_IndexOSDPlugins = addMenuItem(new MenuItem("Layout OSD Plugins", "Show/Hide/Configure the custom OSD plugins that are installed on the controller."));
+   m_IndexOSDPlugins = addMenuItem(new MenuItem(L("Layout OSD Plugins"), L("Show/Hide/Configure the custom OSD plugins that are installed on the controller.")));
    m_pMenuItems[m_IndexOSDPlugins]->showArrow();
 
-   m_IndexOSDStats = addMenuItem(new MenuItem("Layout OSD Stats Windows", "Configure which statistics windows show up on current screen"));
+   m_IndexOSDStats = addMenuItem(new MenuItem(L("Layout OSD Stats Windows"), L("Configure which statistics windows show up on current screen.")));
    m_pMenuItems[m_IndexOSDStats]->showArrow();
 
    //m_IndexOSDReset = addMenuItem(new MenuItem("Reset OSD Screen", "Resets this OSD screen to default layout and style."));

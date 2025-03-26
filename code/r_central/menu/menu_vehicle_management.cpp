@@ -44,7 +44,7 @@
 
 
 MenuVehicleManagement::MenuVehicleManagement(void)
-:Menu(MENU_ID_VEHICLE_MANAGEMENT, "Vehicle Management", NULL)
+:Menu(MENU_ID_VEHICLE_MANAGEMENT, L("Vehicle Management"), NULL)
 {
    m_Width = 0.17;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.18;
@@ -61,17 +61,17 @@ void MenuVehicleManagement::onShow()
    m_Height = 0.0;
    removeAllItems();
 
-   m_IndexHWInfo = addMenuItem(new MenuItem("Get Hardware Info", "Gets the hardware capabilities of the vehicle."));
-   m_IndexConfig = addMenuItem(new MenuItem("Get Config Info", "Gets the current configuration of the vehicle."));
-   m_IndexModules = addMenuItem(new MenuItem("Get Modules Info", "Gets the current detected and loaded modules on the vehicle."));
-   m_IndexPlugins = addMenuItem(new MenuItem("Core Plugins", "Manage the core plugins on this vehicle."));
-   m_IndexExport = addMenuItem(new MenuItem("Export Model Settings","Exports the model settings to a USB stick."));
-   m_IndexImport = addMenuItem(new MenuItem("Import Model Settings","Imports the model settings from a USB stick."));
-   m_IndexUpdate = addMenuItem(new MenuItem("Update Software","Updates the software on the vehicle."));
-   m_IndexReset  = addMenuItem(new MenuItem("Reset to defaults", "Resets all parameters for this vehicle to the default configuration (except for frequency, vehicle ID and name)."));
-   m_IndexFactoryReset = addMenuItem(new MenuItem("Factory Reset", "Resets the vehicle as it comes after a fresh install. All settings (including vehicle name, frequency, etc) will be reset to default values."));
-   m_IndexReboot = addMenuItem(new MenuItem("Restart", "Restarts the vehicle."));
-   m_IndexDelete = addMenuItem(new MenuItem("Delete","Delete this vehicle from your control list."));
+   m_IndexHWInfo = addMenuItem(new MenuItem(L("Get Hardware Info"), L("Gets the hardware capabilities of the vehicle.")));
+   m_IndexConfig = addMenuItem(new MenuItem(L("Get Config Info"), L("Gets the current configuration of the vehicle.")));
+   m_IndexModules = addMenuItem(new MenuItem(L("Get Modules Info"), L("Gets the current detected and loaded modules on the vehicle.")));
+   m_IndexPlugins = addMenuItem(new MenuItem(L("Core Plugins"), L("Manage the core plugins on this vehicle.")));
+   m_IndexExport = addMenuItem(new MenuItem(L("Export Model Settings"),L("Exports the model settings to a USB stick.")));
+   m_IndexImport = addMenuItem(new MenuItem(L("Import Model Settings"), L("Imports the model settings from a USB stick.")));
+   m_IndexUpdate = addMenuItem(new MenuItem(L("Update Software"), L("Updates the software on the vehicle.")));
+   m_IndexReset  = addMenuItem(new MenuItem(L("Reset to defaults"), L("Resets all parameters for this vehicle to the default configuration (except for frequency, vehicle ID and name).")));
+   m_IndexFactoryReset = addMenuItem(new MenuItem(L("Factory Reset"), L("Resets the vehicle as it comes after a fresh install. All settings (including vehicle name, frequency, etc) will be reset to default values.")));
+   m_IndexReboot = addMenuItem(new MenuItem(L("Restart"), L("Restarts the vehicle.")));
+   m_IndexDelete = addMenuItem(new MenuItem(L("Delete"), L("Delete this vehicle from your control list.")));
 
    bool bConnected = false;
    if ( g_bIsRouterReady && link_has_received_main_vehicle_ruby_telemetry() )
@@ -368,7 +368,7 @@ void MenuVehicleManagement::onSelectItem()
          Menu* pm = new Menu(MENU_ID_SIMPLE_MESSAGE+10*1000,"No settings files",NULL);
          pm->m_xPos = 0.4; pm->m_yPos = 0.4;
          pm->m_Width = 0.36;
-         pm->addTopLine("There are no vehicle settings files on the USB stick.");
+         pm->addTopLine(L("There are no vehicle settings files on the USB stick."));
          add_menu_to_stack(pm);
          return;
       }
@@ -443,7 +443,7 @@ void MenuVehicleManagement::onSelectItem()
       char szBuff[256];
       sprintf(szBuff, "Factory reset %s", g_pCurrentModel->getLongName());
       MenuConfirmation* pMC = new MenuConfirmation(L("Confirmation"), szBuff, 21);
-      pMC->addTopLine("All parameters (including vehicle name, radio frequency, etc) and state will be reset to default values as after a fresh instalation.");
+      pMC->addTopLine(L("All parameters (including vehicle name, radio frequency, etc) and state will be reset to default values as after a fresh instalation."));
       pMC->addTopLine(L("You will need to search and pair with the vehicle again after that."));
       sprintf(szBuff, "Are you sure you want to factory reset %s?", g_pCurrentModel->getLongName());
       pMC->addTopLine(szBuff);

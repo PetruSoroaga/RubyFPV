@@ -41,7 +41,7 @@
 
 
 MenuVehicleAudio::MenuVehicleAudio(void)
-:Menu(MENU_ID_VEHICLE_AUDIO, "Audio Settings", NULL)
+:Menu(MENU_ID_VEHICLE_AUDIO, L("Audio Settings"), NULL)
 {
    m_Width = 0.28;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.26;
@@ -89,10 +89,10 @@ void MenuVehicleAudio::addItems()
    if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
    {
       g_pCurrentModel->audio_params.has_audio_device = true;
-      m_pItemsSelect[5] = new MenuItemSelect("Microphone", "Select the type of microphone present on this vehicle, if any.");
-      m_pItemsSelect[5]->addSelection("None");
-      m_pItemsSelect[5]->addSelection("Builtin");
-      m_pItemsSelect[5]->addSelection("External");
+      m_pItemsSelect[5] = new MenuItemSelect(L("Microphone"), L("Select the type of microphone present on this vehicle, if any."));
+      m_pItemsSelect[5]->addSelection(L("None"));
+      m_pItemsSelect[5]->addSelection(L("Builtin"));
+      m_pItemsSelect[5]->addSelection(L("External"));
       m_pItemsSelect[5]->setIsEditable();
       m_IndexOIPCMic = addMenuItem(m_pItemsSelect[5]);
       m_pItemsSelect[5]->setSelectedIndex(0);
@@ -109,16 +109,16 @@ void MenuVehicleAudio::addItems()
       }
    }
 
-   m_pItemsSelect[0] = new MenuItemSelect("Audio Stream", "Enables or disables the audio stream.");
-   m_pItemsSelect[0]->addSelection("Disabled");
-   m_pItemsSelect[0]->addSelection("Enabled");
+   m_pItemsSelect[0] = new MenuItemSelect(L("Audio Stream"), L("Enables or disables the audio stream."));
+   m_pItemsSelect[0]->addSelection(L("Disabled"));
+   m_pItemsSelect[0]->addSelection(L("Enabled"));
    m_pItemsSelect[0]->setIsEditable();
    m_IndexEnable = addMenuItem(m_pItemsSelect[0]);
    m_pItemsSelect[0]->setSelectedIndex(0);
    if ( g_pCurrentModel->audio_params.enabled )
       m_pItemsSelect[0]->setSelectedIndex(1);
 
-   m_pItemsSlider[0] = new MenuItemSlider("Volume", "Audio recording volume.", 0,100,5, fSliderWidth);
+   m_pItemsSlider[0] = new MenuItemSlider(L("Volume"), L("Audio recording volume."), 0,100,5, fSliderWidth);
    m_pItemsSlider[0]->setStep(1);
    m_pItemsSlider[0]->setEnabled(g_pCurrentModel->audio_params.enabled);
    m_IndexVolume = addMenuItem(m_pItemsSlider[0]);
@@ -126,7 +126,7 @@ void MenuVehicleAudio::addItems()
 
    if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
    {
-      m_pItemsSelect[1] = new MenuItemSelect("Quality", "Sets the quality of the audio stream.");
+      m_pItemsSelect[1] = new MenuItemSelect(L("Quality"), L("Sets the quality of the audio stream."));
       m_pItemsSelect[1]->addSelection("8kbps");
       m_pItemsSelect[1]->addSelection("16kbps");
       m_pItemsSelect[1]->addSelection("24kbps");
@@ -136,11 +136,11 @@ void MenuVehicleAudio::addItems()
    }
    else
    {
-      m_pItemsSelect[1] = new MenuItemSelect("Quality", "Sets the quality of the audio stream.");
-      m_pItemsSelect[1]->addSelection("Low");
-      m_pItemsSelect[1]->addSelection("Normal");
-      m_pItemsSelect[1]->addSelection("High");
-      m_pItemsSelect[1]->addSelection("Highest");
+      m_pItemsSelect[1] = new MenuItemSelect(L("Quality"), L("Sets the quality of the audio stream."));
+      m_pItemsSelect[1]->addSelection(L("Low"));
+      m_pItemsSelect[1]->addSelection(L("Normal"));
+      m_pItemsSelect[1]->addSelection(L("High"));
+      m_pItemsSelect[1]->addSelection(L("Highest"));
       m_pItemsSelect[1]->setIsEditable();
       m_IndexQuality = addMenuItem(m_pItemsSelect[1]);
    }
@@ -160,7 +160,7 @@ void MenuVehicleAudio::addItems()
    ControllerSettings* pCS = get_ControllerSettings();
    if ( (NULL != pCS) && pCS->iDeveloperMode )
    {
-      m_pItemsSlider[4] = new MenuItemSlider("Buffering size", "How much to buffer audio. Longer buffering increase the consistency of audio stream but it adds delay.", 0,(MAX_BUFFERED_AUDIO_PACKETS*2)/3,5, fSliderWidth);
+      m_pItemsSlider[4] = new MenuItemSlider(L("Buffering size"), L("How much to buffer audio. Longer buffering increase the consistency of audio stream but it adds delay."), 0,(MAX_BUFFERED_AUDIO_PACKETS*2)/3,5, fSliderWidth);
       m_pItemsSlider[4]->setStep(1);
       m_pItemsSlider[4]->setEnabled(g_pCurrentModel->audio_params.enabled);
       m_IndexDevBufferingSize = addMenuItem(m_pItemsSlider[4]);

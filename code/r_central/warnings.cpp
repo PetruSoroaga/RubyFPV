@@ -322,7 +322,7 @@ void warnings_add(u32 uVehicleId, const char* szTitle, u32 iconId, const double*
 void warnings_add_error_null_model(int code)
 {
    char szBuff[128];
-   sprintf(szBuff, "Fatal error: Invalid model! (code: %x)", code);
+   sprintf(szBuff, L("Fatal error: Invalid model! (code: %x)"), code);
    popup_log_add_entry(szBuff);
    Popup* p = new Popup(szBuff, 0.34, 0.68, 5);
    p->setIconId(g_idIconError, get_Color_IconError());
@@ -336,9 +336,9 @@ void warnings_add_radio_reinitialized()
    {
       log_line("Added warning radio initialized.");
       s_TimeLastWarningRadioInitialized = g_TimeNow;
-      Popup* p = new Popup("Your vehicle radio modules have been reinitialized", 0.5, 0.5, 0.6, 10.0);
+      Popup* p = new Popup(L("Your vehicle radio modules have been reinitialized"), 0.5, 0.5, 0.6, 10.0);
       p->setCentered();
-      p->addLine("Your vehicle radio modules have been restarted due to a harware issue. Please check your wiring and power supply on the vehicle.");
+      p->addLine(L("Your vehicle radio modules have been restarted due to a harware issue. Please check your wiring and power supply on the vehicle."));
       p->setFont(g_idFontOSD);
       p->setIconId(g_idIconWarning, get_Color_IconWarning());
       popups_add_topmost(p);
@@ -356,7 +356,7 @@ void warnings_add_too_much_data(u32 uVehicleId, int current_kbps, int max_kbps)
    s_TimeLastWarningTooMuchData = g_TimeNow;
 
    char szBuff[256];
-   sprintf(szBuff, "You are sending too much data (%d Mbps) over the radio link (max capacity %d Mbps). Lower your video bitrate or increase your radio data rate.", current_kbps/1000, max_kbps/1000);
+   sprintf(szBuff, L("You are sending too much data (%d Mbps) over the radio link (max capacity %d Mbps). Lower your video bitrate or increase your radio data rate."), current_kbps/1000, max_kbps/1000);
    warnings_add(uVehicleId, szBuff, g_idIconWarning);
 }
 
@@ -369,7 +369,7 @@ void warnings_add_vehicle_overloaded(u32 uVehicleId)
    if ( g_TimeNow < s_TimeLastWarningVehicleOverloaded + 10000 )
       return;
    s_TimeLastWarningVehicleOverloaded = g_TimeNow;
-   warnings_add(uVehicleId, "Your vehicle is overloaded. Can't keep up processing data for sending (EC). Lower your video bitrate or EC.", g_idIconWarning);
+   warnings_add(uVehicleId, L("Your vehicle is overloaded. Can't keep up processing data for sending (EC). Lower your video bitrate or EC."), g_idIconWarning);
 }
 
 void warnings_add_link_to_controller_lost(u32 uVehicleId)
@@ -385,7 +385,7 @@ void warnings_add_link_to_controller_lost(u32 uVehicleId)
       return;
    s_bIsLinkLostToControllerAlarm[iRuntimeInfoIndex] = true;
    s_bIsLinkRecoveredToControllerAlarm[iRuntimeInfoIndex] = false;
-   warnings_add(uVehicleId, "Vehicle: Radio link to controller is lost", g_idIconRadio, get_Color_IconError());
+   warnings_add(uVehicleId, L("Vehicle: Radio link to controller is lost"), g_idIconRadio, get_Color_IconError());
 }
 
 void warnings_add_link_to_controller_recovered(u32 uVehicleId)
@@ -401,7 +401,7 @@ void warnings_add_link_to_controller_recovered(u32 uVehicleId)
       return;
    s_bIsLinkRecoveredToControllerAlarm[iRuntimeInfoIndex] = true;
    s_bIsLinkLostToControllerAlarm[iRuntimeInfoIndex] = false;
-   warnings_add(uVehicleId, "Vehicle: Radio link to controller recovered.", g_idIconRadio, get_Color_IconSucces());
+   warnings_add(uVehicleId, L("Vehicle: Radio link to controller recovered."), g_idIconRadio, get_Color_IconSucces());
 }
 
 Popup* warnings_get_configure_radio_link_popup()
@@ -474,13 +474,13 @@ void warnings_remove_configuring_radio_link(bool bSucceeded)
       if ( bSucceeded )
       {
          s_PopupConfigureRadioLink->removeLastLine();
-         s_PopupConfigureRadioLink->addLine("Completed");
+         s_PopupConfigureRadioLink->addLine(L("Completed"));
          s_PopupConfigureRadioLink->setTimeout(1.8);
       }
       else
       {
          s_PopupConfigureRadioLink->removeLastLine();
-         s_PopupConfigureRadioLink->addLine("Failed!");
+         s_PopupConfigureRadioLink->addLine(L("Failed!"));
          s_PopupConfigureRadioLink->setTimeout(3.2);
       }
    }
@@ -496,11 +496,11 @@ void warnings_add_unsupported_video(u32 uVehicleId, u32 uType)
       s_uTimeLastWarningUnsupportedVideo = g_TimeNow;
 
       char szText[256];
-      strcpy(szText, "Your vehicle is sending H265 video. Your controller does not support H265 video decoding. Switch your vehicle to H264 video encoding from vehicle's Video menu.");
+      strcpy(szText, L("Your vehicle is sending H265 video. Your controller does not support H265 video decoding. Switch your vehicle to H264 video encoding from vehicle's Video menu."));
       
       if ( NULL == s_pMenuUnsupportedVideo )
       {
-         s_pMenuUnsupportedVideo = new MenuConfirmation("Unsupported Video Type",szText, 0, true);
+         s_pMenuUnsupportedVideo = new MenuConfirmation(L("Unsupported Video Type"), szText, 0, true);
          s_pMenuUnsupportedVideo->m_yPos = 0.3;
          s_pMenuUnsupportedVideo->setIconId(g_idIconCamera);
          add_menu_to_stack(s_pMenuUnsupportedVideo);
@@ -518,10 +518,10 @@ void warnings_add_switching_radio_link(int iVehicleRadioLinkId, u32 uNewFreqKhz)
       popups_remove(s_PopupSwitchingRadioLink);
 
    char szBuff[256];
-   sprintf(szBuff, "Switching to vehicle radio link %d (%s)", iVehicleRadioLinkId+1, str_format_frequency(uNewFreqKhz));
+   sprintf(szBuff, L("Switching to vehicle radio link %d (%s)"), iVehicleRadioLinkId+1, str_format_frequency(uNewFreqKhz));
    s_PopupSwitchingRadioLink = new Popup(true, szBuff, 50);
    s_PopupSwitchingRadioLink->setFont(g_idFontMenuLarge);
-   s_PopupSwitchingRadioLink->addLine("Please wait...");
+   s_PopupSwitchingRadioLink->addLine(L("Please wait..."));
    s_PopupSwitchingRadioLink->setIconId(g_idIconRadio, get_Color_MenuText());
    s_PopupSwitchingRadioLink->setFixedWidth(0.24);
 
@@ -538,14 +538,14 @@ void warnings_remove_switching_radio_link(int iVehicleRadioLinkId, u32 uNewFreqK
    {
       s_PopupSwitchingRadioLink->removeLastLine();
       char szBuff[256];
-      sprintf(szBuff, "Switched to vehicle radio link %d (%s)", iVehicleRadioLinkId+1, str_format_frequency(uNewFreqKhz));
+      sprintf(szBuff, L("Switched to vehicle radio link %d (%s)"), iVehicleRadioLinkId+1, str_format_frequency(uNewFreqKhz));
       s_PopupSwitchingRadioLink->setTitle(szBuff);
       s_PopupSwitchingRadioLink->setTimeout(2.5);
    }
    else
    {
       s_PopupSwitchingRadioLink->removeLastLine();
-      s_PopupSwitchingRadioLink->addLine("Failed.");
+      s_PopupSwitchingRadioLink->addLine(L("Failed!"));
       s_PopupSwitchingRadioLink->setTimeout(3.5);
    }
 }
@@ -554,7 +554,7 @@ void warnings_add_input_device_added(char* szDeviceName)
 {
    char szBuff[128];
    if ( (NULL == szDeviceName) || (0 == szDeviceName[0]) )
-      strcpy(szBuff, "A new USB input device was detected");
+      strcpy(szBuff, L("A new USB input device was detected"));
    else
       sprintf(szBuff, "A new USB input device (%s) was detected", szDeviceName);
 
@@ -567,7 +567,7 @@ void warnings_add_input_device_removed(char* szDeviceName)
 {
    char szBuff[128];
    if ( (NULL == szDeviceName) || (0 == szDeviceName[0]) )
-      strcpy(szBuff, "A USB input device was removed");
+      strcpy(szBuff, L("A USB input device was removed"));
    else
       sprintf(szBuff, "USB input device (%s) was removed", szDeviceName);
 

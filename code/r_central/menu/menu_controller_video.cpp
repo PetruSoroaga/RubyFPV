@@ -93,23 +93,23 @@ void* _thread_audio_test_async(void *argument)
 }
 
 MenuControllerVideo::MenuControllerVideo(void)
-:Menu(MENU_ID_CONTROLLER_VIDEO, "Audio & Video Output Settings", NULL)
+:Menu(MENU_ID_CONTROLLER_VIDEO, L("Audio & Video Output Settings"), NULL)
 {
    m_Width = 0.32;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.25;
    
    char szBuff[64];
 
-   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Current real display resolution: %dx%d",
+   snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), L("Current real display resolution: %dx%d"),
        g_pRenderEngine->getScreenWidth(), g_pRenderEngine->getScreenHeight() );
    addTopLine(szBuff);
 
    m_hdmigroupOrg = hdmi_get_current_resolution_group();
    m_hdmimodeOrg = hdmi_get_current_resolution_mode();
    log_line("Current HDMI resolution: group: %d, mode: %d", m_hdmigroupOrg, m_hdmimodeOrg);
-   addMenuItem(new MenuItemSection("HDMI Output"));
+   addMenuItem(new MenuItemSection(L("HDMI Output")));
 
-   m_pItemsSelect[0] = new MenuItemSelect("HDMI output resolution", "Sets the HDMI resolution on the controller display.");
+   m_pItemsSelect[0] = new MenuItemSelect(L("HDMI output resolution"), L("Sets the HDMI resolution on the controller display."));
    for( int i=0; i<hdmi_get_resolutions_count(); i++ )
    {
       sprintf(szBuff, "%d x %d", hdmi_get_resolution_width(i), hdmi_get_resolution_height(i));
@@ -118,7 +118,7 @@ MenuControllerVideo::MenuControllerVideo(void)
    m_pItemsSelect[0]->setIsEditable();
    m_IndexHDMIRes = addMenuItem(m_pItemsSelect[0]);
    
-   m_pItemsSelect[3] = new MenuItemSelect("HDMI refresh rate", "Sets the HDMI refresh rate for the display.");
+   m_pItemsSelect[3] = new MenuItemSelect(L("HDMI refresh rate"), L("Sets the HDMI refresh rate for the display."));
    m_pItemsSelect[3]->setIsEditable();
    m_IndexHDMIRefreshRate = addMenuItem(m_pItemsSelect[3]);
 
@@ -127,34 +127,34 @@ MenuControllerVideo::MenuControllerVideo(void)
    m_IndexHDMIVSync = -1;
 
    #if defined (HW_PLATFORM_RASPBERRY)
-   m_pItemsSlider[0] = new MenuItemSlider("HDMI Output Boost", "Sets the boost voltage level for the HDMI output.", 0,11,6, 0.15);
+   m_pItemsSlider[0] = new MenuItemSlider(L("HDMI Output Boost"), L("Sets the boost voltage level for the HDMI output."), 0,11,6, 0.15);
    m_IndexHDMIBoost = addMenuItem(m_pItemsSlider[0]);
 
    addMenuItem(new MenuItemText(s_szHDMIInfo, true));
 
-   m_pItemsSelect[2] = new MenuItemSelect("HDMI Overscan", "Default overscan (margins) on HDMI output. Requires a reboot after changing this value.");
-   m_pItemsSelect[2]->addSelection("Enabled");
-   m_pItemsSelect[2]->addSelection("Disabled");
+   m_pItemsSelect[2] = new MenuItemSelect(L("HDMI Overscan"), L("Default overscan (margins) on HDMI output. Requires a reboot after changing this value."));
+   m_pItemsSelect[2]->addSelection(L("Enabled"));
+   m_pItemsSelect[2]->addSelection(L("Disabled"));
    m_pItemsSelect[2]->setIsEditable();
    m_IndexHDMIOverscan = addMenuItem(m_pItemsSelect[2]);
    #endif
 
    #if defined (HW_PLATFORM_RADXA)
-   m_pItemsSelect[6] = new MenuItemSelect("HDMI Vertical Sync", "Enable vertical sync renderging synchronization on the HDMI display.");
-   m_pItemsSelect[6]->addSelection("Disabled");
-   m_pItemsSelect[6]->addSelection("Enabled");
+   m_pItemsSelect[6] = new MenuItemSelect(L("HDMI Vertical Sync"), L("Enable vertical sync renderging synchronization on the HDMI display."));
+   m_pItemsSelect[6]->addSelection(L("Disabled"));
+   m_pItemsSelect[6]->addSelection(L("Enabled"));
    m_pItemsSelect[6]->setIsEditable();
    m_IndexHDMIVSync = addMenuItem(m_pItemsSelect[6]);
    #endif
 
-   m_IndexCalibrateHDMI = addMenuItem(new MenuItem("Calibrate HDMI output", "Calibrate the colors, brightness and contrast on the controller display."));
+   m_IndexCalibrateHDMI = addMenuItem(new MenuItem(L("Calibrate HDMI output"), L("Calibrate the colors, brightness and contrast on the controller display.")));
    m_pMenuItems[m_IndexCalibrateHDMI]->showArrow();
 
-   addMenuItem(new MenuItemSection("Other Video Outputs"));
+   addMenuItem(new MenuItemSection(L("Other Video Outputs")));
 
-   m_pItemsSelect[1] = new MenuItemSelect("Video Forward To USB Device", "Enables or disables forwarding of the video stream to an external device using a USB connection.");
-   m_pItemsSelect[1]->addSelection("Disabled");
-   m_pItemsSelect[1]->addSelection("Raw (H264)");
+   m_pItemsSelect[1] = new MenuItemSelect(L("Video Forward To USB Device"), L("Enables or disables forwarding of the video stream to an external device using a USB connection."));
+   m_pItemsSelect[1]->addSelection(L("Disabled"));
+   m_pItemsSelect[1]->addSelection(L("Raw (H264)"));
    m_pItemsSelect[1]->setIsEditable();
    m_IndexVideoUSBForward = addMenuItem(m_pItemsSelect[1]);
 
@@ -167,8 +167,8 @@ MenuControllerVideo::MenuControllerVideo(void)
    m_IndexVideoUSBPacket = addMenuItem(m_pItemsRange[1]);
 
 
-   m_pItemsSelect[10] = new MenuItemSelect("Video Forward To Network", "Enables or disables forwarding of the video stream to the local network using the ETH connection.");
-   m_pItemsSelect[10]->addSelection("Disabled");
+   m_pItemsSelect[10] = new MenuItemSelect(L("Video Forward To Network"), L("Enables or disables forwarding of the video stream to the local network using the ETH connection."));
+   m_pItemsSelect[10]->addSelection(L("Disabled"));
    m_pItemsSelect[10]->addSelection("Raw (H264)");
    m_pItemsSelect[10]->addSelection("RTP Stream");
    m_pItemsSelect[10]->setIsEditable();
@@ -182,17 +182,17 @@ MenuControllerVideo::MenuControllerVideo(void)
    m_pItemsRange[11]->setSufix("");
    m_IndexVideoETHPacket = addMenuItem(m_pItemsRange[11]);
 
-   addMenuItem(new MenuItemSection("Audio Output"));
+   addMenuItem(new MenuItemSection(L("Audio Output")));
 
    m_IndexAudioVolume = -1;
 
    if ( hardware_has_audio_volume() )
    {
-      m_pItemsSlider[1] = new MenuItemSlider("Audio Output Volume", "Sets the audio output volume", 10,100,50, 0.1);
+      m_pItemsSlider[1] = new MenuItemSlider(L("Audio Output Volume"), L("Sets the audio output volume"), 10,100,50, 0.1);
       m_pItemsSlider[1]->setStep(1);
       m_IndexAudioVolume = addMenuItem(m_pItemsSlider[1]);
    }
-   m_IndexAudioTest = addMenuItem(new MenuItem("Audio Test", "Test local audio output on your HDMI display/output speakers."));
+   m_IndexAudioTest = addMenuItem(new MenuItem(L("Audio Test"), L("Test local audio output on your HDMI display/output speakers.")));
    m_pMenuItems[m_IndexAudioTest]->showArrow();
 }
 
@@ -322,7 +322,7 @@ int MenuControllerVideo::onBack()
    if ( m_hdmigroupOrg != hdmi_get_current_resolution_group() ||
         m_hdmimodeOrg != hdmi_get_current_resolution_mode() )
    {
-      MenuConfirmation* pMC = new MenuConfirmation("Changing HDMI resolution","Your display will flicker or go black for few seconds while the HDMI mode is changed.", 2, true);
+      MenuConfirmation* pMC = new MenuConfirmation(L("Changing HDMI resolution"), L("Your display will flicker or go black for few seconds while the HDMI mode is changed."), 2, true);
       pMC->m_yPos = 0.3;
       add_menu_to_stack(pMC);
       return 1;

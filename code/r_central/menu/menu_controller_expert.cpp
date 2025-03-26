@@ -104,17 +104,17 @@ MenuControllerExpert::MenuControllerExpert(void)
    m_IndexReset = addMenuItem(new MenuItem(L("Reset CPU Freq"), L("Resets the controller CPU and GPU frequencies to default values.")));
    #endif
 
-   addMenuItem(new MenuItemSection("Priorities"));
+   addMenuItem(new MenuItemSection(L("Priorities")));
 
-   m_pItemsSelect[10] = new MenuItemSelect("Enable CPU Cores Auto Adjustment", "Automatically adjust the work load on each CPU core.");
-   m_pItemsSelect[10]->addSelection("No");
-   m_pItemsSelect[10]->addSelection("Yes");
+   m_pItemsSelect[10] = new MenuItemSelect(L("Enable CPU Cores Auto Adjustment"), L("Automatically adjust the work load on each CPU core."));
+   m_pItemsSelect[10]->addSelection(L("No"));
+   m_pItemsSelect[10]->addSelection(L("Yes"));
    m_pItemsSelect[10]->setIsEditable();
    m_iIndexCoresAdjustment = addMenuItem(m_pItemsSelect[10]);
 
    m_pItemsSelect[11] = new MenuItemSelect("Enable Priorities Adjustment", "Enable adjustment of processes priorities or use default priorities.");
-   m_pItemsSelect[11]->addSelection("No");
-   m_pItemsSelect[11]->addSelection("Yes");
+   m_pItemsSelect[11]->addSelection(L("No"));
+   m_pItemsSelect[11]->addSelection(L("Yes"));
    m_pItemsSelect[11]->setIsEditable();
    m_iIndexPrioritiesAdjustment = addMenuItem(m_pItemsSelect[11]);
 
@@ -122,8 +122,8 @@ MenuControllerExpert::MenuControllerExpert(void)
    m_IndexNiceRouter = addMenuItem(m_pItemsSlider[0]);
 
    m_pItemsSelect[0] = new MenuItemSelect("Core I/O Boost", "Sets a higher priority for the I/O operations and data flows for the core Ruby components. Other components might work slower.");  
-   m_pItemsSelect[0]->addSelection("No");
-   m_pItemsSelect[0]->addSelection("Yes");
+   m_pItemsSelect[0]->addSelection(L("No"));
+   m_pItemsSelect[0]->addSelection(L("Yes"));
    m_pItemsSelect[0]->setUseMultiViewLayout();
    m_IndexIONiceRouter = addMenuItem(m_pItemsSelect[0]);
 
@@ -132,8 +132,8 @@ MenuControllerExpert::MenuControllerExpert(void)
    m_IndexIONiceRouterValue = addMenuItem(m_pItemsSlider[1]);
 
    m_pItemsSelect[5] = new MenuItemSelect("Video Priority", "Sets a manual CPU and IO priority for the video renderer process.");  
-   m_pItemsSelect[5]->addSelection("Auto");
-   m_pItemsSelect[5]->addSelection("Manual");
+   m_pItemsSelect[5]->addSelection(L("Auto"));
+   m_pItemsSelect[5]->addSelection(L("Manual"));
    m_pItemsSelect[5]->setIsEditable();
    m_IndexAutoRxVideo = addMenuItem(m_pItemsSelect[5]);
 
@@ -141,8 +141,8 @@ MenuControllerExpert::MenuControllerExpert(void)
    m_IndexNiceRXVideo = addMenuItem(m_pItemsSlider[2]);
 
    m_pItemsSelect[1] = new MenuItemSelect("   Video I/O Boost", "Sets a higher priority for the I/O operations and data flows for the received video stream. Other components might work slower.");  
-   m_pItemsSelect[1]->addSelection("No");
-   m_pItemsSelect[1]->addSelection("Yes");
+   m_pItemsSelect[1]->addSelection(L("No"));
+   m_pItemsSelect[1]->addSelection(L("Yes"));
    m_pItemsSelect[1]->setUseMultiViewLayout();
    m_IndexIONiceRXVideo = addMenuItem(m_pItemsSelect[1]);
 

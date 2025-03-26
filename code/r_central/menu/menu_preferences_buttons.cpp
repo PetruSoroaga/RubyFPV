@@ -39,108 +39,108 @@
 #include "menu_preferences_ui.h"
 
 MenuButtons::MenuButtons(void)
-:Menu(MENU_ID_PREFERENCES_BUTTONS, "User Interface Buttons", NULL)
+:Menu(MENU_ID_PREFERENCES_BUTTONS, L("User Interface Buttons"), NULL)
 {
    m_Width = 0.34;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.12;
 
    int c = 0;
 
-   m_pItemsSelect[c] = new MenuItemSelect("Swap +/- Buttons", "Swaps the function of + and - buttons.");  
-   m_pItemsSelect[c]->addSelection("Off");
-   m_pItemsSelect[c]->addSelection("On");
+   m_pItemsSelect[c] = new MenuItemSelect(L("Swap +/- Buttons"), L("Swaps the function of + and - buttons."));  
+   m_pItemsSelect[c]->addSelection(L("No"));
+   m_pItemsSelect[c]->addSelection(L("Yes"));
    addMenuItem(m_pItemsSelect[c]);
    c++;
 
-   m_pItemsSelect[c] = new MenuItemSelect("Swap +/- Edit Buttons", "Swaps the function of + and - buttons for editing values in UI.");  
-   m_pItemsSelect[c]->addSelection("Off");
-   m_pItemsSelect[c]->addSelection("On");
+   m_pItemsSelect[c] = new MenuItemSelect(L("Swap +/- Edit Buttons"), L("Swaps the function of + and - buttons for editing values in UI."));  
+   m_pItemsSelect[c]->addSelection(L("No"));
+   m_pItemsSelect[c]->addSelection(L("Yes"));
    addMenuItem(m_pItemsSelect[c]);
    c++;
 
-   m_pItemsSelect[c] = new MenuItemSelect("Quick Action Button 1", "Change what happens when you press the quick action button 1.");  
-   m_pItemsSelect[c]->addSelection("None");
-   m_pItemsSelect[c]->addSelection("Cycle OSD screen");
-   m_pItemsSelect[c]->addSelection("Cycle OSD size");
-   m_pItemsSelect[c]->addSelection("Take Picture");
-   m_pItemsSelect[c]->addSelection("Video Recording");
-   m_pItemsSelect[c]->addSelection("Toggle OSD Off");
-   m_pItemsSelect[c]->addSelection("Toggle Stats Off");
-   m_pItemsSelect[c]->addSelection("Toggle All Off");
-   m_pItemsSelect[c]->addSelection("Relay Switch");
-   m_pItemsSelect[c]->addSelection("Switch Camera Profile");
-   m_pItemsSelect[c]->addSelection("RC Output On/Off");
-   m_pItemsSelect[c]->addSelection("Rotary Encoder Function");
-   m_pItemsSelect[c]->addSelection("Freeze OSD");
-   m_pItemsSelect[c]->addSelection("Cycle Favorite Vehicles");
+   m_pItemsSelect[c] = new MenuItemSelect(L("Quick Action Button 1"), L("Change what happens when you press the quick action button 1."));  
+   m_pItemsSelect[c]->addSelection(L("None"));
+   m_pItemsSelect[c]->addSelection(L("Cycle OSD screen"));
+   m_pItemsSelect[c]->addSelection(L("Cycle OSD size"));
+   m_pItemsSelect[c]->addSelection(L("Take Picture"));
+   m_pItemsSelect[c]->addSelection(L("Video Recording"));
+   m_pItemsSelect[c]->addSelection(L("Toggle OSD Off"));
+   m_pItemsSelect[c]->addSelection(L("Toggle Stats Off"));
+   m_pItemsSelect[c]->addSelection(L("Toggle All Off"));
+   m_pItemsSelect[c]->addSelection(L("Relay Switch"));
+   m_pItemsSelect[c]->addSelection(L("Switch Camera Profile"));
+   m_pItemsSelect[c]->addSelection(L("RC Output On/Off"));
+   m_pItemsSelect[c]->addSelection(L("Rotary Encoder Function"));
+   m_pItemsSelect[c]->addSelection(L("Freeze OSD"));
+   m_pItemsSelect[c]->addSelection(L("Cycle Favorite Vehicles"));
    m_pItemsSelect[c]->setIsEditable();
    addMenuItem(m_pItemsSelect[c]);
    c++;
 
-   m_pItemsSelect[c] = new MenuItemSelect("Quick Action Button 2", "Change what happens when you press the quick action button 2.");  
-   m_pItemsSelect[c]->addSelection("None");
-   m_pItemsSelect[c]->addSelection("Cycle OSD screen");
-   m_pItemsSelect[c]->addSelection("Cycle OSD size");
-   m_pItemsSelect[c]->addSelection("Take Picture");
-   m_pItemsSelect[c]->addSelection("Video Recording");
-   m_pItemsSelect[c]->addSelection("Toggle OSD Off");
-   m_pItemsSelect[c]->addSelection("Toggle Stats Off");
-   m_pItemsSelect[c]->addSelection("Toggle All Off");
-   m_pItemsSelect[c]->addSelection("Relay Switch");
-   m_pItemsSelect[c]->addSelection("Switch Camera Profile");
-   m_pItemsSelect[c]->addSelection("RC Output On/Off");
-   m_pItemsSelect[c]->addSelection("Rotary Encoder Function");
-   m_pItemsSelect[c]->addSelection("Freeze OSD");
-   m_pItemsSelect[c]->addSelection("Cycle Favorite Vehicles");
+   m_pItemsSelect[c] = new MenuItemSelect(L("Quick Action Button 2"), L("Change what happens when you press the quick action button 2."));  
+   m_pItemsSelect[c]->addSelection(L("None"));
+   m_pItemsSelect[c]->addSelection(L("Cycle OSD screen"));
+   m_pItemsSelect[c]->addSelection(L("Cycle OSD size"));
+   m_pItemsSelect[c]->addSelection(L("Take Picture"));
+   m_pItemsSelect[c]->addSelection(L("Video Recording"));
+   m_pItemsSelect[c]->addSelection(L("Toggle OSD Off"));
+   m_pItemsSelect[c]->addSelection(L("Toggle Stats Off"));
+   m_pItemsSelect[c]->addSelection(L("Toggle All Off"));
+   m_pItemsSelect[c]->addSelection(L("Relay Switch"));
+   m_pItemsSelect[c]->addSelection(L("Switch Camera Profile"));
+   m_pItemsSelect[c]->addSelection(L("RC Output On/Off"));
+   m_pItemsSelect[c]->addSelection(L("Rotary Encoder Function"));
+   m_pItemsSelect[c]->addSelection(L("Freeze OSD"));
+   m_pItemsSelect[c]->addSelection(L("Cycle Favorite Vehicles"));
    m_pItemsSelect[c]->setIsEditable();
    addMenuItem(m_pItemsSelect[c]);
    c++;
 
-   m_pItemsSelect[c] = new MenuItemSelect("Quick Action Button 3", "Change what happens when you press the quick action button 3.");  
-   m_pItemsSelect[c]->addSelection("None");
-   m_pItemsSelect[c]->addSelection("Cycle OSD screen");
-   m_pItemsSelect[c]->addSelection("Cycle OSD size");
-   m_pItemsSelect[c]->addSelection("Take Picture");
-   m_pItemsSelect[c]->addSelection("Video Recording");
-   m_pItemsSelect[c]->addSelection("Toggle OSD Off");
-   m_pItemsSelect[c]->addSelection("Toggle Stats Off");
-   m_pItemsSelect[c]->addSelection("Toggle All Off");
-   m_pItemsSelect[c]->addSelection("Relay Switch");
-   m_pItemsSelect[c]->addSelection("Switch Camera Profile");
-   m_pItemsSelect[c]->addSelection("RC Output On/Off");
-   m_pItemsSelect[c]->addSelection("Rotary Encoder Function");
-   m_pItemsSelect[c]->addSelection("Freeze OSD");
-   m_pItemsSelect[c]->addSelection("Cycle Favorite Vehicles");
+   m_pItemsSelect[c] = new MenuItemSelect(L("Quick Action Button 3"), L("Change what happens when you press the quick action button 3."));  
+   m_pItemsSelect[c]->addSelection(L("None"));
+   m_pItemsSelect[c]->addSelection(L("Cycle OSD screen"));
+   m_pItemsSelect[c]->addSelection(L("Cycle OSD size"));
+   m_pItemsSelect[c]->addSelection(L("Take Picture"));
+   m_pItemsSelect[c]->addSelection(L("Video Recording"));
+   m_pItemsSelect[c]->addSelection(L("Toggle OSD Off"));
+   m_pItemsSelect[c]->addSelection(L("Toggle Stats Off"));
+   m_pItemsSelect[c]->addSelection(L("Toggle All Off"));
+   m_pItemsSelect[c]->addSelection(L("Relay Switch"));
+   m_pItemsSelect[c]->addSelection(L("Switch Camera Profile"));
+   m_pItemsSelect[c]->addSelection(L("RC Output On/Off"));
+   m_pItemsSelect[c]->addSelection(L("Rotary Encoder Function"));
+   m_pItemsSelect[c]->addSelection(L("Freeze OSD"));
+   m_pItemsSelect[c]->addSelection(L("Cycle Favorite Vehicles"));
    m_pItemsSelect[c]->setIsEditable();
    addMenuItem(m_pItemsSelect[c]);
    c++;
 
-   m_pItemsSelect[c] = new MenuItemSelect("Rotary Encoder Function", "Sets the function of the optional rotary encoder. Long press the rotary encoder for 10 seconds to revert to Menu function.");  
-   m_pItemsSelect[c]->addSelection("None");
-   m_pItemsSelect[c]->addSelection("Menu Navigation");
-   m_pItemsSelect[c]->addSelection("Camera Adjustment");
+   m_pItemsSelect[c] = new MenuItemSelect(L("Rotary Encoder Function"), L("Sets the function of the optional rotary encoder. Long press the rotary encoder for 10 seconds to revert to Menu function."));  
+   m_pItemsSelect[c]->addSelection(L("None"));
+   m_pItemsSelect[c]->addSelection(L("Menu Navigation"));
+   m_pItemsSelect[c]->addSelection(L("Camera Adjustment"));
    m_pItemsSelect[c]->setIsEditable();
    m_IndexRotaryEncoder = addMenuItem(m_pItemsSelect[c]);
    c++;
 
-   m_pItemsSelect[c] = new MenuItemSelect("Rotary Encoder Speed", "Sets the speed of the optional rotary encoder.");  
-   m_pItemsSelect[c]->addSelection("Normal");
-   m_pItemsSelect[c]->addSelection("Slower");
+   m_pItemsSelect[c] = new MenuItemSelect(L("Rotary Encoder Speed"), L("Sets the speed of the optional rotary encoder."));  
+   m_pItemsSelect[c]->addSelection(L("Normal"));
+   m_pItemsSelect[c]->addSelection(L("Slower"));
    m_pItemsSelect[c]->setIsEditable();
    m_IndexRotarySpeed = addMenuItem(m_pItemsSelect[c]);
    c++;
 
-   m_pItemsSelect[c] = new MenuItemSelect("Rotary Encoder 2 Function", "Sets the function of the secondary optional rotary encoder. Long press the secondary rotary encoder for 10 seconds to revert to Menu function.");  
-   m_pItemsSelect[c]->addSelection("None");
-   m_pItemsSelect[c]->addSelection("Menu Navigation");
-   m_pItemsSelect[c]->addSelection("Camera Adjustment");
+   m_pItemsSelect[c] = new MenuItemSelect(L("Rotary Encoder 2 Function"), L("Sets the function of the secondary optional rotary encoder. Long press the secondary rotary encoder for 10 seconds to revert to Menu function."));  
+   m_pItemsSelect[c]->addSelection(L("None"));
+   m_pItemsSelect[c]->addSelection(L("Menu Navigation"));
+   m_pItemsSelect[c]->addSelection(L("Camera Adjustment"));
    m_pItemsSelect[c]->setIsEditable();
    m_IndexRotaryEncoder2 = addMenuItem(m_pItemsSelect[c]);
    c++;
 
-   m_pItemsSelect[c] = new MenuItemSelect("Rotary Encoder 2 Speed", "Sets the speed of the secondary optional rotary encoder.");  
-   m_pItemsSelect[c]->addSelection("Normal");
-   m_pItemsSelect[c]->addSelection("Slower");
+   m_pItemsSelect[c] = new MenuItemSelect(L("Rotary Encoder 2 Speed"), L("Sets the speed of the secondary optional rotary encoder."));  
+   m_pItemsSelect[c]->addSelection(L("Normal"));
+   m_pItemsSelect[c]->addSelection(L("Slower"));
    m_pItemsSelect[c]->setIsEditable();
    m_IndexRotarySpeed2 = addMenuItem(m_pItemsSelect[c]);
    c++;
@@ -218,7 +218,7 @@ void MenuButtons::onSelectItem()
       valuesToUI();
       if ( p->iActionQuickButton1 == quickActionRCEnable )
       {
-         Popup* p = new Popup("Enabling/disabling RC link during flight is dangerous. Proceed with caution.", 0.3, 0.3, 0.5, 6 );
+         Popup* p = new Popup( L("Enabling/disabling RC link during flight is dangerous. Proceed with caution."), 0.3, 0.3, 0.5, 6 );
          p->setIconId(g_idIconWarning, get_Color_IconWarning());
          popups_add_topmost(p);
       }
@@ -232,7 +232,7 @@ void MenuButtons::onSelectItem()
       valuesToUI();
       if ( p->iActionQuickButton2 == quickActionRCEnable )
       {
-         Popup* p = new Popup("Enabling/disabling RC link during flight is dangerous. Proceed with caution.", 0.3, 0.3, 0.5, 6 );
+         Popup* p = new Popup(L("Enabling/disabling RC link during flight is dangerous. Proceed with caution."), 0.3, 0.3, 0.5, 6 );
          p->setIconId(g_idIconWarning, get_Color_IconWarning());
          popups_add_topmost(p);
       }
@@ -246,7 +246,7 @@ void MenuButtons::onSelectItem()
       valuesToUI();
       if ( p->iActionQuickButton3 == quickActionRCEnable )
       {
-         Popup* p = new Popup("Enabling/disabling RC link during flight is dangerous. Proceed with caution.", 0.3, 0.3, 0.5, 6 );
+         Popup* p = new Popup(L("Enabling/disabling RC link during flight is dangerous. Proceed with caution."), 0.3, 0.3, 0.5, 6 );
          p->setIconId(g_idIconWarning, get_Color_IconWarning());
          popups_add_topmost(p);
       }

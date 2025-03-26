@@ -37,7 +37,7 @@
 #include "menu_calibrate_hdmi.h"
 
 MenuVehicleCamera::MenuVehicleCamera(void)
-:Menu(MENU_ID_VEHICLE_CAMERA, "Camera Settings", NULL)
+:Menu(MENU_ID_VEHICLE_CAMERA, L("Camera Settings"), NULL)
 {
    m_Width = 0.30;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.13;
@@ -162,7 +162,7 @@ void MenuVehicleCamera::addItems()
    m_IndexCamera = -1;
    if ( ! m_bShowCompact )
    {
-      m_pItemsSelect[11] = new MenuItemSelect("Active Camera", "Selects which camera should be active, if multiple cameras are present on this vehicle.");
+      m_pItemsSelect[11] = new MenuItemSelect(L("Active Camera"), L("Selects which camera should be active, if multiple cameras are present on this vehicle."));
       for( int i=0; i<g_pCurrentModel->iCameraCount; i++ )
       {
          szCam[0] = 0;
@@ -188,8 +188,8 @@ void MenuVehicleCamera::addItems()
    m_IndexForceMode = -1;
    if ( ! m_bShowCompact )
    {
-      m_pItemsSelect[12] = new MenuItemSelect("Camera Type", "Autodetect the active camera type or force a particular camera type for the active camera.");
-      m_pItemsSelect[12]->addSelection("Autodetect");
+      m_pItemsSelect[12] = new MenuItemSelect(L("Camera Type"), L("Autodetect the active camera type or force a particular camera type for the active camera."));
+      m_pItemsSelect[12]->addSelection(L("Autodetect"));
       m_pItemsSelect[12]->addSelection("CSI Camera", !g_pCurrentModel->isRunningOnOpenIPCHardware());
       m_pItemsSelect[12]->addSelection("HDMI Camera", !g_pCurrentModel->isRunningOnOpenIPCHardware());
       m_pItemsSelect[12]->addSelection("Veye 290", !g_pCurrentModel->isRunningOnOpenIPCHardware());
@@ -207,7 +207,7 @@ void MenuVehicleCamera::addItems()
    m_IndexProfile = -1;
    if ( ! m_bShowCompact )
    {
-      m_pItemsSelect[0] = new MenuItemSelect("Profile"); 
+      m_pItemsSelect[0] = new MenuItemSelect(L("Profile")); 
       for( int i=0; i<MODEL_CAMERA_PROFILES; i++ )
       {
          char szBuff[32];
@@ -217,17 +217,17 @@ void MenuVehicleCamera::addItems()
       m_pItemsSelect[0]->setIsEditable();
       m_IndexProfile = addMenuItem(m_pItemsSelect[0]);
    }
-   m_pItemsSlider[0] = new MenuItemSlider("Brightness", 0,100,50, fSliderWidth);
+   m_pItemsSlider[0] = new MenuItemSlider(L("Brightness"), 0,100,50, fSliderWidth);
    if ( ! m_bShowCompact )
       m_pItemsSlider[0]->setMargin(fMargin);
    m_IndexBrightness = addMenuItem(m_pItemsSlider[0]);
  
-   m_pItemsSlider[1] = new MenuItemSlider("Contrast", 0,100,0, fSliderWidth);
+   m_pItemsSlider[1] = new MenuItemSlider(L("Contrast"), 0,100,0, fSliderWidth);
    if ( ! m_bShowCompact )
       m_pItemsSlider[1]->setMargin(fMargin);
    m_IndexContrast = addMenuItem(m_pItemsSlider[1]);
 
-   m_pItemsSlider[2] = new MenuItemSlider("Saturation", -100,100,0, fSliderWidth);
+   m_pItemsSlider[2] = new MenuItemSlider(L("Saturation"), -100,100,0, fSliderWidth);
    if ( ! m_bShowCompact )
       m_pItemsSlider[2]->setMargin(fMargin);
    m_IndexSaturation = addMenuItem(m_pItemsSlider[2]);
@@ -235,7 +235,7 @@ void MenuVehicleCamera::addItems()
    if ( g_pCurrentModel->isActiveCameraVeye307() ||
         g_pCurrentModel->isActiveCameraOpenIPC() )
    {
-      m_pItemsSlider[8] = new MenuItemSlider("Hue", 0,100,0, fSliderWidth);
+      m_pItemsSlider[8] = new MenuItemSlider(L("Hue"), 0,100,0, fSliderWidth);
       if ( ! m_bShowCompact )
          m_pItemsSlider[8]->setMargin(fMargin);
       m_IndexHue = addMenuItem(m_pItemsSlider[8]);
@@ -244,9 +244,9 @@ void MenuVehicleCamera::addItems()
    if ( g_pCurrentModel->isActiveCameraVeye327290() || g_pCurrentModel->isActiveCameraCSICompatible() )
    {
       if ( g_pCurrentModel->isActiveCameraVeye327290() )
-         m_pItemsSlider[3] = new MenuItemSlider("Sharpness", 0,10,0, fSliderWidth);
+         m_pItemsSlider[3] = new MenuItemSlider(L("Sharpness"), 0,10,0, fSliderWidth);
       else
-         m_pItemsSlider[3] = new MenuItemSlider("Sharpness", -100,100,0, fSliderWidth);
+         m_pItemsSlider[3] = new MenuItemSlider(L("Sharpness"), -100,100,0, fSliderWidth);
       if ( ! m_bShowCompact )
          m_pItemsSlider[3]->setMargin(fMargin);
       m_IndexSharpness = addMenuItem(m_pItemsSlider[3]);
@@ -255,18 +255,18 @@ void MenuVehicleCamera::addItems()
    m_IndexDayNight = -1;
    if ( (!m_bShowCompact) && (g_pCurrentModel->isActiveCameraVeye()) )
    {
-      m_pItemsSelect[15] = new MenuItemSelect("Day/Night Mode", "Sets the mode to daylight (color and IR cut) or night (black and white, no IR cut).");
-      m_pItemsSelect[15]->addSelection("Daylight");
-      m_pItemsSelect[15]->addSelection("Night B/W");
+      m_pItemsSelect[15] = new MenuItemSelect(L("Day/Night Mode"), L("Sets the mode to daylight (color and IR cut) or night (black and white, no IR cut)."));
+      m_pItemsSelect[15]->addSelection(L("Daylight"));
+      m_pItemsSelect[15]->addSelection(L("Night B&W"));
       m_pItemsSelect[15]->setMargin(fMargin);
       m_IndexDayNight = addMenuItem(m_pItemsSelect[15]);
    }
 
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
    {
-      m_pItemsSelect[3] = new MenuItemSelect("White Balance");
-      m_pItemsSelect[3]->addSelection("Off");
-      m_pItemsSelect[3]->addSelection("Auto");
+      m_pItemsSelect[3] = new MenuItemSelect(L("White Balance"));
+      m_pItemsSelect[3]->addSelection(L("Off"));
+      m_pItemsSelect[3]->addSelection(L("Auto"));
       if ( ! g_pCurrentModel->isActiveCameraVeye() )
       {
          m_pItemsSelect[3]->addSelection("Sun");
@@ -282,8 +282,8 @@ void MenuVehicleCamera::addItems()
 
    if ( g_pCurrentModel->isActiveCameraVeye327290() )
    {
-      m_pItemsSelect[14] = new MenuItemSelect("WDR mode");
-      m_pItemsSelect[14]->addSelection("Off");
+      m_pItemsSelect[14] = new MenuItemSelect(L("WDR mode"));
+      m_pItemsSelect[14]->addSelection(L("Off"));
       m_pItemsSelect[14]->addSelection("On, Low");
       m_pItemsSelect[14]->addSelection("On, High");
       m_pItemsSelect[14]->addSelection("On, DOL");
@@ -294,7 +294,7 @@ void MenuVehicleCamera::addItems()
 
    if ( g_pCurrentModel->isActiveCameraVeye327290() )
    {
-      m_pItemsSlider[7] = new MenuItemSlider("AGC", "Agc stands for auto gain control. It is a part of auto exposure, in different light intensity, will try to adjust the gain of sensor to achieve the same image brightness.", 0,15,5, fSliderWidth);
+      m_pItemsSlider[7] = new MenuItemSlider("AGC", L("AGC stands for auto gain control. It is a part of auto exposure, in different light intensity, will try to adjust the gain of sensor to achieve the same image brightness."), 0,15,5, fSliderWidth);
       m_pItemsSlider[7]->setMargin(fMargin);
       m_IndexAGC = addMenuItem(m_pItemsSlider[7]);
    }
@@ -302,7 +302,7 @@ void MenuVehicleCamera::addItems()
    m_IndexAnalogGains = -1;
    if ( (! m_bShowCompact) && g_pCurrentModel->isActiveCameraCSI() )
    {
-      m_IndexAnalogGains = addMenuItem( new MenuItem("Analog Gains", "Sets the analog gains when the AWB is turned off."));
+      m_IndexAnalogGains = addMenuItem( new MenuItem(L("Analog Gains"), L("Sets the analog gains when the AWB is turned off.")));
       m_pMenuItems[m_IndexAnalogGains]->showArrow();
       m_pMenuItems[m_IndexAnalogGains]->setMargin(fMargin);
    }
@@ -314,9 +314,9 @@ void MenuVehicleCamera::addItems()
    {
       if ( g_pCurrentModel->isActiveCameraCSI() || g_pCurrentModel->isActiveCameraVeye() )
       {
-         m_pItemsSelect[7] = new MenuItemSelect("Shutter Speed", "Sets shutter speed to auto or manual.");
-         m_pItemsSelect[7]->addSelection("Auto");
-         m_pItemsSelect[7]->addSelection("Manual");
+         m_pItemsSelect[7] = new MenuItemSelect(L("Shutter Speed"), L("Sets shutter speed to auto or manual."));
+         m_pItemsSelect[7]->addSelection(L("Auto"));
+         m_pItemsSelect[7]->addSelection(L("Manual"));
          m_pItemsSelect[7]->setIsEditable();
          m_pItemsSelect[7]->setMargin(fMargin);
          m_IndexShutterMode = addMenuItem(m_pItemsSelect[7]);
@@ -329,15 +329,15 @@ void MenuVehicleCamera::addItems()
       else if ( hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
       {
          m_pItemsSelect[22] = new MenuItemSelect("3A Algorithms", "Sets 3A algorithms (autoexposure, autowhitebalance, autofocus) used by the camera ISP processor.");
-         m_pItemsSelect[22]->addSelection("Default");
+         m_pItemsSelect[22]->addSelection(L("Default"));
          m_pItemsSelect[22]->addSelection("Sigmastar");
          m_pItemsSelect[22]->setIsEditable();
          m_pItemsSelect[22]->setMargin(fMargin);
          m_IndexOpenIPC3A = addMenuItem(m_pItemsSelect[22]);
 
-         m_pItemsSelect[7] = new MenuItemSelect("Shutter Speed", "Sets the shutter speed to be auto controllerd by camera or manula set by user.");  
-         m_pItemsSelect[7]->addSelection("Auto");
-         m_pItemsSelect[7]->addSelection("Manual");
+         m_pItemsSelect[7] = new MenuItemSelect(L("Shutter Speed"), L("Sets the shutter speed to be auto controllerd by camera or manula set by user."));  
+         m_pItemsSelect[7]->addSelection(L("Auto"));
+         m_pItemsSelect[7]->addSelection(L("Manual"));
          m_pItemsSelect[7]->setIsEditable();
          m_pItemsSelect[7]->setMargin(fMargin);
          m_IndexShutterMode = addMenuItem(m_pItemsSelect[7]);
@@ -350,15 +350,15 @@ void MenuVehicleCamera::addItems()
 
    if ( g_pCurrentModel->isActiveCameraCSI() )
    {
-      m_pItemsSelect[2] = new MenuItemSelect("Exposure");  
-      m_pItemsSelect[2]->addSelection("Auto");
+      m_pItemsSelect[2] = new MenuItemSelect(L("Exposure"));  
+      m_pItemsSelect[2]->addSelection(L("Auto"));
       m_pItemsSelect[2]->addSelection("Night");
       m_pItemsSelect[2]->addSelection("Back Light");
       m_pItemsSelect[2]->addSelection("Sports");
       m_pItemsSelect[2]->addSelection("Very Long");
       m_pItemsSelect[2]->addSelection("Fixed FPS");
       m_pItemsSelect[2]->addSelection("Antishake");
-      m_pItemsSelect[2]->addSelection("Off");
+      m_pItemsSelect[2]->addSelection(L("Off"));
       m_pItemsSelect[2]->setIsEditable();
       m_pItemsSelect[2]->setMargin(fMargin);
       m_IndexExposureMode = addMenuItem(m_pItemsSelect[2]);
@@ -367,7 +367,7 @@ void MenuVehicleCamera::addItems()
    m_IndexMetering = -1;
    if ( (! m_bShowCompact) && g_pCurrentModel->isActiveCameraCSI() )
    {
-      m_pItemsSelect[4] = new MenuItemSelect("Metering");
+      m_pItemsSelect[4] = new MenuItemSelect(L("Metering"));
       m_pItemsSelect[4]->addSelection("Average");
       m_pItemsSelect[4]->addSelection("Spot");
       m_pItemsSelect[4]->addSelection("Backlit");
@@ -394,9 +394,9 @@ void MenuVehicleCamera::addItems()
    m_IndexISOValue = -1;
    if ( (! m_bShowCompact) && g_pCurrentModel->isActiveCameraCSI() )
    {
-      m_pItemsSelect[6] = new MenuItemSelect("ISO", "Sets manual/auto ISO.");
-      m_pItemsSelect[6]->addSelection("Auto");
-      m_pItemsSelect[6]->addSelection("Manual");
+      m_pItemsSelect[6] = new MenuItemSelect("ISO", L("Sets manual/auto ISO."));
+      m_pItemsSelect[6]->addSelection(L("Auto"));
+      m_pItemsSelect[6]->addSelection(L("Manual"));
       m_pItemsSelect[6]->setIsEditable();
       m_pItemsSelect[6]->setMargin(fMargin);
       m_IndexISO = addMenuItem(m_pItemsSelect[6]);
@@ -426,17 +426,17 @@ void MenuVehicleCamera::addItems()
    m_IndexVideoStab = -1;
    if ( (! m_bShowCompact) && g_pCurrentModel->isActiveCameraCSI() )
    {
-      m_pItemsSelect[8] = new MenuItemSelect("Video Stabilisation", "Enables video stabilisation, if supported by the camera.");
-      m_pItemsSelect[8]->addSelection("Off");
-      m_pItemsSelect[8]->addSelection("On");
+      m_pItemsSelect[8] = new MenuItemSelect(L("Video Stabilisation"), L("Enables video stabilisation, if supported by the camera."));
+      m_pItemsSelect[8]->addSelection(L("Off"));
+      m_pItemsSelect[8]->addSelection(L("On"));
       m_pItemsSelect[8]->setIsEditable();
       m_pItemsSelect[8]->setMargin(fMargin);
       m_IndexVideoStab = addMenuItem(m_pItemsSelect[8]);
    }
 
-   m_pItemsSelect[9] = new MenuItemSelect("Flip camera", "Flips the camera video output upside down.");  
-   m_pItemsSelect[9]->addSelection("No");
-   m_pItemsSelect[9]->addSelection("Yes");
+   m_pItemsSelect[9] = new MenuItemSelect(L("Flip camera"), L("Flips the camera video output upside down."));  
+   m_pItemsSelect[9]->addSelection(L("No"));
+   m_pItemsSelect[9]->addSelection(L("Yes"));
    m_pItemsSelect[9]->setIsEditable();
    m_pItemsSelect[9]->setMargin(fMargin);
    m_IndexFlip = addMenuItem(m_pItemsSelect[9]);
@@ -446,9 +446,9 @@ void MenuVehicleCamera::addItems()
    if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
    if ( g_pCurrentModel->isActiveCameraOpenIPC() )
    {
-      m_pItemsSelect[20] = new MenuItemSelect("IR Cut", "Turn IR cut filter on/off");  
-      m_pItemsSelect[20]->addSelection("On");
-      m_pItemsSelect[20]->addSelection("Off");
+      m_pItemsSelect[20] = new MenuItemSelect(L("IR Cut"), L("Turn IR cut filter on/off."));
+      m_pItemsSelect[20]->addSelection(L("On"));
+      m_pItemsSelect[20]->addSelection(L("Off"));
       m_pItemsSelect[20]->setIsEditable();
       m_pItemsSelect[20]->setMargin(fMargin);
       m_IndexIRCut = addMenuItem(m_pItemsSelect[20]);
@@ -459,9 +459,9 @@ void MenuVehicleCamera::addItems()
    if (g_pCurrentModel->isRunningOnOpenIPCHardware())
    if (g_pCurrentModel->isActiveCameraOpenIPC())
    {
-      m_pItemsSelect[21] = new MenuItemSelect("Day/Night Mode", "Sets the mode to daylight (color) or night (black and white).");
-      m_pItemsSelect[21]->addSelection("Daylight");
-      m_pItemsSelect[21]->addSelection("Night B/W");
+      m_pItemsSelect[21] = new MenuItemSelect(L("Day/Night Mode"), L("Sets the mode to daylight (color) or night (black and white)."));
+      m_pItemsSelect[21]->addSelection(L("Daylight"));
+      m_pItemsSelect[21]->addSelection(L("Night B&W"));
       m_pItemsSelect[21]->setIsEditable();
       m_pItemsSelect[21]->setMargin(fMargin);
       m_IndexOpenIPCDayNight = addMenuItem(m_pItemsSelect[21]);
@@ -470,14 +470,14 @@ void MenuVehicleCamera::addItems()
    m_IndexReset = -1;
    if ( ! m_bShowCompact )
    {
-      m_IndexReset = addMenuItem(new MenuItem("Reset Profile", "Resets the current vehicle's camera paramters (brightness, contrast, etc) to the default values for the current profile."));
+      m_IndexReset = addMenuItem(new MenuItem(L("Reset Profile"), L("Resets the current vehicle's camera paramters (brightness, contrast, etc) to the default values for the current profile.")));
       m_pMenuItems[m_IndexReset]->setMargin(fMargin);
    }
 
    m_IndexCalibrateHDMI = -1;
    if ( ! m_bShowCompact )
    {
-      m_IndexCalibrateHDMI = addMenuItem(new MenuItem("Calibrate HDMI output", "Calibrate the colors, brightness and contrast on the controller display."));
+      m_IndexCalibrateHDMI = addMenuItem(new MenuItem(L("Calibrate HDMI output"), L("Calibrate the colors, brightness and contrast on the controller display.")));
       m_pMenuItems[m_IndexCalibrateHDMI]->showArrow();
    }
 
@@ -991,7 +991,7 @@ void MenuVehicleCamera::onSelectItem()
          if ( ! handle_commands_send_to_vehicle(COMMAND_ID_FORCE_CAMERA_TYPE, iCamType, NULL, 0) )
             valuesToUI();
          if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
-            addMessage("Vehicle will reboot to update the firmware state.");
+            addMessage(L("Vehicle will reboot to update the firmware state."));
       }
       return;
    }

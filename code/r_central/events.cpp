@@ -674,7 +674,7 @@ bool _onEventCheckNewPairedModelForUIActionsToTake()
       getSystemVersionString(szBuff2, s_pEventsLastRecvModelSettings->sw_version);
       getSystemVersionString(szBuff3, (SYSTEM_SW_VERSION_MAJOR<<8) | SYSTEM_SW_VERSION_MINOR);
       strcpy(szBuff4, s_pEventsLastRecvModelSettings->getVehicleTypeString());
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "%s has Ruby version %s (b%u) and your controller %s (b%u). You should update your %s.", szBuff4, szBuff2, s_pEventsLastRecvModelSettings->sw_version>>16, szBuff3, SYSTEM_SW_BUILD_NUMBER, szBuff4);
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), L("%s has Ruby version %s (b%u) and your controller %s (b%u). You should update your %s."), szBuff4, szBuff2, s_pEventsLastRecvModelSettings->sw_version>>16, szBuff3, SYSTEM_SW_BUILD_NUMBER, szBuff4);
       szBuff[0] = toupper(szBuff[0]);
       warnings_add(s_pEventsLastRecvModelSettings->uVehicleId, szBuff, 0, NULL, 12);
       bool bArmed = false;
@@ -816,14 +816,14 @@ void _onEventCheckModelAddNonBlockingPopupWarnings(Model* pModel, bool bUnsolici
    
       if ( countUnsuported == pModel->radioInterfacesParams.interfaces_count )
       {
-         sprintf(szText, "No radio interface on your %s is fully supported.", pModel->getVehicleTypeString());
+         sprintf(szText, L("No radio interface on your %s is fully supported."), pModel->getVehicleTypeString());
          Popup* p = new Popup(szText, 0.3,0.4, 0.5, 6);
          p->setIconId(g_idIconError, get_Color_IconError());
          popups_add_topmost(p);
       }
       else if ( countUnsuported > 0 )
       {
-         sprintf(szText, "Some radio interfaces on your %s are not fully supported.", pModel->getVehicleTypeString());
+         sprintf(szText, L("Some radio interfaces on your %s are not fully supported."), pModel->getVehicleTypeString());
          Popup* p = new Popup(szText, 0.3,0.4, 0.5, 6);
          p->setIconId(g_idIconWarning, get_Color_IconWarning());
          popups_add_topmost(p);
@@ -843,11 +843,11 @@ void _onEventCheckModelAddNonBlockingPopupWarnings(Model* pModel, bool bUnsolici
    if ( pModel->audio_params.enabled )
    {
       if ( ! pModel->audio_params.has_audio_device )
-         warnings_add(pModel->uVehicleId, "Your vehicle has audio enabled but no audio capture device", g_idIconError);
+         warnings_add(pModel->uVehicleId, L("Your vehicle has audio enabled but no audio capture device"), g_idIconError);
       else if ( pModel->uVehicleId == g_pCurrentModel->uVehicleId )
       {
          if ( ! hardware_has_audio_playback() )
-            warnings_add(pModel->uVehicleId, "Your vehicle has audio enabled but your controller can't output audio.", g_idIconError);
+            warnings_add(pModel->uVehicleId, L("Your vehicle has audio enabled but your controller can't output audio."), g_idIconError);
       }
    }
 
@@ -1076,14 +1076,14 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
          return false;
       }
       saveControllerModel(s_pEventsLastRecvModelSettings);
-      warnings_add(s_pEventsLastRecvModelSettings->uVehicleId, "Received vehicle settings.", g_idIconCheckOK);
+      warnings_add(s_pEventsLastRecvModelSettings->uVehicleId, L("Received vehicle settings."), g_idIconCheckOK);
       return true;
    }
 
    if ( bUnsolicited )
-      warnings_add(pCurrentlyStoredModel->uVehicleId, "Received vehicle settings.", g_idIconCheckOK);
+      warnings_add(pCurrentlyStoredModel->uVehicleId, L("Received vehicle settings."), g_idIconCheckOK);
    else
-      warnings_add(pCurrentlyStoredModel->uVehicleId, "Synchronized vehicle settings.", g_idIconCheckOK);
+      warnings_add(pCurrentlyStoredModel->uVehicleId, L("Synchronized vehicle settings."), g_idIconCheckOK);
 
    log_line("The currently stored vehicle has Ruby version %d.%d (b%d) (%u) and the controller %d.%d (b%d) (%u)", ((pCurrentlyStoredModel->sw_version)>>8) & 0xFF, (pCurrentlyStoredModel->sw_version) & 0xFF, ((pCurrentlyStoredModel->sw_version)>>16), pCurrentlyStoredModel->sw_version, SYSTEM_SW_VERSION_MAJOR, SYSTEM_SW_VERSION_MINOR, SYSTEM_SW_BUILD_NUMBER, (SYSTEM_SW_VERSION_MAJOR*256+SYSTEM_SW_VERSION_MINOR) | (SYSTEM_SW_BUILD_NUMBER<<16) );
 
@@ -1135,7 +1135,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    if ( bMustRePair )
    {
       char szText[128];
-      snprintf(szText, sizeof(szText)/sizeof(szText[0]), "Radio links configuration changed on your %s. Updating local radio configuration...", pCurrentlyStoredModel->getVehicleTypeString());
+      snprintf(szText, sizeof(szText)/sizeof(szText[0]), L("Radio links configuration changed on your %s. Updating local radio configuration..."), pCurrentlyStoredModel->getVehicleTypeString());
       Popup* p = new Popup(szText, 0.15,0.5, 0.7, 5);
       p->setIconId(g_idIconRadio, get_Color_IconWarning());
       popups_add_topmost(p);

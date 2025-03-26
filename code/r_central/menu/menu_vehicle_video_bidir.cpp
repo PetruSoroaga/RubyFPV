@@ -45,7 +45,7 @@
 #include "../process_router_messages.h"
 
 MenuVehicleVideoBidirectional::MenuVehicleVideoBidirectional(void)
-:Menu(MENU_ID_VEHICLE_VIDEO_BIDIRECTIONAL, "Bidirectional Video Settings", NULL)
+:Menu(MENU_ID_VEHICLE_VIDEO_BIDIRECTIONAL, L("Bidirectional Video Settings"), NULL)
 {
    m_Width = 0.36;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.1;
@@ -53,67 +53,67 @@ MenuVehicleVideoBidirectional::MenuVehicleVideoBidirectional(void)
    float dxMargin = 0.024 * Menu::getScaleFactor();
    float fSliderWidth = 0.12;
 
-   m_pItemsSelect[4] = new MenuItemSelect("Retransmissions", "Enable retransmissions of video data.");  
-   m_pItemsSelect[4]->addSelection("Off");
-   m_pItemsSelect[4]->addSelection("On");
+   m_pItemsSelect[4] = new MenuItemSelect(L("Retransmissions"), L("Enable retransmissions of video data."));  
+   m_pItemsSelect[4]->addSelection(L("Off"));
+   m_pItemsSelect[4]->addSelection(L("On"));
    m_pItemsSelect[4]->setIsEditable();
    m_pItemsSelect[4]->setExtraHeight(1.5* g_pRenderEngine->textHeight(g_idFontMenu) * MENU_ITEM_SPACING);
    m_IndexRetransmissions = addMenuItem(m_pItemsSelect[4]);
 
-   m_pItemsSelect[6] = new MenuItemSelect("Retransmissions Algorithm", "Change the way retransmissions are requested.");  
-   m_pItemsSelect[6]->addSelection("Regular");
-   m_pItemsSelect[6]->addSelection("Aggressive");
+   m_pItemsSelect[6] = new MenuItemSelect(L("Retransmissions Algorithm"), L("Change the way retransmissions are requested."));  
+   m_pItemsSelect[6]->addSelection(L("Regular"));
+   m_pItemsSelect[6]->addSelection(L("Aggressive"));
    m_pItemsSelect[6]->setIsEditable();
    m_pItemsSelect[6]->setMargin(dxMargin);
    m_IndexRetransmissionsFast = addMenuItem(m_pItemsSelect[6]);
 
-   m_pItemsSelect[1] = new MenuItemSelect("Auto Keyframing", "Automatic keyframe adjustment based on radio link conditions.");  
-   m_pItemsSelect[1]->addSelection("Off");
-   m_pItemsSelect[1]->addSelection("On");
+   m_pItemsSelect[1] = new MenuItemSelect(L("Auto Keyframing"), L("Automatic keyframe adjustment based on radio link conditions."));
+   m_pItemsSelect[1]->addSelection(L("Off"));
+   m_pItemsSelect[1]->addSelection(L("On"));
    m_pItemsSelect[1]->setIsEditable();
    m_IndexAutoKeyframe = addMenuItem(m_pItemsSelect[1]);
 
-   m_pItemsSlider[3] = new MenuItemSlider("Max Auto Keyframe (ms)", 50,20000,0, fSliderWidth);
-   m_pItemsSlider[3]->setTooltip("Sets the max allowed keyframe interval (in miliseconds) when auto adjusting is enabled for video keyframe interval parameter.");
+   m_pItemsSlider[3] = new MenuItemSlider(L("Max Auto Keyframe (ms)"), 50,20000,0, fSliderWidth);
+   m_pItemsSlider[3]->setTooltip(L("Sets the max allowed keyframe interval (in miliseconds) when auto adjusting is enabled for video keyframe interval parameter."));
    m_pItemsSlider[3]->setStep(10);
    m_pItemsSlider[3]->setMargin(dxMargin);
    m_IndexMaxKeyFrame = addMenuItem(m_pItemsSlider[3]);
 
-   m_pItemsSelect[2] = new MenuItemSelect("Auto Video Quality", "Reduce the video quality when radio link quality goes down.");  
+   m_pItemsSelect[2] = new MenuItemSelect(L("Auto Video Quality"), L("Reduce the video quality when radio link quality goes down."));  
    m_pItemsSelect[2]->addSelection("Off");
    m_pItemsSelect[2]->addSelection("On");
    m_pItemsSelect[2]->setIsEditable();
    m_IndexAdaptiveVideo = addMenuItem(m_pItemsSelect[2]);
 
-   m_pItemsSelect[5] = new MenuItemSelect("Adaptive Video Level", "Automatically adjust video and radio transmission parameters when the radio link quality and the video link quality goes lower in order to improve range, video link and quality. Full: go to lowest video quality and best transmission if needed. Medium: Moderate lower quality.");
-   m_pItemsSelect[5]->addSelection("Medium");
-   m_pItemsSelect[5]->addSelection("Full");
+   m_pItemsSelect[5] = new MenuItemSelect(L("Adaptive Video Level"), L("Automatically adjust video and radio transmission parameters when the radio link quality and the video link quality goes lower in order to improve range, video link and quality. Full: go to lowest video quality and best transmission if needed. Medium: Moderate lower quality."));
+   m_pItemsSelect[5]->addSelection(L("Medium"));
+   m_pItemsSelect[5]->addSelection(L("Full"));
    m_pItemsSelect[5]->setIsEditable();
    m_pItemsSelect[5]->setMargin(dxMargin);
    m_IndexAdaptiveVideoLevel = addMenuItem(m_pItemsSelect[5]);
 
-   m_pItemsSelect[0] = new MenuItemSelect("Algorithm", "Change the way adaptive video works.");
-   m_pItemsSelect[0]->addSelection("Default");
-   m_pItemsSelect[0]->addSelection("New");
+   m_pItemsSelect[0] = new MenuItemSelect(L("Algorithm"), L("Change the way adaptive video works."));
+   m_pItemsSelect[0]->addSelection(L("Default"));
+   m_pItemsSelect[0]->addSelection(L("New"));
    m_pItemsSelect[0]->setIsEditable();
    m_pItemsSelect[0]->setMargin(dxMargin);
    m_IndexAdaptiveAlgorithm = addMenuItem(m_pItemsSelect[0]);
 
-   m_pItemsSlider[0] = new MenuItemSlider("Auto Adjustment Strength", "How aggressive should the auto video link adjustments be (adaptive video and auto keyframe). 1 is the slowest adjustment strength, 10 is the fastest and most aggressive adjustment strength.", 1,10,5, fSliderWidth);
+   m_pItemsSlider[0] = new MenuItemSlider(L("Auto Adjustment Strength"), L("How aggressive should the auto video link adjustments be (adaptive video and auto keyframe). 1 is the slowest adjustment strength, 10 is the fastest and most aggressive adjustment strength."), 1,10,5, fSliderWidth);
    m_pItemsSlider[0]->setStep(1);
    m_pItemsSlider[0]->setMargin(dxMargin);
    m_IndexVideoAdjustStrength = addMenuItem(m_pItemsSlider[0]);
 
-   m_pItemsSelect[9] = new MenuItemSelect("Use Controller Feedback", "When vehicle adjusts video link params, use the feedback from the controller too in deciding the best video link params to be used.");  
-   m_pItemsSelect[9]->addSelection("No");
-   m_pItemsSelect[9]->addSelection("Yes");
+   m_pItemsSelect[9] = new MenuItemSelect(L("Use Controller Feedback"), L("When vehicle adjusts video link params, use the feedback from the controller too in deciding the best video link params to be used."));  
+   m_pItemsSelect[9]->addSelection(L("No"));
+   m_pItemsSelect[9]->addSelection(L("Yes"));
    m_pItemsSelect[9]->setIsEditable();
    m_pItemsSelect[9]->setMargin(dxMargin);
    m_IndexAdaptiveUseControllerToo = addMenuItem(m_pItemsSelect[9]);
 
-   m_pItemsSelect[10] = new MenuItemSelect("Lower Quality On Link Lost", "When vehicle looses connection from the controller, go to a lower video quality and lower radio datarate.");  
-   m_pItemsSelect[10]->addSelection("No");
-   m_pItemsSelect[10]->addSelection("Yes");
+   m_pItemsSelect[10] = new MenuItemSelect(L("Lower Quality On Link Lost"), L("When vehicle looses connection from the controller, go to a lower video quality and lower radio datarate."));  
+   m_pItemsSelect[10]->addSelection(L("No"));
+   m_pItemsSelect[10]->addSelection(L("Yes"));
    m_pItemsSelect[10]->setIsEditable();
    m_pItemsSelect[10]->setMargin(dxMargin);
    m_IndexVideoLinkLost = addMenuItem(m_pItemsSelect[10]);   

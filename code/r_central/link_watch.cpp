@@ -231,14 +231,14 @@ void link_watch_loop_popup_looking()
             strcat(szFreq, str_format_frequency(pRadioHWInfo->uCurrentFrequencyKhz));
          }
       }
-      snprintf(szText, sizeof(szText)/sizeof(szText[0]), "Looking for default vehicle on %s frequencies...", szFreq);
+      snprintf(szText, sizeof(szText)/sizeof(szText[0]), L("Looking for default vehicle on %s frequency..."), szFreq);
    }
    else
    {
       log_line("Will add `looking for` popup for VID %u, firmware type: %s", g_pCurrentModel->uVehicleId, str_format_firmware_type(g_pCurrentModel->getVehicleFirmwareType()));
       idIcon = osd_getVehicleIcon( g_pCurrentModel->vehicle_type );
       if ( g_pCurrentModel->radioLinksParams.links_count < 2 )
-         sprintf(szText, "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]));
+         sprintf(szText, L("Looking for %s (%s, %s)..."), g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]));
       else
       {
          if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId < 0 )
@@ -247,14 +247,14 @@ void link_watch_loop_popup_looking()
             char szFreq2[64];
             strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]));
             strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[1]));
-            sprintf(szText, "Looking for %s (%s, %s / %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", szFreq1, szFreq2);
+            sprintf(szText, L("Looking for %s (%s, %s / %s)..."), g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", szFreq1, szFreq2);
          }
          else
          {
              if ( g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId == 0 )
-               sprintf(szText, "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[1]));
+               sprintf(szText, L("Looking for %s (%s, %s)..."), g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[1]));
              else
-               sprintf(szText, "Looking for %s (%s, %s)...", g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]));
+               sprintf(szText, L("Looking for %s (%s, %s)..."), g_pCurrentModel->getLongName(), g_pCurrentModel->is_spectator?"Spectator Mode":"Control Mode", str_format_frequency(g_pCurrentModel->radioLinksParams.link_frequency_khz[0]));
          }
       }
    }
@@ -268,16 +268,16 @@ void link_watch_loop_popup_looking()
    if ( (!g_bFirstModelPairingDone) || (NULL == g_pCurrentModel) )
    {
       g_pPopupLooking->addLine(" ");
-      g_pPopupLooking->addLine("If you just installed a vehicle, power up your vehicle. The connection will be made automatically when that vehicle is in radio range.");
+      g_pPopupLooking->addLine(L("If you just installed a vehicle, power up your vehicle. The connection will be made automatically when that vehicle is in radio range."));
       g_pPopupLooking->addLine(" ");
-      g_pPopupLooking->addLine("Or press the [Menu] key to open up the menu and use [Search] menu to search for other vehicles to connect to.");
+      g_pPopupLooking->addLine(L("Or press the [Menu] key to open up the menu and use [Search] menu to search for other vehicles to connect to."));
    }
    else
    {
       g_pPopupLooking->addLine(" ");
-      g_pPopupLooking->addLine("Power up your vehicle. The connection will be made automatically when the vehicle is in radio range.");
+      g_pPopupLooking->addLine(L("Power up your vehicle. The connection will be made automatically when the vehicle is in radio range."));
       g_pPopupLooking->addLine(" ");
-      g_pPopupLooking->addLine("Or press the [Menu] key to open up the menu and switch to another vehicle or search for other vehicles.");
+      g_pPopupLooking->addLine(L("Or press the [Menu] key to open up the menu and switch to another vehicle or search for other vehicles."));
    }
    popups_add(g_pPopupLooking);
 }
@@ -360,16 +360,16 @@ void link_watch_loop_unexpected_vehicles()
       strcat(szName, (char*)g_UnexpectedVehicleRuntimeInfo.headerRubyTelemetryExtended.vehicle_name);
    
    if ( 0 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
-      sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequency as your current vehicle (%s)!", szName, g_pCurrentModel->getLongName());
+      sprintf(szBuff, L("Warning: There is a different vehicle (%s) on the same frequency as your current vehicle (%s)!"), szName, g_pCurrentModel->getLongName());
    else if ( 1 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
-      sprintf(szBuff, "Warning: There is a different vehicle (%s) on the same frequency (%s) as your current vehicle (%s)!", szName, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[0]), g_pCurrentModel->getLongName());
+      sprintf(szBuff, L("Warning: There is a different vehicle (%s) on the same frequency (%s) as your current vehicle (%s)!"), szName, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[0]), g_pCurrentModel->getLongName());
    else if ( 2 == g_pCurrentModel->radioInterfacesParams.interfaces_count )
    {
       char szFreq1[64];
       char szFreq2[64];
       strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[0]));
       strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[1]));
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, g_pCurrentModel->getLongName());
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), L("Warning: There is a different vehicle (%s) on the same frequencies (%s/%s) as your current vehicle (%s)!"), szName, szFreq1, szFreq2, g_pCurrentModel->getLongName());
    }
    else
    {
@@ -379,7 +379,7 @@ void link_watch_loop_unexpected_vehicles()
       strcpy(szFreq1, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[0]));
       strcpy(szFreq2, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[1]));
       strcpy(szFreq3, str_format_frequency(g_pCurrentModel->radioInterfacesParams.interface_current_frequency_khz[2]));
-      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), "Warning: There is a different vehicle (%s) on the same frequencies (%s/%s/%s) as your current vehicle (%s)!", szName, szFreq1, szFreq2, szFreq3, g_pCurrentModel->getLongName());
+      snprintf(szBuff, sizeof(szBuff)/sizeof(szBuff[0]), L("Warning: There is a different vehicle (%s) on the same frequencies (%s/%s/%s) as your current vehicle (%s)!"), szName, szFreq1, szFreq2, szFreq3, g_pCurrentModel->getLongName());
    }
 
    float yPos = 0.36;
@@ -388,7 +388,7 @@ void link_watch_loop_unexpected_vehicles()
    g_pPopupWrongModel = new Popup(szBuff, 0.2, yPos, 0.5, 0);
    if ( NULL == g_pPopupLooking )
       g_pPopupWrongModel->setCentered();
-   g_pPopupWrongModel->addLine("Another unpaired vehicle is using the same frequency as your current vehicle. Search and connect (pair) to this new vehicle or power it off as it will impact your radio link quality.");
+   g_pPopupWrongModel->addLine(L("Another unpaired vehicle is using the same frequency as your current vehicle. Search and connect (pair) to this new vehicle or power it off as it will impact your radio link quality."));
    g_pPopupWrongModel->setIconId(g_idIconWarning, get_Color_IconWarning());
    popups_add(g_pPopupWrongModel);
 }
@@ -455,7 +455,7 @@ void link_watch_check_link_lost()
    
    g_pPopupLinkLost = new Popup("Link lost. Trying to reconnect...", 0.28, 0.3, 0.5, 0);
    g_pPopupLinkLost->setCentered();
-   g_pPopupLinkLost->addLine("The radio link with the vehicle is lost. Will reconnect automatically when in range.");
+   g_pPopupLinkLost->addLine(L("The radio link with the vehicle is lost. Will reconnect automatically when in range."));
    g_pPopupLinkLost->setIconId(g_idIconWarning, get_Color_IconWarning());
    popups_add(g_pPopupLinkLost);
 }
@@ -653,7 +653,7 @@ void link_watch_loop_telemetry()
             static bool s_bFirstTimeFCTelemetryWarning = true;
             if ( g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent || s_bFirstTimeFCTelemetryWarning )
             {
-               warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Flight controller telemetry missing", g_idIconCPU, get_Color_IconError());
+               warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, L("Flight controller telemetry missing"), g_idIconCPU, get_Color_IconError());
             }
             g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent = false;
             s_bFirstTimeFCTelemetryWarning = false;
@@ -661,7 +661,7 @@ void link_watch_loop_telemetry()
          else
          {
             if ( ! g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent )
-               warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, "Flight controller telemetry recovered", g_idIconCPU, get_Color_IconSucces());
+               warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, L("Flight controller telemetry recovered"), g_idIconCPU, get_Color_IconSucces());
             g_VehiclesRuntimeInfo[i].bFCTelemetrySourcePresent = true;
          }
       }
@@ -684,7 +684,7 @@ void link_watch_loop_telemetry()
             {
                s_CountTelemetryLostCount++;
                char szBuff[128];
-               sprintf(szBuff, "Data stream from vehicle lost (%u)!", s_CountTelemetryLostCount);
+               sprintf(szBuff, L("Data stream from vehicle lost (%u)!"), s_CountTelemetryLostCount);
                warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, szBuff, g_idIconCPU, get_Color_IconError());
             }
             g_VehiclesRuntimeInfo[i].bRubyTelemetryLost = true;
@@ -694,7 +694,7 @@ void link_watch_loop_telemetry()
             if ( g_VehiclesRuntimeInfo[i].bRubyTelemetryLost )
             {
                char szBuff[128];
-               sprintf(szBuff, "Data stream from vehicle recovered (%u)", s_CountTelemetryLostCount);
+               sprintf(szBuff, L("Data stream from vehicle recovered (%u)"), s_CountTelemetryLostCount);
                warnings_add(g_VehiclesRuntimeInfo[i].uVehicleId, szBuff, g_idIconCPU, get_Color_IconSucces());
             }
             g_VehiclesRuntimeInfo[i].bRubyTelemetryLost = false;
@@ -724,9 +724,9 @@ void link_watch_loop_video()
          g_nSucceededOTAUpdates = 0;
          if ( (NULL != g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel) &&
               ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].pModel->iCameraCount > 0 ) )
-            warnings_add(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].uVehicleId, "Video stream was restarted on vehicle.", g_idIconWarning);
+            warnings_add(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].uVehicleId, L("Video stream was restarted on vehicle."), g_idIconWarning);
          else
-            warnings_add(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].uVehicleId, "Radio streams where restarted on vehicle.", g_idIconWarning);
+            warnings_add(g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].uVehicleId, L("Radio streams where restarted on vehicle."), g_idIconWarning);
       }
    }
 }
@@ -765,13 +765,13 @@ int link_watch_loop_processes()
          if ( (int)s_CountProcessRouterFailures > failureCountMax )
          {
             log_error_and_alarm("Router process has failed. Current router PIDS: [%s].", hw_process_get_pids_inline("ruby_rt_station"));
-            warnings_add(0, "Controller router process is malfunctioning! Restarting it.", g_idIconCPU, get_Color_IconError());
+            warnings_add(0, L("Controller router process is malfunctioning! Restarting it."), g_idIconCPU, get_Color_IconError());
             bNeedsRestart = true;
          }
          if ( (int)s_CountProcessTelemetryFailures > failureCountMax )
          {
             log_softerror_and_alarm("Telemetry process has failed. Current router PIDS: [%s].", hw_process_get_pids_inline("ruby_rx_telemetry"));
-            warnings_add(0, "Controller telemetry process is malfunctioning! Restarting it.", g_idIconCPU, get_Color_IconError());
+            warnings_add(0, L("Controller telemetry process is malfunctioning! Restarting it."), g_idIconCPU, get_Color_IconError());
             bNeedsRestart = true;
          }
 
@@ -920,13 +920,13 @@ int link_watch_loop_processes()
 
                link_watch_reset();
                popups_remove_all();
-               Popup* p = new Popup( "Radio hardware error", 0.2, 0.36, 0.5, 10);
+               Popup* p = new Popup( L("Radio hardware error"), 0.2, 0.36, 0.5, 10);
                p->setCentered();
                p->setIconId(g_idIconError, get_Color_MenuText());
 
                p->addLine(" ");
-               p->addLine("One of you radio interfaces have broken!");
-               p->addLine("Please check your hardware configuration for overheating issues or power supply issues or USB connections issues.");
+               p->addLine(L("One of you radio interfaces have broken!"));
+               p->addLine(L("Please check your hardware configuration for overheating issues or power supply issues or USB connections issues."));
                popups_add_topmost(p);
 
                if ( iNewRadioInterfacesCount <= 0 )
@@ -1036,7 +1036,7 @@ void link_watch_loop_recording()
          strcat(szFile, FILE_TEMP_VIDEO_FILE_PROCESS_ERROR);
          if ( access(szFile, R_OK) != -1 )
          {
-            warnings_add(0, "Video file processing failed.", g_idIconCamera, get_Color_IconWarning());
+            warnings_add(0, L("Video file processing failed."), g_idIconCamera, get_Color_IconWarning());
 
             char szBuff[256];
             char * line = NULL;
@@ -1055,7 +1055,7 @@ void link_watch_loop_recording()
             hw_execute_bash_command(szBuff, NULL );
          }
          else
-             warnings_add(0, "Video file processing complete.", g_idIconCamera, get_Color_IconNormal());
+             warnings_add(0, L("Video file processing complete."), g_idIconCamera, get_Color_IconNormal());
       }
    }
 }
@@ -1102,7 +1102,7 @@ void link_watch_rc()
          if ( pCI->inputInterfacesCount == 0 )
          {
              s_TimeLastWarningRCHID = g_TimeNow;
-             warnings_add(g_pCurrentModel->uVehicleId, "RC is enabled on current vehicle and the input controller device is missing!", g_idIconJoystick, get_Color_IconError());
+             warnings_add(g_pCurrentModel->uVehicleId, L("RC is enabled on current vehicle and the input controller device is missing!"), g_idIconJoystick, get_Color_IconError());
              return;
          }
       }
@@ -1117,7 +1117,7 @@ void link_watch_rc()
       if ( ! bFound )
       {
           s_TimeLastWarningRCHID = g_TimeNow;
-          warnings_add(g_pCurrentModel->uVehicleId, "RC is enabled on current vehicle and the detected RC input controller device is different from the one setup on the vehicle!", g_idIconJoystick, get_Color_IconError());
+          warnings_add(g_pCurrentModel->uVehicleId, L("RC is enabled on current vehicle and the detected RC input controller device is different from the one setup on the vehicle!"), g_idIconJoystick, get_Color_IconError());
           return;
       }
    }

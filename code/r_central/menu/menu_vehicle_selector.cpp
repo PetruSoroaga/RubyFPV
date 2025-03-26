@@ -37,7 +37,7 @@
 #include "../../common/favorites.h"
 
 MenuVehicleSelector::MenuVehicleSelector(void)
-:Menu(MENU_ID_VEHICLE_SELECTOR, "Vehicle Actions", NULL)
+:Menu(MENU_ID_VEHICLE_SELECTOR, L("Vehicle Actions"), NULL)
 {
    m_Width = 0.18;
    m_xPos = menu_get_XStartPos(this, m_Width);
@@ -65,20 +65,20 @@ void MenuVehicleSelector::onShow()
    if ( NULL == pModel )
    {
       log_softerror_and_alarm("[Menu] Vehicle Selector: NULL model for vehicle index %d.", m_IndexSelectedVehicle);
-      addMenuItem(new MenuItemText("Can't get vehicle info!"));
+      addMenuItem(new MenuItemText(L("Can't get vehicle info!")));
       return;
    }
 
    char szBuff[256];
    //sprintf(szBuff, "%s Actions", pModel->getLongName());
-   strcpy(szBuff, "Actions");
+   strcpy(szBuff, L("Actions"));
    setTitle(szBuff);
-   m_IndexSelect = addMenuItem(new MenuItem("Select","Make this vehicle the active one."));
+   m_IndexSelect = addMenuItem(new MenuItem(L("Select"), L("Make this vehicle the active one.")));
    if ( vehicle_is_favorite(pModel->uVehicleId) )
-      m_IndexFavorite = addMenuItem(new MenuItem("Remove from favorites", "Removes this vehicle from the list of favorite vehicles."));
+      m_IndexFavorite = addMenuItem(new MenuItem(L("Remove from favorites"), L("Removes this vehicle from the list of favorite vehicles.")));
    else
-      m_IndexFavorite = addMenuItem(new MenuItem("Add to favorites", "Add this vehicle to the list of favorite vehicles. You can switch quickly between favorite vehicles using a Quick Button action."));
-   m_IndexDelete = addMenuItem(new MenuItem("Delete","Deletes this vehicle."));
+      m_IndexFavorite = addMenuItem(new MenuItem(L("Add to favorites"), L("Add this vehicle to the list of favorite vehicles. You can switch quickly between favorite vehicles using a Quick Button action.")));
+   m_IndexDelete = addMenuItem(new MenuItem(L("Delete"), L("Deletes this vehicle.")));
   
    Menu::onShow();
    log_line("[Menu] Showed vehicle selector for vehicle index: %d, VID: %u, spectator mode? %s", m_IndexSelectedVehicle, pModel->uVehicleId, m_bSpectatorMode?"yes":"no");
@@ -166,7 +166,7 @@ void MenuVehicleSelector::onSelectItem()
          return;
       }
       char szBuff[64];
-      sprintf(szBuff, "Are you sure you want to delete %s?", pModel->getLongName());
+      sprintf(szBuff, L("Are you sure you want to delete %s?"), pModel->getLongName());
       add_menu_to_stack(new MenuConfirmation("Confirmation",szBuff, 1));
       return;
    }
@@ -187,7 +187,7 @@ void MenuVehicleSelector::onSelectItem()
       menu_discard_all_except(this);
       warnings_remove_all();
       render_all(get_current_timestamp_ms(), true);
-      Popup* p = new Popup("Switching vehicles...",0.3,0.64, 0.26, 0.2);
+      Popup* p = new Popup(L("Switching vehicle..."), 0.3,0.64, 0.26, 0.2);
       popups_add_topmost(p);
       render_all(get_current_timestamp_ms(), true);
 
@@ -228,9 +228,9 @@ void MenuVehicleSelector::onSelectItem()
       }
       MenuItem* pItem = NULL;
       if ( vehicle_is_favorite(pModel->uVehicleId) )
-         pItem = new MenuItem("Remove from favorites", "Removes this vehicle from the list of favorite vehicles.");
+         pItem = new MenuItem(L("Remove from favorites"), L("Removes this vehicle from the list of favorite vehicles."));
       else
-        pItem = new MenuItem("Add to favorites", "Add this vehicle to the list of favorite vehicles. You can switch quickly between favorite vehicles using a Quick Button action.");
+        pItem = new MenuItem(L("Add to favorites"), L("Add this vehicle to the list of favorite vehicles. You can switch quickly between favorite vehicles using a Quick Button action."));
       m_pMenuItems[m_IndexFavorite] = pItem;  
 
       save_favorites();

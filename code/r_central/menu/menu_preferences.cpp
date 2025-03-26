@@ -39,14 +39,14 @@
 #include "menu_preferences_ui.h"
 
 MenuPreferences::MenuPreferences(void)
-:Menu(MENU_ID_PREFERENCES, "User Interface Messages", NULL)
+:Menu(MENU_ID_PREFERENCES, L("User Interface Messages"), NULL)
 {
    m_Width = 0.34;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.12;
 
    int c = 0;
 
-   m_pItemsSelect[8] = new MenuItemSelect("Display Units", "Changes how the OSD displays data: in metric system or imperial system.");  
+   m_pItemsSelect[8] = new MenuItemSelect(L("Display Units"), L("Changes how the OSD displays data: in metric system or imperial system."));  
    m_pItemsSelect[8]->addSelection("Metric (km/h)");
    m_pItemsSelect[8]->addSelection("Metric (m/s)");
    m_pItemsSelect[8]->addSelection("Imperial (mi/h)");
@@ -54,7 +54,7 @@ MenuPreferences::MenuPreferences(void)
    m_pItemsSelect[8]->setIsEditable();
    m_IndexUnits = addMenuItem(m_pItemsSelect[8]);
 
-   m_pItemsSelect[9] = new MenuItemSelect("Persistent Messages", "Keep the various messages and warnings longer on the screen.");  
+   m_pItemsSelect[9] = new MenuItemSelect(L("Persistent Messages"), L("Keep the various messages and warnings longer on the screen."));  
    m_pItemsSelect[9]->addSelection("No");
    m_pItemsSelect[9]->addSelection("Yes");
    m_pItemsSelect[9]->setIsEditable();
