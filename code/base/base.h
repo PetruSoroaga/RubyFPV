@@ -35,7 +35,7 @@ typedef u32 __le32;
 // dword[3...0]: BB.BB.MM.mm  (BB.BB: build number (highest bytes), MM: major ver, mm: minor ver (lowest byte)) 
 #define SYSTEM_SW_VERSION_MAJOR 10
 #define SYSTEM_SW_VERSION_MINOR 80
-#define SYSTEM_SW_BUILD_NUMBER  280
+#define SYSTEM_SW_BUILD_NUMBER  281
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define le16_to_cpu(x) (x)

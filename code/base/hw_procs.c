@@ -729,6 +729,36 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
       log_line("Launched Ruby process: [%s]", szCommand);
 }
 
+void hw_init_worker_thread_attrs(pthread_attr_t* pAttr)
+{
+   if ( NULL == pAttr )
+      return;
+
+   struct sched_param params;
+   size_t iStackSize = 0;
+
+   pthread_attr_init(pAttr);
+   if ( 0 == pthread_attr_getstacksize(pAttr, &iStackSize) )
+      log_line("[HwProcs] Thread default stack size: %d bytes", iStackSize);
+   else
+      log_softerror_and_alarm("[HwProcs] Failed to get thread default stack size. Error: %d (%s)", errno, strerror(errno));
+
+   if ( 0 != pthread_attr_setstacksize(pAttr, 1024*16) )
+      log_softerror_and_alarm("[HwProcs] Failed to set thread new stack size. Error: %d (%s)", errno, strerror(errno));
+
+   iStackSize = 0;
+   if ( 0 == pthread_attr_getstacksize(pAttr, &iStackSize) )
+      log_line("[HwProcs] Thread new stack size: %d bytes", iStackSize);
+   else
+      log_softerror_and_alarm("[HwProcs] Failed to get thread new stack size. Error: %d (%s)", errno, strerror(errno));
+
+   pthread_attr_setdetachstate(pAttr, PTHREAD_CREATE_DETACHED);
+   pthread_attr_setinheritsched(pAttr, PTHREAD_EXPLICIT_SCHED);
+   pthread_attr_setschedpolicy(pAttr, SCHED_OTHER);
+   params.sched_priority = 0;
+   pthread_attr_setschedparam(pAttr, &params);
+}
+
 // Returns current priority
 int hw_get_current_thread_priority(const char* szLogPrefix)
 {

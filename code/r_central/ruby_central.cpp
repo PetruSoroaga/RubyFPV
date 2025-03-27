@@ -715,14 +715,7 @@ void compute_cpu_state()
 
       pthread_t pth;
       pthread_attr_t attr;
-      struct sched_param params;
-
-      pthread_attr_init(&attr);
-      pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-      pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-      pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
-      params.sched_priority = 0;
-      pthread_attr_setschedparam(&attr, &params);
+      hw_init_worker_thread_attrs(&attr);
       pthread_create(&pth, &attr, &_thread_check_controller_cpu_state, NULL);
       pthread_attr_destroy(&attr);
    }

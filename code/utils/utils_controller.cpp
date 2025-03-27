@@ -516,9 +516,7 @@ int tx_powers_get_max_usable_power_mw_for_controller()
       if ( iCardModel < 0 )
          iCardModel = -iCardModel;
 
-      //int iPowerMaxRaw = tx_powers_get_max_usable_power_raw_for_card(0, iCardModel);
-      //int iPowerMw = tx_powers_convert_raw_to_mw(0, iCardModel, iPowerMaxRaw);
-      int iPowerMw = tx_powers_get_max_usable_power_mw_for_card(0, iCardModel);
+      int iPowerMw = tx_powers_get_max_usable_power_mw_for_card(hardware_getBoardType(), iCardModel);
       if ( iPowerMw > iMaxPowerMw )
          iMaxPowerMw = iPowerMw;
    }
@@ -555,9 +553,9 @@ void compute_controller_radio_tx_powers(Model* pModel, shared_mem_radio_stats* p
          int iCardModel = pCRII->cardModel;
          if ( iCardModel < 0 )
             iCardModel = -iCardModel;
-         int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(0, iCardModel);
+         int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(hardware_getBoardType(), iCardModel);
          pCRII->iRawPowerLevel = DEFAULT_RADIO_TX_POWER_CONTROLLER;
-         int iPowerMw = tx_powers_convert_raw_to_mw(0, iCardModel, pCRII->iRawPowerLevel);
+         int iPowerMw = tx_powers_convert_raw_to_mw(hardware_getBoardType(), iCardModel, pCRII->iRawPowerLevel);
          log_line("Radio interface %d computed raw tx power to set: %d (%d mW out of max %d mW for this card)",
             i+1, pCRII->iRawPowerLevel, iPowerMw, iCardMaxPowerMw);
       }
@@ -590,12 +588,12 @@ void compute_controller_radio_tx_powers(Model* pModel, shared_mem_radio_stats* p
          int iCardModel = pCRII->cardModel;
          if ( iCardModel < 0 )
             iCardModel = -iCardModel;
-         int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(0, iCardModel);
+         int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(hardware_getBoardType(), iCardModel);
          int iCardPowerMwToSet = iVehicleLinkMwPower;
          if ( iCardPowerMwToSet > iCardMaxPowerMw )
             iCardPowerMwToSet = iCardMaxPowerMw;
 
-         pCRII->iRawPowerLevel = tx_powers_convert_mw_to_raw(0, iCardModel, iCardPowerMwToSet);
+         pCRII->iRawPowerLevel = tx_powers_convert_mw_to_raw(hardware_getBoardType(), iCardModel, iCardPowerMwToSet);
          log_line("Radio interface %d for radio link %d computed raw tx power to set: %d (%d mW out of max %d mW for this card)",
             i+1, iLink+1, pCRII->iRawPowerLevel, iCardPowerMwToSet, iCardMaxPowerMw);
       }
@@ -631,8 +629,8 @@ void apply_controller_radio_tx_powers(Model* pModel, shared_mem_radio_stats* pSM
       if ( iCardModel < 0 )
          iCardModel = -iCardModel;
       int iPowerRawToSet = pCRII->iRawPowerLevel;
-      int iPowerMwToSet = tx_powers_convert_raw_to_mw(0, iCardModel, iPowerRawToSet);
-      int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(0, iCardModel);
+      int iPowerMwToSet = tx_powers_convert_raw_to_mw(hardware_getBoardType(), iCardModel, iPowerRawToSet);
+      int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(hardware_getBoardType(), iCardModel);
       log_line("Radio interface %d set raw tx power: %d (%d mW out of max %d mW for this card)",
           i+1, iPowerRawToSet, iPowerMwToSet, iCardMaxPowerMw);
 

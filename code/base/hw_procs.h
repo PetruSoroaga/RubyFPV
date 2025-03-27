@@ -1,5 +1,5 @@
 #pragma once
-
+#include <pthread.h>
 #ifdef __cplusplus
 extern "C" {
 #endif 
@@ -33,6 +33,7 @@ int hw_execute_bash_command_raw_silent(const char* command, char* outBuffer);
 void hw_execute_ruby_process(const char* szPrefixes, const char* szProcess, const char* szParams, char* szOutput);
 void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess, const char* szParams, char* szOutput, int iWait);
 
+void hw_init_worker_thread_attrs(pthread_attr_t* pAttr);
 int hw_get_current_thread_priority(const char* szLogPrefix);
 int hw_increase_current_thread_priority(const char* szLogPrefix, int iNewPriority);
 

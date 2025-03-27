@@ -618,7 +618,7 @@ void _check_power_levels_of_current_cards(radio_hw_info_t* pRadioInfoArrayPrev, 
 
          log_line("Checking radio interface %d: type: %s (%s)",
             i+1, str_get_radio_card_model_string(pCRII->cardModel), (pCRII->cardModel > 0)?"autodetected":"user set");
-         int iMaxRawPower = tx_powers_get_max_usable_power_raw_for_card(0, pCRII->cardModel);
+         int iMaxRawPower = tx_powers_get_max_usable_power_raw_for_card(hardware_getBoardType(), pCRII->cardModel);
          log_line("Max raw power for radio card %d: %d, current raw power: %d", i+1, iMaxRawPower, pCRII->iRawPowerLevel);
       
          if ( iMaxRawPower < iMaximumRawCanBeSet )
@@ -635,7 +635,7 @@ void _check_power_levels_of_current_cards(radio_hw_info_t* pRadioInfoArrayPrev, 
          if ( NULL == pCRII )
             continue;
 
-         int iMaxRawPower = tx_powers_get_max_usable_power_raw_for_card(0, pCRII->cardModel);
+         int iMaxRawPower = tx_powers_get_max_usable_power_raw_for_card(hardware_getBoardType(), pCRII->cardModel);
          if ( pCRII->iRawPowerLevel > iMaxRawPower )
          {
             pCRII->iRawPowerLevel = iMaxRawPower;

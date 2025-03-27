@@ -1123,6 +1123,8 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
 
    pCurrentlyStoredModel->logVehicleRadioInfo();
 
+   apply_controller_radio_tx_powers(g_pCurrentModel, &g_SM_RadioStats);
+
    _onEventCheckModelAddNonBlockingPopupWarnings(pCurrentlyStoredModel, bUnsolicited);
 
    if ( pCurrentlyStoredModel->uVehicleId == g_pCurrentModel->uVehicleId )

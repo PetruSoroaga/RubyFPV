@@ -139,6 +139,12 @@ const int* _tx_powers_get_mw_table_for_card(u32 uBoardType, int iCardModel)
       piMwPowers = s_iTxInfoRTL8812EURunCamV2;
       return piMwPowers;
    }
+   if ( (uBoardType & BOARD_TYPE_MASK) == BOARD_TYPE_RADXA_RUNCAM_VRX )
+   if ( iCardModel == CARD_MODEL_BLUE_8812EU )
+   {
+      piMwPowers = s_iTxInfoRTL8812EURunCamV2;
+      return piMwPowers;
+   }
 
    switch (iCardModel)
    {

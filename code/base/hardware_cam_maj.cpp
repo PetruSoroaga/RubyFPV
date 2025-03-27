@@ -109,19 +109,6 @@ volatile bool s_bMajThreadSetAudioVolumeRunning = false;
 pthread_t s_ThreadMajSetAudioBitrate;
 volatile bool s_bMajThreadSetAudioBitrateRunning = false;
 
-void _adjust_thread_priority_attrs(pthread_attr_t* pAttr)
-{
-   if ( NULL == pAttr )
-      return;
-   struct sched_param params;
-
-   pthread_attr_init(pAttr);
-   pthread_attr_setdetachstate(pAttr, PTHREAD_CREATE_DETACHED);
-   pthread_attr_setinheritsched(pAttr, PTHREAD_EXPLICIT_SCHED);
-   pthread_attr_setschedpolicy(pAttr, SCHED_OTHER);
-   params.sched_priority = 0;
-   pthread_attr_setschedparam(pAttr, &params);
-}
    
 void* _thread_majestic_log_entry(void *argument)
 {
@@ -156,7 +143,7 @@ void hardware_camera_maj_add_log(const char* szLog, bool bAsync)
       return;
    strcpy(pszLog, szLog);
    pthread_attr_t attr;
-   _adjust_thread_priority_attrs(&attr);
+   hw_init_worker_thread_attrs(&attr);
    pthread_create(&s_ThreadMajLogEntry, &attr, &_thread_majestic_log_entry, pszLog);
    pthread_attr_destroy(&attr);
 }
@@ -399,7 +386,7 @@ void hardware_camera_maj_apply_image_settings(camera_profile_parameters_t* pCame
    }
    s_bMajThreadSetImageParamsRunning = true;
    pthread_attr_t attr;
-   _adjust_thread_priority_attrs(&attr);
+   hw_init_worker_thread_attrs(&attr);
    if ( 0 != pthread_create(&s_ThreadMajSetImageParams, &attr, &_thread_majestic_set_image_params, NULL) )
    {
       s_bMajThreadSetImageParamsRunning = false;
@@ -488,7 +475,7 @@ void hardware_camera_maj_update_nal_size(Model* pModel, bool bAsync)
    }
    s_bMajThreadSetNALSizeRunning = true;
    //pthread_attr_t attr;
-   //_adjust_thread_priority_attrs(&attr);
+   //hw_init_worker_thread_attrs(&attr);
    if ( 0 != pthread_create(&s_ThreadMajSetNALSize, NULL, &_thread_majestic_set_nal_size, NULL) )
    {
       s_bMajThreadSetNALSizeRunning = false;
@@ -608,7 +595,7 @@ void hardware_camera_maj_apply_all_settings(Model* pModel, camera_profile_parame
    }
    s_bMajThreadSetAllParamsRunning = true;
    pthread_attr_t attr;
-   _adjust_thread_priority_attrs(&attr);
+   hw_init_worker_thread_attrs(&attr);
    if ( 0 != pthread_create(&s_ThreadMajSetAllParams, &attr, &_thread_majestic_set_all_params, NULL) )
    {
       s_bMajThreadSetAllParamsRunning = false;
@@ -699,7 +686,7 @@ void hardware_camera_maj_set_irfilter_off(int iOff, bool bAsync)
    }
    s_bMajThreadSetIRFilterRunning = true;
    pthread_attr_t attr;
-   _adjust_thread_priority_attrs(&attr);
+   hw_init_worker_thread_attrs(&attr);
    if ( 0 != pthread_create(&s_ThreadMajSetIRFilter, &attr, &_thread_majestic_set_irfilter_mode, NULL) )
    {
       s_bMajThreadSetIRFilterRunning = false;
@@ -742,7 +729,7 @@ void hardware_camera_maj_set_daylight_off(int iDLOff)
 
    s_bMajThreadSetDaylightModeRunning = true;
    pthread_attr_t attr;
-   _adjust_thread_priority_attrs(&attr);
+   hw_init_worker_thread_attrs(&attr);
    if ( 0 != pthread_create(&s_ThreadMajSetDaylightMode, &attr, &_thread_majestic_set_daylight_mode, NULL) )
    {
       s_bMajThreadSetDaylightModeRunning = false;
@@ -786,7 +773,7 @@ void hardware_camera_maj_set_brightness(u32 uValue)
 
    s_bMajThreadSetBrightnessRunning = true;
    pthread_attr_t attr;
-   _adjust_thread_priority_attrs(&attr);
+   hw_init_worker_thread_attrs(&attr);
    if ( 0 != pthread_create(&s_ThreadMajSetBrightness, &attr, &_thread_majestic_set_brightness, NULL) )
    {
       s_bMajThreadSetBrightnessRunning = false;
@@ -828,7 +815,7 @@ void hardware_camera_maj_set_contrast(u32 uValue)
 
    s_bMajThreadSetContrastRunning = true;
    pthread_attr_t attr;
-   _adjust_thread_priority_attrs(&attr);
+   hw_init_worker_thread_attrs(&attr);
    if ( 0 != pthread_create(&s_ThreadMajSetContrast, &attr, &_thread_majestic_set_contrast, NULL) )
    {
       s_bMajThreadSetContrastRunning = false;
@@ -870,7 +857,7 @@ void hardware_camera_maj_set_hue(u32 uValue)
 
    s_bMajThreadSetHueRunning = true;
    pthread_attr_t attr;
-   _adjust_thread_priority_attrs(&attr);
+   hw_init_worker_thread_attrs(&attr);
    if ( 0 != pthread_create(&s_ThreadMajSetHue, &attr, &_thread_majestic_set_hue, NULL) )
    {
       s_bMajThreadSetHueRunning = false;
@@ -912,7 +899,7 @@ void hardware_camera_maj_set_saturation(u32 uValue)
 
    s_bMajThreadSetSaturationRunning = true;
    pthread_attr_t attr;
-   _adjust_thread_priority_attrs(&attr);
+   hw_init_worker_thread_attrs(&attr);
    if ( 0 != pthread_create(&s_ThreadMajSetStaturation, &attr, &_thread_majestic_set_saturation, NULL) )
    {
       s_bMajThreadSetSaturationRunning = false;
@@ -965,7 +952,7 @@ void hardware_camera_maj_set_keyframe(float fGOP)
 
    s_bMajThreadSetGOPRunning = true;
    //pthread_attr_t attr;
-   //_adjust_thread_priority_attrs(&attr);
+   //hw_init_worker_thread_attrs(&attr);
    //pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
    if ( 0 != pthread_create(&s_ThreadMajSetGOP, NULL, &_thread_majestic_set_temp_gop, NULL) )
    {
@@ -1022,7 +1009,7 @@ void hardware_camera_maj_set_bitrate(u32 uBitrate)
    
    s_bMajThreadSetBitrateRunning = true;
    //pthread_attr_t attr;
-   //_adjust_thread_priority_attrs(&attr);
+   //hw_init_worker_thread_attrs(&attr);
    //pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
    if ( 0 != pthread_create(&s_ThreadMajSetBitrate, NULL, &_thread_majestic_set_bitrate, NULL) )
    {
@@ -1078,7 +1065,7 @@ void hardware_camera_maj_set_qpdelta(int iQPDelta)
    
    s_bMajThreadSetQPDeltaRunning = true;
    //pthread_attr_t attr;
-   //_adjust_thread_priority_attrs(&attr);
+   //hw_init_worker_thread_attrs(&attr);
    //pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
    if ( 0 != pthread_create(&s_ThreadMajSetQPDelta, NULL, &_thread_majestic_set_qpdelta, NULL) )
    {
@@ -1160,7 +1147,7 @@ void hardware_camera_maj_set_bitrate_and_qpdelta(u32 uBitrate, int iQPDelta)
    
    s_bMajThreadSetBitrateQPDeltaRunning = true;
    //pthread_attr_t attr;
-   //_adjust_thread_priority_attrs(&attr);
+   //hw_init_worker_thread_attrs(&attr);
    //pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
    if ( 0 != pthread_create(&s_ThreadMajSetBitrateQPDelta, NULL, &_thread_majestic_set_bitrate_qpdelta, NULL) )
    {
@@ -1229,7 +1216,7 @@ void hardware_camera_maj_check_apply_cached_image_changes(u32 uTimeNow)
    s_uMajesticHasPendingCachedImageChangesTime = 0;
    pthread_t pt;
    pthread_attr_t attr;
-   _adjust_thread_priority_attrs(&attr);
+   hw_init_worker_thread_attrs(&attr);
    if ( 0 != pthread_create(&pt, &attr, &_thread_majestic_apply_cached_image_changes, NULL) )
    {
       log_softerror_and_alarm("[HwCamMajestic] Can't create thread. Apply cached image changes manualy.");
@@ -1305,7 +1292,7 @@ void hardware_camera_maj_set_audio_volume(int iVolume)
    
    s_bMajThreadSetAudioVolumeRunning = true;
    pthread_attr_t attr;
-   _adjust_thread_priority_attrs(&attr);
+   hw_init_worker_thread_attrs(&attr);
    pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
    if ( 0 != pthread_create(&s_ThreadMajSetAudioVolume, &attr, &_thread_majestic_set_audio_volume, NULL) )
    {
@@ -1364,7 +1351,7 @@ void hardware_camera_maj_set_audio_quality(int iBitrate)
    
    s_bMajThreadSetAudioBitrateRunning = true;
    pthread_attr_t attr;
-   _adjust_thread_priority_attrs(&attr);
+   hw_init_worker_thread_attrs(&attr);
    pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
    if ( 0 != pthread_create(&s_ThreadMajSetAudioBitrate, &attr, &_thread_majestic_set_audio_bitrate, NULL) )
    {

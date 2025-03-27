@@ -363,14 +363,7 @@ void controller_check_update_processes_affinities()
 
    pthread_t pThreadBg;
    pthread_attr_t attr;
-   struct sched_param params;
-
-   pthread_attr_init(&attr);
-   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-   pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-   pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
-   params.sched_priority = 0;
-   pthread_attr_setschedparam(&attr, &params);
+   hw_init_worker_thread_attrs(&attr);
 
    if ( 0 != pthread_create(&pThreadBg, &attr, &_thread_adjust_affinities, NULL) )
    {

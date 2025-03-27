@@ -217,7 +217,7 @@ void MenuTXRawPower::addItemsController()
                continue;
 
             int iCardModel = pCRII->cardModel;
-            int iCardPowerMwNow = tx_powers_convert_raw_to_mw(0, iCardModel, pCRII->iRawPowerLevel);
+            int iCardPowerMwNow = tx_powers_convert_raw_to_mw(hardware_getBoardType(), iCardModel, pCRII->iRawPowerLevel);
             char szBuff[128];
             if ( iCountInterfacesForLink < 2 )
             {
@@ -272,7 +272,7 @@ void MenuTXRawPower::addItemsController()
          if ( NULL == pCRII )
             continue;
 
-         m_pItemSelectControllerCards[i] = createItemCard(false, 0, iCountRadioLinks, iLink, i, pCRII->cardModel, pCRII->iRawPowerLevel);
+         m_pItemSelectControllerCards[i] = createItemCard(false, hardware_getBoardType(), iCountRadioLinks, iLink, i, pCRII->cardModel, pCRII->iRawPowerLevel);
          if ( NULL != m_pItemSelectControllerCards[i] )
             m_IndexControllerTxPowerRadioLinks[i] = addMenuItem(m_pItemSelectControllerCards[i]);
       }

@@ -148,26 +148,19 @@ void oled_render_shutdown()
 
 int oled_render_thread_start()
 {
-    if ( s_iOLEDRenderInit == -1 )
-        return -1;
+   if ( s_iOLEDRenderInit == -1 )
+      return -1;
 
    s_bHasOLEDRenderThread = false;
-    pthread_attr_t attr;
-    struct sched_param params;
-
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-    pthread_attr_setschedpolicy(&attr, SCHED_FIFO);
-    params.sched_priority = 10;
-    pthread_attr_setschedparam(&attr, &params);
-    if (0 != pthread_create(&s_pThreadOLEDRenderAsync, &attr, &_thread_oled_render_async, NULL))
-    {
-        pthread_attr_destroy(&attr);
-        log_softerror_and_alarm("[OLED] Failed to start oled render thread.");
-        return -1;
-    }
-    pthread_attr_destroy(&attr);
-    s_bHasOLEDRenderThread = true;
-    return 0;
+   pthread_attr_t attr;
+   hw_init_worker_thread_attrs(&attr);
+   if (0 != pthread_create(&s_pThreadOLEDRenderAsync, &attr, &_thread_oled_render_async, NULL))
+   {
+       pthread_attr_destroy(&attr);
+       log_softerror_and_alarm("[OLED] Failed to start oled render thread.");
+       return -1;
+   }
+   pthread_attr_destroy(&attr);
+   s_bHasOLEDRenderThread = true;
+   return 0;
 }

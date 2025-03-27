@@ -127,14 +127,7 @@ int hardware_get_free_space_kb_async()
 {
    s_iGetFreeSpaceAsyncResultValueKb = -1;
    pthread_attr_t attr;
-   struct sched_param params;
-
-   pthread_attr_init(&attr);
-   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-   pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-   pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
-   params.sched_priority = 0;
-   pthread_attr_setschedparam(&attr, &params);
+   hw_init_worker_thread_attrs(&attr);
    if ( 0 != pthread_create(&s_pThreadGetFreeSpaceAsync, &attr, &_thread_get_free_space_async, NULL) )
    {
       pthread_attr_destroy(&attr);

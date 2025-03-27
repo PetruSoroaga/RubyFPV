@@ -501,14 +501,7 @@ void MenuControllerVideo::onSelectItem()
       send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_PAUSE_RESUME_AUDIO, 1);
       s_bStopAudioTest = false;
       pthread_attr_t attr;
-      struct sched_param params;
-
-      pthread_attr_init(&attr);
-      pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-      pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-      pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
-      params.sched_priority = 0;
-      pthread_attr_setschedparam(&attr, &params);
+      hw_init_worker_thread_attrs(&attr);
       if ( 0 != pthread_create(&s_pThreadAudioTest, &attr, &_thread_audio_test_async, NULL) )
       {
          pthread_attr_destroy(&attr);

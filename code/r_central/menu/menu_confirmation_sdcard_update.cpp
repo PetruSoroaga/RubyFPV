@@ -147,14 +147,7 @@ void MenuConfirmationSDCardUpdate::onSelectItem()
       m_bDoingUpdate = true;
       m_bUpdateFinished = false;
       pthread_attr_t attr;
-      struct sched_param params;
-
-      pthread_attr_init(&attr);
-      pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-      pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-      pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
-      params.sched_priority = 0;
-      pthread_attr_setschedparam(&attr, &params);
+      hw_init_worker_thread_attrs(&attr);
       if ( 0 != pthread_create(&m_pThreadUpdate, &attr, &_thread_sdcard_update, (void*)&m_bUpdateFinished) )
       {
          log_softerror_and_alarm("MenuSDCardUpdate: Failed to create update thread.");

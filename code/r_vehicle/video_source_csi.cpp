@@ -411,14 +411,7 @@ void video_source_csi_start_program()
    s_bHasThreadWatchDogVideoCapture = false;
 
    pthread_attr_t attr;
-   struct sched_param params;
-
-   pthread_attr_init(&attr);
-   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-   pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-   pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
-   params.sched_priority = 0;
-   pthread_attr_setschedparam(&attr, &params);
+   hw_init_worker_thread_attrs(&attr);
    
    if ( 0 != pthread_create(&s_pThreadWatchDogVideoCapture, &attr, &_thread_watchdog_video_capture, NULL) )
       log_softerror_and_alarm("[VideoSourceCSI] Failed to create thread for watchdog.");

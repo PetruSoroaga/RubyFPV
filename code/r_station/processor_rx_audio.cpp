@@ -460,14 +460,7 @@ void start_audio_player_and_pipe()
    _open_audio_pipes();
 
    pthread_attr_t attr;
-   struct sched_param params;
-
-   pthread_attr_init(&attr);
-   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-   pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-   pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
-   params.sched_priority = 0;
-   pthread_attr_setschedparam(&attr, &params);
+   hw_init_worker_thread_attrs(&attr);
    s_bThreadAudioQueueingStarted = true;
    s_bStopThreadAudioQueueing = false;
    if ( 0 != pthread_create(&s_ThreadAudioQueueing, &attr, &_thread_audio_queueing_playback, NULL) )
@@ -477,12 +470,7 @@ void start_audio_player_and_pipe()
    }
    pthread_attr_destroy(&attr);
 
-   pthread_attr_init(&attr);
-   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-   pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-   pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
-   params.sched_priority = 0;
-   pthread_attr_setschedparam(&attr, &params);
+   hw_init_worker_thread_attrs(&attr);
    s_bThreadAudioBufferingStarted = true;
    s_bStopThreadAudioBuffering = false;
    if ( 0 != pthread_create(&s_ThreadAudioBuffering, &attr, &_thread_audio_buffering_playback, NULL) )
@@ -625,14 +613,7 @@ void init_audio_rx_state()
    {
       log_line("[AudioRx] Init Rx state: restarting buffering thread...");
       pthread_attr_t attr;
-      struct sched_param params;
-
-      pthread_attr_init(&attr);
-      pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-      pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-      pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
-      params.sched_priority = 0;
-      pthread_attr_setschedparam(&attr, &params);
+      hw_init_worker_thread_attrs(&attr);
       s_bThreadAudioBufferingStarted = true;
       s_bStopThreadAudioBuffering = false;
       if ( 0 != pthread_create(&s_ThreadAudioBuffering, &attr, &_thread_audio_buffering_playback, NULL) )

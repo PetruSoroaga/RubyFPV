@@ -92,71 +92,6 @@ void MenuControllerRadio::addItems()
       addItemsFixedPower();
    else
       addItemsVehiclePower();
-    /*
-   int iMwPowers[MAX_RADIO_INTERFACES];
-   int iCountPowers = 0;
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      if ( ! hardware_radio_index_is_wifi_radio(i) )
-         continue;
-      if ( hardware_radio_index_is_sik_radio(i) )
-         continue;
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( (! pRadioHWInfo->isConfigurable) || (! pRadioHWInfo->isSupported) )
-         continue;
-
-      t_ControllerRadioInterfaceInfo* pCRII = controllerGetRadioCardInfo(pRadioHWInfo->szMAC);
-      if ( NULL == pCRII )
-         continue;
-
-      iMwPowers[iCountPowers] = pCRII->iRawPowerLevel;
-      iCountPowers++;
-   }
-
-   m_iMaxPowerMw = tx_powers_get_max_usable_power_mw_for_controller();
-   m_pItemsSelect[1] = createMenuItemTxPowers("Radio Tx Power (mW)", pCS->iFixedTxPower?false:true, false, false, &(iMwPowers[0]), iCountPowers, m_iMaxPowerMw);
-   m_IndexTxPower = addMenuItem(m_pItemsSelect[1]);
-
-   if ( (! pCS->iFixedTxPower) && (NULL != g_pCurrentModel) )
-   {
-      int iCurrentMaxSetPowerMw = apply_controller_radio_tx_powers(g_pCurrentModel, pCS->iFixedTxPower, true);
-      char szText[128];
-      sprintf(szText, "Current Tx Power: %d mW (%s)", iCurrentMaxSetPowerMw, L("Computed based on current vehicle radio Tx power settings"));
-      addMenuItem(new MenuItemText(szText, true));
-   }
-
-   MenuItemLegend* pLegend = NULL;
-   char szText[256];
-   if ( pCS->iFixedTxPower )
-      strcpy(szText, L("Maximum selectable controller Tx power is computed based on detected radio interfaces on the controller."));
-   else
-      strcpy(szText, L("Controller Tx power is computed automatically for each radio link based on vehicle's radio links Tx power and the Tx capabilities of the controller's radio interfaces."));
-
-   char szBuff[255];
-   szBuff[0] = 0;
-   for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-   {
-      if ( ! hardware_radio_index_is_wifi_radio(i) )
-         continue;
-      radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(i);
-      if ( NULL == pRadioHWInfo )
-         continue;
-      if ( 0 != szBuff[0] )
-         strcat(szBuff, ", ");
-      //str_get_radio_driver_description(pRadioHWInfo->iRadioDriver);
-      strcat(szBuff, str_get_radio_card_model_string_short(pRadioHWInfo->iCardModel));
-   }
-   strcat(szText, " (");
-   strcat(szText, L("Controller"));
-   strcat(szText, ": ");
-   strcat(szText, szBuff);
-   strcat(szText, ")");
-   pLegend = new MenuItemLegend(L("Note"), szText, 0);
-   
-   pLegend->setExtraHeight(0.4*g_pRenderEngine->textHeight(g_idFontMenu));
-   addMenuItem(pLegend);
-
-   */
 
    m_pMenuItems[m_ItemsCount-1]->setExtraHeight(0.4*g_pRenderEngine->textHeight(g_idFontMenu));
 
@@ -194,7 +129,7 @@ void MenuControllerRadio::addItemsFixedPower()
       if ( NULL == pCRII )
          continue;
 
-      iMwPowers[iCountPowers] = tx_powers_convert_raw_to_mw(0, pCRII->cardModel, pCRII->iRawPowerLevel);
+      iMwPowers[iCountPowers] = tx_powers_convert_raw_to_mw(hardware_getBoardType(), pCRII->cardModel, pCRII->iRawPowerLevel);
       iCountPowers++;
    }
 
@@ -263,7 +198,7 @@ void MenuControllerRadio::addItemsVehiclePower()
             continue;
 
          int iCardModel = pCRII->cardModel;
-         int iCardPowerMwNow = tx_powers_convert_raw_to_mw(0, iCardModel, pCRII->iRawPowerLevel);
+         int iCardPowerMwNow = tx_powers_convert_raw_to_mw(hardware_getBoardType(), iCardModel, pCRII->iRawPowerLevel);
          char szBuff[128];
          if ( iCountInterfacesForLink < 2 )
          {
@@ -383,11 +318,11 @@ void MenuControllerRadio::onSelectItem()
 
          int iCardModel = pCRII->cardModel;
 
-         int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(0, iCardModel);
+         int iCardMaxPowerMw = tx_powers_get_max_usable_power_mw_for_card(hardware_getBoardType(), iCardModel);
          int iCardNewPowerMw = iPowerMwToSet;
          if ( iCardNewPowerMw > iCardMaxPowerMw )
             iCardNewPowerMw = iCardMaxPowerMw;
-         int iTxPowerRawToSet = tx_powers_convert_mw_to_raw(0, iCardModel, iCardNewPowerMw);
+         int iTxPowerRawToSet = tx_powers_convert_mw_to_raw(hardware_getBoardType(), iCardModel, iCardNewPowerMw);
          log_line("MenuControllerRadio: Setting tx raw power for card %d from %d to: %d (%d mw out of max %d mw for this card)",
             i+1, pCRII->iRawPowerLevel, iTxPowerRawToSet, iCardNewPowerMw, iCardMaxPowerMw);
          pCRII->iRawPowerLevel = iTxPowerRawToSet;

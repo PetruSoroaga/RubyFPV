@@ -1895,7 +1895,7 @@ float MenuRadioConfig::drawOneRadioLink(float xStart, float xEnd, float yStart, 
             sprintf(szTxPower, "%.1f W", (float)iVehicleMw/1000.0);
          g_pRenderEngine->drawTextLeft(xLineVeh - height_text*0.2, yLineMarginVeh - height_text*1.2, g_idFontMenuSmall, szTxPower);
       }
-      int iCardMw = tx_powers_convert_raw_to_mw(0, pCardInfo->cardModel, pCardInfo->iRawPowerLevel);
+      int iCardMw = tx_powers_convert_raw_to_mw(hardware_getBoardType(), pCardInfo->cardModel, pCardInfo->iRawPowerLevel);
       if ( iCardMw < 1000 )
          sprintf(szTxPower, "%d mW", iCardMw);
       else

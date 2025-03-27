@@ -664,15 +664,7 @@ void rx_video_output_init()
    s_bRxVideoOutputStreamerMustReinitialize = false;
 
    pthread_attr_t attr;
-   struct sched_param params;
-
-   pthread_attr_init(&attr);
-   pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-   pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-   pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
-   params.sched_priority = 0;
-   pthread_attr_setschedparam(&attr, &params);
-
+   hw_init_worker_thread_attrs(&attr);
    if ( 0 != pthread_create(&s_pThreadRxVideoOutputStreamer, &attr, &_thread_rx_video_output_streamer_watchdog, NULL) )
       log_error_and_alarm("[VideoOutput] Failed to create thread for video streamer output check");
    pthread_attr_destroy(&attr);
