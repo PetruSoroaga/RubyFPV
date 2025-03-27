@@ -471,6 +471,8 @@ void MenuController::updateControllerSoftware()
       hw_execute_ruby_process(NULL, "ruby_update_worker", NULL, NULL);
       ruby_signal_alive();
 
+      u32 uTimeWorkerFinished = 0;
+
       log_line("Waiting for update process to start and finish, repeat count: %d ...", iRepeatCount);
       bool bFoundProcess = false;
       bool bFinishedProcess = false;
@@ -543,7 +545,22 @@ void MenuController::updateControllerSoftware()
                    removeTrailingNewLines(szOutput);
                    char* p = removeLeadingWhiteSpace(szOutput);
                    log_line("Update worker process finished (test 2), ps list: [%s]", p);
-                   bFinishedProcess = true;
+                   if (0 == uTimeWorkerFinished )
+                   {
+                      uTimeWorkerFinished = g_TimeNow;
+                      log_line("update worker process is finished at time now.");
+                   }
+                   else
+                   {
+                      u32 uDeltaStop = g_TimeNow - uTimeWorkerFinished;
+                      if ( uDeltaStop < 3000 )
+                         log_line("waiting to see if update worker is really finished, waiting since %u ms ago", uDeltaStop);
+                      else
+                      {
+                         log_line("update worker process is finished since %u ms ago. Finish this update run.", uDeltaStop);
+                         bFinishedProcess = true;
+                      }
+                   }
                 }
              }
          }

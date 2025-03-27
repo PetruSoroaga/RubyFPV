@@ -224,8 +224,11 @@ void _write_return_code(int iCode, const char* szText)
    strcpy(szFile, FOLDER_RUBY_TEMP);
    strcat(szFile, FILE_TEMP_UPDATE_CONTROLLER_PROGRESS);
 
-   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s", szFile);
-   hw_execute_bash_command(szComm, NULL);
+   if ( access(szFile, R_OK) != -1 )
+   {
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "chmod 777 %s", szFile);
+      hw_execute_bash_command(szComm, NULL);
+   }
    FILE* fd = fopen(szFile, "wb");
    if ( fd != NULL )
    {
