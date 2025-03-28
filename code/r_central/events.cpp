@@ -140,8 +140,6 @@ void onMainVehicleChanged(bool bRemovePreviousVehicleState)
    
    if ( NULL == g_pCurrentModel )
       log_softerror_and_alarm("[Events] New main vehicle is NULL.");
-
-   render_all(g_TimeNow);
          
    //g_nTotalControllerCPUSpikes = 0;
 
@@ -190,6 +188,9 @@ void onMainVehicleChanged(bool bRemovePreviousVehicleState)
    osd_widgets_on_main_vehicle_changed(g_pCurrentModel->uVehicleId);
    
    warnings_on_changed_vehicle();
+
+   render_all(g_TimeNow);
+
    log_line("[Events] Handled event Main Vehicle Changed. Done.");
 }
 

@@ -91,8 +91,9 @@ u32 _getBestMatchingFontHeight(u32* pFontList, int iFontCount, float fPixelsHeig
          return pFontList[i];
       }
    }
-   log_line("Best font match for %d pixels height: default font index %d, font id: %u", (int)fPixelsHeight, iFontCount-1, pFontList[iFontCount-1]);
-   return pFontList[iFontCount-1];
+   int iIndex = iFontCount/2;
+   log_line("Best font match for %d pixels height: use a default font index: %d, font id: %u", (int)fPixelsHeight, iIndex, pFontList[iIndex]);
+   return pFontList[iIndex];
 }
 
 bool _loadFontFamily(int iFamilyId, const char* szName, int iBold, u32* pOutputList, int* pCountOutput)
@@ -236,14 +237,17 @@ void applyFontScaleChanges()
    u32 uFontId = 0;
    uFontId = _getBestMatchingFontHeight(s_ListMenuFontSizes, s_iListMenuFontSizesCount, hScreen * fMenuFontSize );
    _applyNewFontToExistingPopups(g_idFontMenu, uFontId);
+   log_line("Switching font menu from font id %u to font id %u", g_idFontMenu, uFontId);
    g_idFontMenu = uFontId;
 
    uFontId = _getBestMatchingFontHeight(s_ListMenuFontSizes, s_iListMenuFontSizesCount, hScreen * fMenuFontSize * 0.8 );
    _applyNewFontToExistingPopups(g_idFontMenuSmall, uFontId);
+   log_line("Switching font menu small from font id %u to font id %u", g_idFontMenuSmall, uFontId);
    g_idFontMenuSmall = uFontId;
 
    uFontId = _getBestMatchingFontHeight(s_ListMenuFontSizes, s_iListMenuFontSizesCount, hScreen * fMenuFontSize * 1.24 );
    _applyNewFontToExistingPopups(g_idFontMenuLarge, uFontId);
+   log_line("Switching font menu big from font id %u to font id %u", g_idFontMenuLarge, uFontId);
    g_idFontMenuLarge = uFontId;
    
    log_line("Applying OSD font size of: %d pixels (screen height: %d pixels)", (int)(hScreen * fOSDFontSize), (int) hScreen);

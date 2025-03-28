@@ -56,21 +56,22 @@ static bool s_bLastCairoFontStyleBold = false;
 RenderEngineCairo::RenderEngineCairo()
 :RenderEngine()
 {
-   log_line("RendererCairo: Init started.");
-
+   log_line("[RenderEngineCairo] RendererCairo: Init started.");
+   m_bMustTestFontAccess = true;
+   m_bHasNewFont = false;
    type_drm_display_attributes* pDisplayInfo = ruby_drm_get_main_display_info();
    m_iRenderWidth = pDisplayInfo->iWidth;
    m_iRenderHeight = pDisplayInfo->iHeight;
    m_fPixelWidth = 1.0/(float)m_iRenderWidth;
    m_fPixelHeight = 1.0/(float)m_iRenderHeight;
 
-   log_line("RendererCairo: Display size is: %d x %d, pixel size: %.4f x %.4f",
+   log_line("[RenderEngineCairo] Display size is: %d x %d, pixel size: %.4f x %.4f",
     m_iRenderWidth, m_iRenderHeight,
     m_fPixelWidth, m_fPixelHeight);
    type_drm_buffer* pMainDisplayBuffer = ruby_drm_core_get_main_draw_buffer();
    type_drm_buffer* pBackDisplayBuffer = ruby_drm_core_get_back_draw_buffer();
    
-   log_line("RendererCairo: Display buffers size: front: %d x %d, back: %d x %d",
+   log_line("[RenderEngineCairo] Display buffers size: front: %d x %d, back: %d x %d",
       pMainDisplayBuffer->uWidth, pMainDisplayBuffer->uHeight,
       pBackDisplayBuffer->uWidth, pBackDisplayBuffer->uHeight );
    
@@ -82,9 +83,9 @@ RenderEngineCairo::RenderEngineCairo()
    m_pMainCairoSurface[1] = cairo_image_surface_create_for_data (pBackDisplayBuffer->pData, CAIRO_FORMAT_ARGB32, 
        pBackDisplayBuffer->uWidth, pBackDisplayBuffer->uHeight, pBackDisplayBuffer->uStride);
    if ( (NULL == m_pMainCairoSurface[0]) || (NULL == m_pMainCairoSurface[1]) )
-      log_softerror_and_alarm("RendererCairo: Failed to create main and back cairo surfaces.");
+      log_softerror_and_alarm("[RenderEngineCairo] Failed to create main and back cairo surfaces.");
    else
-      log_line("RendererCairo: Created main and back cairo surfaces for render buffer ids %u and %u", m_uRenderDrawSurfacesIds[0], m_uRenderDrawSurfacesIds[1]);
+      log_line("[RenderEngineCairo] Created main and back cairo surfaces for render buffer ids %u and %u", m_uRenderDrawSurfacesIds[0], m_uRenderDrawSurfacesIds[1]);
 
    m_pCairoCtx = NULL;
    m_pCairoTempCtx = NULL;
@@ -94,7 +95,7 @@ RenderEngineCairo::RenderEngineCairo()
    m_iCountIcons = 0;
    m_CurrentImageId = 0;
    m_CurrentIconId = 0;
-   log_line("RendererCairo: Render init done.");
+   log_line("[RenderEngineCairo] Render init done.");
 }
 
 
@@ -121,12 +122,18 @@ void* RenderEngineCairo::getDrawContext()
 
 void RenderEngineCairo::startFrame()
 {
+   if ( m_bStartedFrame )
+   {
+      log_softerror_and_alarm("[RenderEngineCairo] Tried to double start a render frame.");
+      return;
+   }
+
+   RenderEngine::startFrame();
 
    if ( NULL != m_pCairoTempCtx )
       cairo_destroy(m_pCairoTempCtx);
    m_pCairoTempCtx = NULL;
 
-   RenderEngine::startFrame();
    s_iLastCairoFontFamilyId = -1;
    s_bLastCairoFontStyleBold = false;
    
@@ -152,6 +159,12 @@ void RenderEngineCairo::startFrame()
 
 void RenderEngineCairo::endFrame()
 {
+   if ( ! m_bStartedFrame )
+   {
+      log_softerror_and_alarm("[RenderEngineCairo] Tried to double end a render frame.");
+      return;
+   }
+
    if ( NULL != m_pCairoCtx )
       cairo_destroy(m_pCairoCtx);
    m_pCairoCtx = NULL; 
@@ -216,14 +229,14 @@ void* RenderEngineCairo::_loadRawFontImageObject(const char* szFileName)
 {
    if ( (NULL == szFileName) || (0 == szFileName[0]) )
    {
-      log_softerror_and_alarm("[RendererCairo] Failed to load image. Invalid filename.");
+      log_softerror_and_alarm("[RenderEngineCairo] Failed to load image. Invalid filename.");
       return NULL;
    }
    cairo_surface_t* pImage = cairo_image_surface_create_from_png (szFileName);
    if ( (NULL == pImage) || (cairo_image_surface_get_stride(pImage) <= 0) )
-      log_softerror_and_alarm("[RendererCairo] Failed to load image (%s)", szFileName);
+      log_softerror_and_alarm("[RenderEngineCairo] Failed to load image (%s)", szFileName);
    else
-      log_line("[RendererCairo] Loaded image (%s), stride: %d, wxh: %dx%d, ptr: %X",
+      log_line("[RenderEngineCairo] Loaded image (%s), stride: %d, wxh: %dx%d, ptr: %X",
           szFileName, cairo_image_surface_get_stride(pImage),
           cairo_image_surface_get_width(pImage),
           cairo_image_surface_get_width(pImage), pImage );
@@ -235,7 +248,7 @@ void RenderEngineCairo::_freeRawFontImageObject(void* pImageObject)
    if ( NULL == pImageObject )
       return;
    cairo_surface_destroy((cairo_surface_t*)pImageObject);
-   log_line("[RendererCairo] Destroyed image object %X", pImageObject);
+   log_line("[RenderEngineCairo] Destroyed image object %X", pImageObject);
 }
 
 void RenderEngineCairo::setFontOutlineColor(u32 idFont, u8 r, u8 g, u8 b, u8 a)
@@ -260,9 +273,9 @@ u32 RenderEngineCairo::loadImage(const char* szFile)
       return 0;
    }
    if ( NULL != m_pImages[m_iCountImages] )
-      log_line("Loaded image %s, id: %u", szFile, m_CurrentImageId+1);
+      log_line("[RenderEngineCairo] Loaded image %s, id: %u", szFile, m_CurrentImageId+1);
    else
-      log_softerror_and_alarm("Failed to load image %s", szFile);
+      log_softerror_and_alarm("[RenderEngineCairo] Failed to load image %s", szFile);
 
    m_CurrentImageId++;
    m_ImageIds[m_iCountImages] = m_CurrentImageId;
@@ -315,9 +328,9 @@ u32 RenderEngineCairo::loadIcon(const char* szFile)
       return 0;
    }
    if ( NULL != m_pIcons[m_iCountIcons] )
-      log_line("Loaded icon %s, id: %u", szFile, m_CurrentIconId+1);
+      log_line("[RenderEngineCairo] Loaded icon %s, id: %u", szFile, m_CurrentIconId+1);
    else
-      log_softerror_and_alarm("Failed to load icon %s", szFile);
+      log_softerror_and_alarm("[RenderEngineCairo] Failed to load icon %s", szFile);
 
    // To fix : build MIp images for icons
    //_buildMipImage(m_pIcons[m_iCountIcons], m_pIconsMip[m_iCountIcons][0]);
@@ -1357,11 +1370,33 @@ void RenderEngineCairo::drawArc(float x, float y, float r, float a1, float a2)
 
 void RenderEngineCairo::_updateCurrentFontToUse(RenderEngineRawFont* pFont, bool bForce)
 {
-   if ( NULL == pFont )
-      return;
    cairo_t* pCairoCtx = _getActiveCairoContext();
    if ( NULL == pCairoCtx )
        pCairoCtx = _createTempDrawContext();
+
+   if ( m_bMustTestFontAccess )
+   {
+      log_line("[RenderEngineCairo] Test access to new fonts...");
+      m_bMustTestFontAccess = false;
+      #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA)
+      m_bHasNewFont = false;
+      if ( access("/usr/share/fonts/truetype/noto/noto.ttf", R_OK) != -1 )
+          m_bHasNewFont = true;
+      #endif
+      log_line("[RenderEngineCairo] Test access to new fonts result: %s", m_bHasNewFont?"ok":"failed");
+   }
+
+   if ( NULL == pFont )
+   {
+      log_softerror_and_alarm("[RenderEngineCairo] Tried to use a NULL font object. Use default font.");
+      if ( m_bHasNewFont )
+         cairo_select_font_face(pCairoCtx, "Noto Sans SC", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+      else
+         cairo_select_font_face(pCairoCtx, "DejaVu Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+      s_iLastCairoFontFamilyId = -1;
+      s_bLastCairoFontStyleBold = false;
+      return;
+   }
 
    if ( bForce || (s_iLastCairoFontFamilyId != pFont->iFamilyId) || (s_bLastCairoFontStyleBold != pFont->bBold) )
    {
@@ -1372,7 +1407,9 @@ void RenderEngineCairo::_updateCurrentFontToUse(RenderEngineRawFont* pFont, bool
       if ( s_bLastCairoFontStyleBold )
          iStyle = CAIRO_FONT_WEIGHT_BOLD;
 
-      if ( s_iLastCairoFontFamilyId == 0 )
+      if ( ! m_bHasNewFont )
+         cairo_select_font_face(pCairoCtx, "DejaVu Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+      else if ( s_iLastCairoFontFamilyId == 0 )
          cairo_select_font_face(pCairoCtx, "Noto Sans SC", CAIRO_FONT_SLANT_NORMAL, iStyle);
       else if ( s_iLastCairoFontFamilyId == 1 )
          cairo_select_font_face(pCairoCtx, "DejaVu Sans", CAIRO_FONT_SLANT_NORMAL, iStyle);
@@ -1397,7 +1434,7 @@ float RenderEngineCairo::textRawWidthScaled(u32 fontId, float fScale, const char
    if ( NULL == pCairoCtx )
        pCairoCtx = _createTempDrawContext();
    cairo_move_to(pCairoCtx, 0,0);
-   _updateCurrentFontToUse(pFont, true);
+   _updateCurrentFontToUse(pFont, false);
    cairo_set_font_size(pCairoCtx, pFont->lineHeight*0.8*fScale);
 
    char szTxt[256];
@@ -1478,7 +1515,7 @@ float RenderEngineCairo::textRawWidthScaled(u32 fontId, float fScale, const char
    */
 }
 
-
+/*
 float RenderEngineCairo::_get_raw_char_width(RenderEngineRawFont* pFont, int ch)
 {
    cairo_t* pCairoCtx = _getActiveCairoContext();
@@ -1492,7 +1529,7 @@ float RenderEngineCairo::_get_raw_char_width(RenderEngineRawFont* pFont, int ch)
    szText[1] = 0;
 
    cairo_move_to(pCairoCtx, 0,0);
-   _updateCurrentFontToUse(pFont, true);
+   _updateCurrentFontToUse(pFont, false);
    cairo_set_font_size(pCairoCtx, pFont->lineHeight*0.8);
 
    cairo_text_extents_t cte;
@@ -1509,6 +1546,7 @@ float RenderEngineCairo::_get_raw_char_width(RenderEngineRawFont* pFont, int ch)
    }
    return fWidth * m_fPixelWidth;
 }
+*/
 
 void RenderEngineCairo::_drawSimpleText(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos)
 {
@@ -1517,7 +1555,12 @@ void RenderEngineCairo::_drawSimpleText(RenderEngineRawFont* pFont, const char* 
 
 void RenderEngineCairo::_drawSimpleTextScaled(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos, float fScale)
 {
-   if ( (NULL == pFont) || (NULL == szText) || (0 == szText[0]) )
+   if ( NULL == pFont )
+   {
+      log_error_and_alarm("[RenderEngineCairo] Tried to draw using a NULL font object.");
+      return;
+   }
+   if ( (NULL == szText) || (0 == szText[0]) )
       return;
 
    if ( yPos < 0 )

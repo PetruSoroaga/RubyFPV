@@ -116,7 +116,7 @@ int mpp_feed_data_to_decoder(void* pData, int iLength)
 
 int _mpp_init_frames(MppFrame pFrame)
 {
-   log_line("[MPP] Init frames...");
+   log_line("[MPP] Init frames (%d frames)...", g_iMPPBuffersSize);
    u32 uTimeStart = get_current_timestamp_ms();
 
    int w = mpp_frame_get_width(pFrame);
@@ -211,7 +211,7 @@ int _mpp_init_frames(MppFrame pFrame)
 
    u32 uTimeDiff = get_current_timestamp_ms() - uTimeStart;
    
-   log_line("[MPP] Init frames done (took %u ms)", uTimeDiff);
+   log_line("[MPP] Init frames (%d frames) done (took %u ms)", g_iMPPBuffersSize, uTimeDiff);
    return 0;
 }
 

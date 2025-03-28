@@ -51,7 +51,7 @@ static bool s_bRenderEngineSupportsRawFonts = false;
 
 RenderEngine* render_init_engine()
 {
-   log_line("Renderer Engine Init...");
+   log_line("[RenderEngine] Renderer Engine Init...");
    if ( NULL == s_pRenderEngine )
    {
       #if defined (HW_PLATFORM_RASPBERRY)
@@ -135,13 +135,13 @@ RenderEngine::~RenderEngine()
 
 bool RenderEngine::initEngine()
 {
-   log_line("RenderEngineBase::initEngine");
+   log_line("[RenderEngineRaw] RenderEngineBase::initEngine");
    return true;
 }
 
 bool RenderEngine::uninitEngine()
 {
-   log_line("RenderEngineBase::uninitEngine");
+   log_line("[RenderEngineRaw] RenderEngineBase::uninitEngine");
    return true;
 }
 
@@ -411,6 +411,7 @@ int RenderEngine::_getRawFontIndexFromId(u32 fontId)
       if ( m_RawFontIds[i] == fontId )
          return i;
    }
+   log_softerror_and_alarm("[RenderEngineRaw] Tried to access inexistent font id %u, currently loaded %d fonts", fontId, m_iCountRawFonts);
    return -1;
 }
 
@@ -426,12 +427,16 @@ RenderEngineRawFont* RenderEngine::_getRawFontFromId(u32 fontId)
 u32 RenderEngine::_getRawFontId(RenderEngineRawFont* pRawFont)
 {
    if ( NULL == pRawFont )
+   {
+      log_softerror_and_alarm("[RenderEngineRaw] Tried to find invalid NULL font object, currently loaded %d fonts", m_iCountRawFonts);
       return 0;
+   }
    for( int i=0; i<m_iCountRawFonts; i++ )
    {
       if ( m_pRawFonts[i] == pRawFont )
          return m_RawFontIds[i];
    }
+   log_softerror_and_alarm("[RenderEngineRaw] Tried to find inexistent font object, currently loaded %d fonts", m_iCountRawFonts);
    return 0;
 }
 
@@ -483,16 +488,22 @@ void* RenderEngine::_loadRawFontImageObject(const char* szFileName)
 int RenderEngine::loadRawFont(int iFamilyId, const char* szFontFile, int iBold)
 {
    if ( m_iCountRawFonts >= MAX_RAW_FONTS )
+   {
+      log_error_and_alarm("[RenderEngineRaw] Too many fonts (%d). Can't load more.", m_iCountRawFonts);
       return -1;
-
+   }
    if ( access( szFontFile, R_OK ) == -1 )
+   {
+      log_error_and_alarm("[RenderEngineRaw] Can't access font file (%s).", szFontFile);
       return -2;
-
+   }
    char szFile[256];
    FILE* fd = fopen(szFontFile, "r");
    if ( NULL == fd )
+   {
+      log_error_and_alarm("[RenderEngineRaw] Can't read font file (%s).", szFontFile);
       return -3;
-
+   }
    m_pRawFonts[m_iCountRawFonts] = (RenderEngineRawFont*) malloc(sizeof(RenderEngineRawFont));
    m_pRawFonts[m_iCountRawFonts]->iFamilyId = iFamilyId;
    m_pRawFonts[m_iCountRawFonts]->bBold = (iBold?true:false);
@@ -502,30 +513,33 @@ int RenderEngine::loadRawFont(int iFamilyId, const char* szFontFile, int iBold)
    szFile[strlen(szFile)-2] = 'n';
    szFile[strlen(szFile)-1] = 'g';
 
-   log_line("Loading font: %s", szFile);
+   log_line("[RenderEngineRaw] Loading font: %s", szFile);
    m_pRawFonts[m_iCountRawFonts]->pImageObject = _loadRawFontImageObject(szFile);
    if ( NULL == m_pRawFonts[m_iCountRawFonts]->pImageObject )
    {
-      log_softerror_and_alarm("Failed to load font: %s (can't load font image)", szFile);
+      log_softerror_and_alarm("[RenderEngineRaw] Failed to load font: %s (can't load font image)", szFile);
       fclose(fd);
       return -4;
    }
    if ( 2 != fscanf(fd, "%d %d", &(m_pRawFonts[m_iCountRawFonts]->lineHeight), &(m_pRawFonts[m_iCountRawFonts]->baseLine) ) )
    {
+      log_error_and_alarm("[RenderEngineRaw] Invalid font file (%s).", szFontFile);
       fclose(fd);
       return -5;
    }
    if ( 1 != fscanf(fd, "%d", &(m_pRawFonts[m_iCountRawFonts]->charCount) ) )
    {
+      log_error_and_alarm("[RenderEngineRaw] Invalid font file (%s).", szFontFile);
       fclose(fd);
       return -5;
    }
    if ( m_pRawFonts[m_iCountRawFonts]->charCount < 0 || m_pRawFonts[m_iCountRawFonts]->charCount >= MAX_FONT_CHARS )
    {
+      log_error_and_alarm("[RenderEngineRaw] Invalid font file (%s).", szFontFile);
       fclose(fd);
       return -5;
    }
-   log_line("Loaded font: size: lineheight: %d, baseline: %d, count: %d", m_pRawFonts[m_iCountRawFonts]->lineHeight, m_pRawFonts[m_iCountRawFonts]->baseLine, m_pRawFonts[m_iCountRawFonts]->charCount);
+   log_line("[RenderEngineRaw] Loaded font: size: lineheight: %d, baseline: %d, count: %d", m_pRawFonts[m_iCountRawFonts]->lineHeight, m_pRawFonts[m_iCountRawFonts]->baseLine, m_pRawFonts[m_iCountRawFonts]->charCount);
    for( int i=0; i<m_pRawFonts[m_iCountRawFonts]->charCount; i++ )
    {
       if ( 5 != fscanf(fd, "%d %d %d %d %d", &(m_pRawFonts[m_iCountRawFonts]->chars[i].charId),
@@ -534,7 +548,7 @@ int RenderEngine::loadRawFont(int iFamilyId, const char* szFontFile, int iBold)
                               &(m_pRawFonts[m_iCountRawFonts]->chars[i].width),
                               &(m_pRawFonts[m_iCountRawFonts]->chars[i].height) ) )
       {
-         log_softerror_and_alarm("Failed to load font, invalid c-description.");
+         log_softerror_and_alarm("[RenderEngineRaw] Failed to load font, invalid c-description.");
          fclose(fd);
          return 0;
       }
@@ -542,14 +556,14 @@ int RenderEngine::loadRawFont(int iFamilyId, const char* szFontFile, int iBold)
                               &(m_pRawFonts[m_iCountRawFonts]->chars[i].yOffset),
                               &(m_pRawFonts[m_iCountRawFonts]->chars[i].xAdvance) ) )
       {
-         log_softerror_and_alarm("Failed to load font, invalid cc-description.");
+         log_softerror_and_alarm("[RenderEngineRaw] Failed to load font, invalid cc-description.");
          fclose(fd);
          return 0;
       }
       int page, ch;
       if ( 2 != fscanf(fd, "%d %d", &page, &ch ) )
       {
-         log_softerror_and_alarm("Failed to load font, invalid p-description.");
+         log_softerror_and_alarm("[RenderEngineRaw] Failed to load font, invalid p-description.");
          fclose(fd);
          return 0;
       }
@@ -587,12 +601,12 @@ int RenderEngine::loadRawFont(int iFamilyId, const char* szFontFile, int iBold)
    m_CurrentRawFontId++;
    m_RawFontIds[m_iCountRawFonts] = m_CurrentRawFontId;
 
-   log_line("Loaded font %s, id: %u (%d of max %d)",
+   log_line("[RenderEngineRaw] Loaded font %s, id: %u (%d of max %d)",
        szFile, m_RawFontIds[m_iCountRawFonts], m_iCountRawFonts+1, MAX_RAW_FONTS);
-   log_line("Font %s: chars: %d to %d, count %d",
+   log_line("[RenderEngineRaw] Font %s: chars: %d to %d, count %d",
        szFile, m_pRawFonts[m_iCountRawFonts]->charIdFirst, m_pRawFonts[m_iCountRawFonts]->charIdLast, m_pRawFonts[m_iCountRawFonts]->charCount);
 
-   log_line("Font %s: kering %d, id: %u; %d currently loaded fonts",
+   log_line("[RenderEngineRaw] Font %s: kering %d, id: %u; %d currently loaded fonts",
        szFile, m_pRawFonts[m_iCountRawFonts]->keringsCount, m_RawFontIds[m_iCountRawFonts], m_iCountRawFonts+1);
 
    m_iCountRawFonts++;
@@ -604,7 +618,7 @@ void RenderEngine::freeRawFont(u32 idFont)
    int indexFont = _getRawFontIndexFromId(idFont);
    if ( -1 == indexFont )
    {
-      log_softerror_and_alarm("Tried to delete invalid raw font id %u, not in the list (%d raw fonts)", idFont, m_iCountRawFonts);
+      log_softerror_and_alarm("[RenderEngineRaw] Tried to delete invalid raw font id %u, not in the list (%d raw fonts)", idFont, m_iCountRawFonts);
       return;
    }
 
@@ -617,7 +631,7 @@ void RenderEngine::freeRawFont(u32 idFont)
       m_RawFontIds[i] = m_RawFontIds[i+1];
    }
    m_iCountRawFonts--;
-   log_line("Unloaded font id %u, remaining fonts: %d", idFont, m_iCountRawFonts);
+   log_line("[RenderEngineRaw] Unloaded font id %u, remaining fonts: %d", idFont, m_iCountRawFonts);
 }
 
 void RenderEngine::setFontOutlineColor(u32 idFont, u8 r, u8 g, u8 b, u8 a)
@@ -720,7 +734,7 @@ float RenderEngine::getRawFontHeight(u32 fontId)
 {
    RenderEngineRawFont* pFont = _getRawFontFromId(fontId);
    if ( NULL == pFont )
-      return 0.05;
+      return 0.02;
    return pFont->lineHeight * m_fPixelHeight;
 }
 
@@ -843,7 +857,10 @@ void RenderEngine::drawTextScaled(float xPos, float yPos, u32 fontId, float fSca
 
    RenderEngineRawFont* pFont = _getRawFontFromId(fontId);
    if ( NULL == pFont )
+   {
+      log_error_and_alarm("[RenderEngineRaw] Tried to drawTextScaled using a NULL font object");
       return;
+   }
    if ( yPos < 0 )
       return;
 
@@ -870,8 +887,10 @@ void RenderEngine::drawTextLeftScaled(float xPos, float yPos, u32 fontId, float 
 
    RenderEngineRawFont* pFont = _getRawFontFromId(fontId);
    if ( NULL == pFont )
+   {
+      log_error_and_alarm("[RenderEngineRaw] Tried to drawTextLeftScaled using a NULL font object");
       return;
-
+   }
    if ( yPos < 0 )
       return;
 
@@ -998,8 +1017,10 @@ float RenderEngine::drawMessageLines(float xPos, float yPos, const char* text, f
 
    RenderEngineRawFont* pFont = _getRawFontFromId(fontId);
    if ( NULL == pFont )
+   {
+      log_error_and_alarm("[RenderEngineRaw] Tried to drawMesageLines using a NULL font object");
       return 0.05;
-
+   }
    if ( 0 == strlen(text) )
       return 0.0;
 

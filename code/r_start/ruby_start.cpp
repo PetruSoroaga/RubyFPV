@@ -1544,6 +1544,14 @@ int main(int argc, char *argv[])
    #endif
 
    detectSystemType();
+   if ( g_bDebug )
+   if ( hardware_is_station() )
+   {
+       load_Preferences();
+       Preferences* pP = get_Preferences();
+       pP->nLogLevel = 0;
+       save_Preferences();
+   }
 
    hardware_release();
 

@@ -1,17 +1,17 @@
-
+date -s "20250303 09:45"
 sudo apt update
 sudo apt-get install -y libdrm-dev libcairo-dev
 
 sudo apt install cmake
+
+sudo apt-get -o "Acquire::https::Verify-Peer=false" install -y libgpiod-dev
+sudo apt -o "Acquire::https::Verify-Peer=false" install -y i2c-tools libi2c-dev linux-libc-dev 
 
 git clone https://github.com/rockchip-linux/mpp.git
 cd mpp
 cmake -B build
 sudo cmake --build build --target install
 
-
-sudo apt-get -o "Acquire::https::Verify-Peer=false" install -y libgpiod-dev
-sudo apt -o "Acquire::https::Verify-Peer=false" install -y i2c-tools libi2c-dev linux-libc-dev 
 
 
 * drivers Pi3: 'make' -j4 KVER=5.10.103-v7+ KSRC=/lib/modules/5.10.103-v7+/build

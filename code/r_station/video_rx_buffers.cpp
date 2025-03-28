@@ -182,21 +182,21 @@ void VideoRxPacketsBuffer::_empty_buffers(const char* szReason, t_packet_header*
       sprintf(szLog, "[VRXBuffers] Empty buffers (%s)", szReason);
 
    if ( (NULL == pPH) || (NULL == pPHVS) )
-      log_line("%s (no additional data)", szLog);
+      log_softerror_and_alarm("%s (no additional data)", szLog);
    else
    {
-      log_line("%s (recv video packet [%u/%u] (retransmitted: %s), frame index: %u, stream id/packet index: %u, radio index: %u)",
+      log_softerror_and_alarm("%s (recv video packet [%u/%u] (retransmitted: %s), frame index: %u, stream id/packet index: %u, radio index: %u)",
          szLog, pPHVS->uCurrentBlockIndex, pPHVS->uCurrentBlockPacketIndex,
          (pPH->packet_flags & PACKET_FLAGS_BIT_RETRANSMITED)?"yes":"no",
          pPHVS->uH264FrameIndex,
          (pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_INDEX) >> PACKET_FLAGS_MASK_SHIFT_STREAM_INDEX,
          pPH->stream_packet_idx & PACKET_FLAGS_MASK_STREAM_PACKET_IDX, pPH->radio_link_packet_index);
    
-      log_line("[VRXBuffers] Top video block index: %d, top data packet received: [%u/%d]",
+      log_softerror_and_alarm("[VRXBuffers] Top video block index: %d, top data packet received: [%u/%d]",
          m_iTopBufferIndex, m_VideoBlocks[m_iTopBufferIndex].uVideoBlockIndex, m_VideoBlocks[m_iTopBufferIndex].iMaxReceivedDataPacketIndex);
-      log_line("[VRXBuffers] Bottom block buffer index: %d, packet: [%u/%d]",
+      log_softerror_and_alarm("[VRXBuffers] Bottom block buffer index: %d, packet: [%u/%d]",
          m_iBottomBufferIndexToOutput, m_VideoBlocks[m_iBottomBufferIndexToOutput].uVideoBlockIndex, m_iBottomPacketIndexToOutput);
-      log_line("[VRXBuffers] Bottom block buffer index: %d, received packets: %d/%d",
+      log_softerror_and_alarm("[VRXBuffers] Bottom block buffer index: %d, received packets: %d/%d",
          m_iBottomBufferIndexToOutput, m_VideoBlocks[m_iBottomBufferIndexToOutput].iRecvDataPackets, m_VideoBlocks[m_iBottomBufferIndexToOutput].iRecvECPackets);
    }
 
@@ -496,8 +496,8 @@ bool VideoRxPacketsBuffer::checkAddVideoPacket(u8* pPacket, int iPacketLength)
    }
 
    // Future block packet
-   
-   u32 uDiffBlocks = pPHVS->uCurrentBlockIndex - m_VideoBlocks[m_iTopBufferIndex].uVideoBlockIndex;
+
+   u32 uDiffBlocks = pPHVS->uCurrentBlockIndex - m_VideoBlocks[m_iBottomBufferIndexToOutput].uVideoBlockIndex;
    if ( uDiffBlocks >= MAX_RXTX_BLOCKS_BUFFER - 1 )
    {
       _empty_buffers("too much gap in received blocks", pPH, pPHVS);
@@ -508,12 +508,23 @@ bool VideoRxPacketsBuffer::checkAddVideoPacket(u8* pPacket, int iPacketLength)
       return true;
    }
 
+   uDiffBlocks = pPHVS->uCurrentBlockIndex - m_VideoBlocks[m_iTopBufferIndex].uVideoBlockIndex;
+
    for(u32 uBlk=m_VideoBlocks[m_iTopBufferIndex].uVideoBlockIndex+1; uBlk<=pPHVS->uCurrentBlockIndex; uBlk++)
    {
       m_iTopBufferIndex++;
       if ( m_iTopBufferIndex >= MAX_RXTX_BLOCKS_BUFFER )
          m_iTopBufferIndex = 0;
 
+      if ( m_iTopBufferIndex == m_iBottomBufferIndexToOutput )
+      {
+         _empty_buffers("too old data in stream, inconsistent.", pPH, pPHVS);
+         // Wait for start of a block
+         if ( pPHVS->uCurrentBlockPacketIndex != 0 )
+            return false;
+         _add_video_packet_to_buffer(m_iTopBufferIndex, pPacket, iPacketLength);
+         return true;
+      }
       if ( ! _check_allocate_video_block_in_buffer(m_iTopBufferIndex) )
          return false;
       _empty_block_buffer_index(m_iTopBufferIndex);
@@ -575,10 +586,10 @@ type_rx_video_packet_info* VideoRxPacketsBuffer::getMarkFirstPacketToOutput(type
       return NULL;
 
    // Skip and advance up to the next available packet if any
-   int iCount = MAX_RXTX_BLOCKS_BUFFER;
-   while ( iCount > 0 )
+   int iCountMaxToIterate = MAX_RXTX_BLOCKS_BUFFER;
+   while ( iCountMaxToIterate > 0 )
    {
-      iCount--;
+      iCountMaxToIterate--;
 
       // Break on packet ready to output
       if ( ! m_VideoBlocks[m_iBottomBufferIndexToOutput].bEmpty )
@@ -631,8 +642,8 @@ type_rx_video_packet_info* VideoRxPacketsBuffer::getMarkFirstPacketToOutput(type
             m_iBottomBufferIndexToOutput = 0;
       }
    }
-   if ( iCount == 0 )
-      log_softerror_and_alarm("[VideoRXBuffer] Tried to iterate past the rx-ec-buffer size (%d blocks)", MAX_RXTX_BLOCKS_BUFFER);
+   if ( iCountMaxToIterate == 0 )
+      log_softerror_and_alarm("[VideoRXBuffer] Tried to iterate past the rx-ec-buffer size (%d blocks, skip incomplete blocks: %s)", MAX_RXTX_BLOCKS_BUFFER, bPushIncompleteBlocks?"yes":"no");
 
   
    if ( m_VideoBlocks[m_iBottomBufferIndexToOutput].bEmpty ||

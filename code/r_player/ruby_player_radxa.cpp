@@ -113,6 +113,8 @@ void _do_player_mode()
       iHDMIIndex = hdmi_get_best_resolution_index_for(DEFAULT_RADXA_DISPLAY_WIDTH, DEFAULT_RADXA_DISPLAY_HEIGHT, DEFAULT_RADXA_DISPLAY_REFRESH);
    log_line("HDMI mode to use: %d (%d x %d @ %d)", iHDMIIndex, hdmi_get_current_resolution_width(), hdmi_get_current_resolution_height(), hdmi_get_current_resolution_refresh() );
 
+   hw_increase_current_thread_priority("RubyPlayer", 10);
+
    RenderEngine* pRenderEngine = NULL;
    if ( g_bInitUILayerToo || g_bPlayingIntro )
    {
@@ -148,6 +150,13 @@ void _do_player_mode()
       ruby_drm_core_uninit();
       return;
    }
+
+   if ( g_bPlayingIntro )
+   {
+      for( int i=0; i<10; i++ )
+         hardware_sleep_ms(50);
+   }
+
    FILE* fp = fopen(g_szPlayFileName,"rb");
    if ( NULL == fp )
    {

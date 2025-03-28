@@ -54,7 +54,7 @@ class RenderEngineCairo: public RenderEngine
       virtual void _freeRawFontImageObject(void* pImageObject);
 
       void _updateCurrentFontToUse(RenderEngineRawFont* pFont, bool bForce);
-      virtual float _get_raw_char_width(RenderEngineRawFont* pFont, int ch);
+      //virtual float _get_raw_char_width(RenderEngineRawFont* pFont, int ch);
       virtual void _drawSimpleText(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos);
       virtual void _drawSimpleTextScaled(RenderEngineRawFont* pFont, const char* szText, float xPos, float yPos, float fScale);
       void _bltFontChar(int iDestX, int iDestY, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, RenderEngineRawFont* pFont);
@@ -67,6 +67,8 @@ class RenderEngineCairo: public RenderEngine
       cairo_surface_t *m_pMainCairoSurface[2];
       cairo_t* m_pCairoCtx;
       cairo_t* m_pCairoTempCtx;
+      bool m_bMustTestFontAccess;
+      bool m_bHasNewFont;
 
       cairo_surface_t* m_pImages[MAX_RAW_IMAGES];
       u32 m_ImageIds[MAX_RAW_IMAGES];

@@ -47,6 +47,7 @@
 static int s_bootCount = -1;
 static long long sStartTimeStamp_ms;
 static long long sStartTimeStamp_micros;
+u32 s_uTimeStartLogForCurrentProcess = 0;
 
 static char sszComponentName[64] = {0};
 
@@ -414,14 +415,17 @@ int _log_check_for_service_log_access()
 
    if ( s_logServiceMessageQueue < 0 )
    {
-      s_logServiceAccessErrorCount++;
-      if ( s_logServiceAccessErrorCount < 10 )
-         log_softerror_and_alarm("Failed to access the logger service message queue.");
-      else if ( s_logServiceAccessErrorCount == 10 )
+      if ( get_current_timestamp_ms() > s_uTimeStartLogForCurrentProcess + 5000 )
       {
-         log_softerror_and_alarm("Failed to access the logger service message queue. Using regular log instead.");
-         log_line_forced_to_file("Failed to access the logger service message queue. Using regular log instead.");
-         s_logUseService = 0;
+         s_logServiceAccessErrorCount++;
+         if ( s_logServiceAccessErrorCount < 10 )
+            log_softerror_and_alarm("Failed to access the logger service message queue.");
+         else if ( s_logServiceAccessErrorCount == 10 )
+         {
+            log_softerror_and_alarm("Failed to access the logger service message queue. Using regular log instead.");
+            log_line_forced_to_file("Failed to access the logger service message queue. Using regular log instead.");
+            s_logUseService = 0;
+         }
       }
       return 0;
    }
@@ -509,6 +513,7 @@ void log_init_local_only(const char* component_name)
    strcpy(sszComponentName, component_name);
    s_szAdditionalLogFile[0] = 0;
    _init_timestamp_for_process();
+   s_uTimeStartLogForCurrentProcess = get_current_timestamp_ms();
 
    log_line("Starting...");
 }
@@ -528,7 +533,8 @@ void log_init(const char* component_name)
    strcpy(sszComponentName, component_name);
    s_szAdditionalLogFile[0] = 0;
    _init_timestamp_for_process();
-
+   s_uTimeStartLogForCurrentProcess = get_current_timestamp_ms();
+   
    _log_check_for_service_log_access();
     
    log_line_forced_to_file("Starting...");

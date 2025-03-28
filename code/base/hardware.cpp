@@ -1674,6 +1674,7 @@ int hardware_try_mount_usb()
        if ( strlen(szToken) < 4 )
           iValid = 0;
 
+       if ( iValid )
        if ( ! isdigit(szToken[strlen(szToken)-1]) )
           iValid = 0;
 
@@ -1688,7 +1689,7 @@ int hardware_try_mount_usb()
        break;
    }
 
-   if ( 0 == iFoundUSBDevice )
+   if ( (0 == iFoundUSBDevice) || (NULL == szToken) )
    {
       log_softerror_and_alarm("[Hardware] USB memory stick could NOT be mounted! No USB block devices found.");
       return 0;    

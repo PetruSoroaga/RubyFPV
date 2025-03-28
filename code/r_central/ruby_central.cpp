@@ -1757,6 +1757,7 @@ void start_loop()
          return;
       }
       onMainVehicleChanged(true);
+      _on_start_completed();
 
       if ( 0 < hardware_get_radio_interfaces_count() )
          pairing_start_normal();
@@ -1773,7 +1774,7 @@ void start_loop()
       else
          log_line("Opened shared mem to video rx process watchdog stats for reading.");
 
-      if ( NULL != g_pCurrentModel && g_pCurrentModel->rc_params.rc_enabled )
+      if ( (NULL != g_pCurrentModel) && g_pCurrentModel->rc_params.rc_enabled )
       {
          g_pProcessStatsRC = shared_mem_process_stats_open_read(SHARED_MEM_WATCHDOG_RC_TX);
          if ( NULL == g_pProcessStatsRC )
@@ -1794,7 +1795,6 @@ void start_loop()
       popupStartup.resetTimer();
 
       s_TimeCentralInitializationComplete = g_TimeNow;
-      _on_start_completed();
       if ( g_bIsHDMIConfirmation )
       {
          s_pMenuConfirmHDMI = new MenuConfirmationHDMI("HDMI Output Configuration Updated","Does the HDMI output looks ok? Select [Yes] to keep the canges or select [No] to revert to the old HDMI configuration.", 0);
