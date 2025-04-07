@@ -138,9 +138,10 @@ void MenuVehicle::onShow()
    if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
       m_pMenuItems[m_IndexRC]->setEnabled(false);
 
-   m_IndexFunctions = addMenuItem(new MenuItem(L("Functions and Triggers"), L("Configure special functions and triggers.")));
-   if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
-      m_pMenuItems[m_IndexFunctions]->setEnabled(false);
+   m_IndexFunctions = -1;
+   //m_IndexFunctions = addMenuItem(new MenuItem(L("Functions and Triggers"), L("Configure special functions and triggers.")));
+   //if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
+   //   m_pMenuItems[m_IndexFunctions]->setEnabled(false);
 
    /*
    if ( NULL != g_pCurrentModel && g_pCurrentModel->radioInterfacesParams.interfaces_count > 1 )
@@ -491,7 +492,7 @@ void MenuVehicle::onSelectItem()
    if ( m_IndexRC == m_SelectedIndex )
       add_menu_to_stack(new MenuVehicleRC());
 
-   if ( m_IndexFunctions == m_SelectedIndex )
+   if ( (-1 != m_IndexFunctions) && (m_IndexFunctions == m_SelectedIndex) )
    {
       add_menu_to_stack(new MenuVehicleFunctions());
       return;

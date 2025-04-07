@@ -259,15 +259,6 @@ int radio_links_open_rxtx_radio_interfaces()
    log_line("OPENING INTERFACES END ============================================================");
 
    g_pCurrentModel->logVehicleRadioInfo();
-
-   log_line("Initializing video data tx...");
-   if ( ! process_data_tx_video_init() )
-   {
-      log_error_and_alarm("Failed to initialize video data tx processor.");
-      radio_links_close_rxtx_radio_interfaces();
-      return -1;
-   }
-   log_line("Initialized video data tx.");
    return 0;
 }
 

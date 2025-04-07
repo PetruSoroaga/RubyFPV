@@ -22,7 +22,7 @@ class MenuVehicleVideo: public Menu
    private:
       type_video_capture_resolution_info* m_pVideoResolutions;
       int m_iVideoResolutionsCount;
-      int m_IndexRes, m_IndexFPS, m_IndexKeyframe;
+      int m_IndexRes, m_IndexFPS;
       int m_IndexVideoBitrate;
       int m_IndexVideoProfile;
       int m_IndexVideoCodec;
@@ -32,7 +32,6 @@ class MenuVehicleVideo: public Menu
       int m_IndexRecording;
       int m_IndexShowFull;
       MenuItem* m_pMenuItemVideoWarning;
-      MenuItem* m_pMenuItemVideoKeyframeWarning;
       MenuItem* m_pMenuItemVideoRecording;
       MenuItemSlider* m_pItemsSlider[20];
       MenuItemSelect* m_pItemsSelect[20];

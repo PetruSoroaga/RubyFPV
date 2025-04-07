@@ -139,10 +139,13 @@ int process_received_video_packet(int iInterfaceIndex, u8* pPacket, int iPacketL
    t_packet_header* pPH = (t_packet_header*)pPacket;
    u32 uVehicleId = pPH->vehicle_id_src;
    Model* pModel = findModelWithId(uVehicleId, 111);
-   if ( (NULL == pModel) || (get_sw_version_build(pModel) < 242) )
+   if ( (NULL == pModel) || (get_sw_version_build(pModel) < 284) )
       return -1;
 
    if ( ! is_sw_version_atleast(pModel, 10, 6) )
+      return -1;
+
+   if ( get_sw_version_build(pModel) > SYSTEM_SW_BUILD_NUMBER )
       return -1;
 
    int nRet = 0;

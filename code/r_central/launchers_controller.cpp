@@ -44,11 +44,6 @@
 #include "shared_vars.h"
 #include "popup.h"
 
-char s_szMACControllerTXTelemetry[MAX_MAC_LENGTH];
-char s_szMACControllerTXVideo[MAX_MAC_LENGTH];
-char s_szMACControllerTXCommands[MAX_MAC_LENGTH];
-char s_szMACControllerTXRC[MAX_MAC_LENGTH];
-
 static int s_iCPUCoresCount = 1;
 
 void controller_compute_cpu_info()

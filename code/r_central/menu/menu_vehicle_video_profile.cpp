@@ -103,6 +103,11 @@ void MenuVehicleVideoProfileSelector::onSelectItem()
 
    if ( m_IndexVideoProfile == m_SelectedIndex )
    {
+      if ( get_sw_version_build(g_pCurrentModel) < 283 )
+      {
+         addMessage(L("Video functionality has changed. You need to update your vehicle sowftware."));
+         return;
+      }
       log_line("Selected option %d", m_pItemsRadio[0]->getFocusedIndex());
       m_pItemsRadio[0]->setSelectedIndex(m_pItemsRadio[0]->getFocusedIndex());
 

@@ -72,7 +72,7 @@ class Popup
       bool m_bBottomAlign;
       bool m_bNoBackground;
       bool m_bSmallLines;
-      u32 m_idFont;
+      u32 m_uIdFont;
       u32 m_idIcon;
       u32 m_idIcon2;
       double m_ColorIcon[4];

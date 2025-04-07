@@ -590,10 +590,6 @@ void video_source_csi_periodic_checks()
    if ( ! s_bDidSentRaspividBitrateRefresh )
    if ( (0 != s_uRaspiVidStartTimeMs) && ( g_TimeNow > s_uRaspiVidStartTimeMs + 2000 ) )
    {
-      //To fix log_line("[VideoSourceCSI] Send initial bitrate (%u bps) to video capture program.", g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate);
-      //To fix video_source_csi_send_control_message( RASPIVID_COMMAND_ID_VIDEO_BITRATE, g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate/100000 );
-      //To fix if ( NULL != g_pProcessorTxVideo )
-      //   g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(g_SM_VideoLinkStats.overwrites.currentSetVideoBitrate, true, 0);
       s_bDidSentRaspividBitrateRefresh = true;
    }
 

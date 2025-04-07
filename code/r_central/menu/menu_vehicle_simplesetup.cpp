@@ -55,7 +55,6 @@ MenuVehicleSimpleSetup::MenuVehicleSimpleSetup()
    m_Width = 0.32;
    m_xPos = menu_get_XStartPos(m_Width);
    m_yPos = 0.3;
-   m_bPairingSetup = false;
    
    m_iIndexMenuOk = -1;
    m_iIndexMenuCancel = -1;
@@ -64,8 +63,12 @@ MenuVehicleSimpleSetup::MenuVehicleSimpleSetup()
    m_iIndexVideo = -1;
    m_iIndexOSDLayout = -1;
    m_iIndexOSDSettings = -1;
+   m_iIndexTelemetryDetect = -1;
 
    m_iCurrentSerialPortIndexUsedForTelemetry = -1;
+
+   m_bPairingSetup = false;
+   m_bTelemetrySetup = false;
    m_bSearchingTelemetry = false;
    m_iSearchTelemetryType = 0;
    m_iSearchTelemetryPort = 0;
@@ -148,12 +151,27 @@ void MenuVehicleSimpleSetup::onReturnFromChild(int iChildMenuId, int returnValue
 void MenuVehicleSimpleSetup::setPairingSetup()
 {
    m_bPairingSetup = true;
+   m_bTelemetrySetup = false;
    m_bSearchingTelemetry = true;
    if ( (NULL == g_pCurrentModel) || (g_pCurrentModel->hardwareInterfacesInfo.serial_port_count == 0) )
       m_bSearchingTelemetry = false;
    m_xPos = 0.27;
    m_Width = 0.46;
    setTitle(L("Quick Pairing Setup"));
+   disableBackAction();
+}
+
+void MenuVehicleSimpleSetup::setTelemetryDetectionType()
+{
+   m_MenuId = MENU_ID_VEHICLE_TELEMETRY_DETECTION;
+   m_bPairingSetup = false;
+   m_bTelemetrySetup = true;
+   m_bSearchingTelemetry = true;
+   if ( (NULL == g_pCurrentModel) || (g_pCurrentModel->hardwareInterfacesInfo.serial_port_count == 0) )
+      m_bSearchingTelemetry = false;
+   m_xPos = 0.27;
+   m_Width = 0.46;
+   setTitle(L("Telemetry Detection Wizard"));
    disableBackAction();
 }
 
@@ -197,7 +215,7 @@ void MenuVehicleSimpleSetup::addRegularItems()
        }
    }
 
-   if ( ! m_bPairingSetup )
+   if ( (! m_bPairingSetup) && (! m_bTelemetrySetup) )
    {
       addRadioItems();
       m_iIndexCamera = addMenuItem(new MenuItem(L("Camera settings"), L("Change camera settings: brightness, constrast, saturation, hue, etc.")));
@@ -208,6 +226,7 @@ void MenuVehicleSimpleSetup::addRegularItems()
    }
    
    m_iIndexOSDLayout = -1;
+   m_pItemsSelect[2] = NULL;
    if ( m_bPairingSetup )
    {
       pItem = new MenuItemText(L("Select the OSD layout you want, how many OSD elements to show by default on your screen:"), true);
@@ -219,26 +238,20 @@ void MenuVehicleSimpleSetup::addRegularItems()
       m_pItemsSelect[2]->addSelection(L("Minimal"));
       m_pItemsSelect[2]->addSelection(L("Compact"));
       m_pItemsSelect[2]->addSelection(L("Default"));
-      if ( (! m_bPairingSetup) && (g_pCurrentModel->osd_params.osd_layout_preset[iScreenIndex] == OSD_PRESET_CUSTOM) )
-         m_pItemsSelect[2]->addSelection(L("Custom"));
-      if ( m_bPairingSetup )
-         m_pItemsSelect[2]->setUseMultiViewLayout();
-      else
-         m_pItemsSelect[2]->setIsEditable();
+      m_pItemsSelect[2]->setUseMultiViewLayout();
       m_iIndexOSDLayout = addMenuItem(m_pItemsSelect[2]);
       m_pItemsSelect[2]->setSelectedIndex(g_pCurrentModel->osd_params.osd_layout_preset[iScreenIndex]);
-      if ( m_bPairingSetup )
-         m_pItemsSelect[2]->setExtraHeight(fVSpacing);
+      m_pItemsSelect[2]->setExtraHeight(fVSpacing);
    }
 
    m_iIndexOSDSettings = -1;
-   if ( ! m_bPairingSetup )
+   if ( (! m_bPairingSetup) && ( ! m_bTelemetrySetup) )
    {
       m_iIndexOSDSettings = addMenuItem(new MenuItem(L("OSD settings"), L("Change OSD type, layout and settings.")));
       m_pMenuItems[m_iIndexOSDSettings]->showArrow();
    }
 
-   if ( m_bPairingSetup )
+   if ( m_bPairingSetup || m_bTelemetrySetup )
    {
       pItem = new MenuItemText(L("If you have a flight controller, select the telemetry type used by the flight controller:"), true);
       pItem->setExtraHeight(fVSpacing*0.6);
@@ -251,7 +264,7 @@ void MenuVehicleSimpleSetup::addRegularItems()
    m_pItemsSelect[0]->addSelection(L("MAVLink"));
    m_pItemsSelect[0]->addSelection(L("LTM"));
    m_pItemsSelect[0]->addSelection(L("MSP OSD"));
-   if ( m_bPairingSetup )
+   if ( m_bPairingSetup || m_bTelemetrySetup )
       m_pItemsSelect[0]->setUseMultiViewLayout();
    else
       m_pItemsSelect[0]->setIsEditable();
@@ -267,12 +280,12 @@ void MenuVehicleSimpleSetup::addRegularItems()
    if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
       m_pItemsSelect[0]->setSelection(3);
    
-   if ( m_bPairingSetup )
+   if ( m_bPairingSetup || m_bTelemetrySetup )
       m_pItemsSelect[0]->setExtraHeight(fVSpacing);
    if ( m_bSearchingTelemetry )
       m_pItemsSelect[0]->setEnabled(false);
 
-   if ( m_bPairingSetup )
+   if ( m_bPairingSetup || m_bTelemetrySetup )
    {
       pItem = new MenuItemText(L("If you have a flight controller, select the air unit's serial port the flight controller is connected to:"), true);
       if ( m_bSearchingTelemetry )
@@ -290,7 +303,7 @@ void MenuVehicleSimpleSetup::addRegularItems()
    m_pItemsSelect[1]->addSelection(L("None"));
    for( int i=0; i<g_pCurrentModel->hardwareInterfacesInfo.serial_port_count; i++ )
       m_pItemsSelect[1]->addSelection(g_pCurrentModel->hardwareInterfacesInfo.serial_port_names[i]);
-   if ( m_bPairingSetup )
+   if ( m_bPairingSetup || m_bTelemetrySetup )
       m_pItemsSelect[1]->setUseMultiViewLayout();
    else
       m_pItemsSelect[1]->setIsEditable();
@@ -301,13 +314,15 @@ void MenuVehicleSimpleSetup::addRegularItems()
    if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_NONE )
       m_pItemsSelect[1]->setEnabled(false);
 
-   if ( m_bPairingSetup )
+   if ( m_bPairingSetup || m_bTelemetrySetup )
       m_pItemsSelect[1]->setExtraHeight(fVSpacing);
    if ( m_bSearchingTelemetry )
       m_pItemsSelect[1]->setEnabled(false);
 
    if ( m_bPairingSetup )
       m_iIndexMenuOk = addMenuItem( new MenuItem(L("Looks Good! Done"), L("Applies the selections and closes this settings page.")));
+   else if ( m_bTelemetrySetup )
+      m_iIndexMenuOk = addMenuItem( new MenuItem(L("Done"), L("Applies the selections and closes this settings page.")));
    else
    {
       m_iIndexFullConfig = addMenuItem( new MenuItem(L("Full Vehicle Settings"), L("Configure/change all vehicle settings.")));
@@ -514,6 +529,7 @@ void MenuVehicleSimpleSetup::addItems()
    m_iIndexMenuCancel = -1;
    m_iIndexOSDLayout = -1;
    m_iIndexOSDSettings = -1;
+   m_iIndexTelemetryDetect = -1;
    m_iIndexTelemetryType = -1;
    m_iIndexTelemetryPort = -1;
    m_iIndexFullConfig = -1;
@@ -876,6 +892,9 @@ void MenuVehicleSimpleSetup::sendTelemetryPortToVehicle()
 
 void MenuVehicleSimpleSetup::sendOSDToVehicle()
 {
+   if ( NULL == m_pItemsSelect[2] )
+      return;
+
    osd_parameters_t params;
    memcpy(&params, &(g_pCurrentModel->osd_params), sizeof(osd_parameters_t));
    int iScreenIndex = g_pCurrentModel->osd_params.iCurrentOSDScreen;
@@ -1029,7 +1048,6 @@ void MenuVehicleSimpleSetup::onSelectItem()
    if ( (-1 != m_iIndexVideo) && (m_iIndexVideo == m_SelectedIndex) )
    {
       MenuVehicleVideo* pMenuVid = new MenuVehicleVideo();
-      pMenuVid->showCompact();
       add_menu_to_stack(pMenuVid);
       return;
    }
@@ -1062,9 +1080,12 @@ void MenuVehicleSimpleSetup::onSelectItem()
 
    if ( (-1 != m_iIndexMenuOk) && (m_iIndexMenuOk == m_SelectedIndex) )
    {
-      sendOSDToVehicle();
+      if ( m_bPairingSetup )
+         sendOSDToVehicle();
+   
       menu_refresh_all_menus_except(this);
       menu_stack_pop(0);
+      if ( m_bPairingSetup )
       if ( onEventPairingTookUIActions() )
          onEventFinishedPairUIAction();
    }

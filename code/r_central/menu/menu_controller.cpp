@@ -533,13 +533,11 @@ void MenuController::updateControllerSoftware()
 
          if ( bFoundProcess )
          {
-             if ( 0 == hw_process_exists("ruby_update_worker") )
-             if ( 0 == hw_process_exists("unzip") )
+             if ( (0 == hw_process_exists("ruby_update_worker")) && (0 == hw_process_exists("unzip")) )
              {
                 log_line("Update worker process finished (test 1)");
                 hardware_sleep_ms(100);
-                if ( 0 == hw_process_exists("ruby_update_worker") )
-                if ( 0 == hw_process_exists("unzip") )
+                if ( (0 == hw_process_exists("ruby_update_worker")) && (0 == hw_process_exists("unzip")) )
                 {
                    hw_execute_bash_command_raw("ps -ae | grep ruby_update_worker | grep -v grep", szOutput);
                    removeTrailingNewLines(szOutput);
@@ -562,7 +560,11 @@ void MenuController::updateControllerSoftware()
                       }
                    }
                 }
+                else
+                   uTimeWorkerFinished = 0;
              }
+             else
+                uTimeWorkerFinished = 0;
          }
 
          if ( ! bFoundProcess )
@@ -657,6 +659,7 @@ void MenuController::updateControllerSoftware()
    ruby_processing_loop(true);
    render_all(g_TimeNow);
    ruby_signal_alive();
+   hw_execute_bash_command("sync", NULL);
 
    if ( iCounter[1] >= 500 )
    {

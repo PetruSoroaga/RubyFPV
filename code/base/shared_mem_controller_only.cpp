@@ -108,4 +108,3 @@ void shared_mem_router_vehicles_runtime_info_close(shared_mem_router_vehicles_ru
       munmap(pAddress, sizeof(shared_mem_router_vehicles_runtime_info));
    //shm_unlink(szName);
 }
-

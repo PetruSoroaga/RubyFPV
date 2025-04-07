@@ -96,8 +96,10 @@ void adaptive_video_on_new_vehicle(int iRuntimeIndex)
   if ( (NULL == pModel) || (! pModel->hasCamera()) )
      return;
 
+  g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsDoingAdaptive = false;
   if ( pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME )
   {
+     g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsDoingAdaptive = true;
      g_State.vehiclesRuntimeInfo[iRuntimeIndex].uPendingKeyFrameToSet = DEFAULT_VIDEO_AUTO_INITIAL_KEYFRAME_INTERVAL;
      #if defined (HW_PLATFORM_RASPBERRY)
      if ( pModel->isRunningOnOpenIPCHardware() )
@@ -208,7 +210,7 @@ bool _adaptive_video_should_switch_lower(Model* pModel, type_global_state_vehicl
       iIntervalsToCheck = SYSTEM_RT_INFO_INTERVALS - 1;
    int iRTInfoIndex = g_SMControllerRTInfo.iCurrentIndex;
    
-   int iECScheme = pModel->video_link_profiles[pSMVideoStreamInfo->PHVS.uCurrentVideoLinkProfile].block_fecs;
+   int iECScheme = pModel->video_link_profiles[pSMVideoStreamInfo->PHVS.uCurrentVideoLinkProfile].iBlockECs;
    
    if ( iECScheme > 0 )
    {
@@ -258,7 +260,7 @@ bool _adaptive_video_should_switch_higher(Model* pModel, type_global_state_vehic
       iIntervalsToCheck = SYSTEM_RT_INFO_INTERVALS - 1;
    int iRTInfoIndex = g_SMControllerRTInfo.iCurrentIndex;
    
-   int iECScheme = pModel->video_link_profiles[pSMVideoStreamInfo->PHVS.uCurrentVideoLinkProfile].block_fecs;
+   int iECScheme = pModel->video_link_profiles[pSMVideoStreamInfo->PHVS.uCurrentVideoLinkProfile].iBlockECs;
    if ( iECScheme > 0 )
    {
       int iECThreshold = iECScheme-1;
@@ -366,12 +368,20 @@ void _adaptive_keyframe_check_vehicle(Model* pModel, type_global_state_vehicle_r
 void adaptive_video_periodic_loop(bool bForceSyncNow)
 {
    if ( (g_TimeNow < g_TimeStart + 4000) || g_bNegociatingRadioLinks || test_link_is_in_progress() || g_bUpdateInProgress )
+   {
+      for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+         g_State.vehiclesRuntimeInfo[i].bIsDoingAdaptive = false;
       return;
+   }
 
    if ( 0 != s_uTimePauseAdaptiveVideoUntil )
    {
       if ( g_TimeNow < s_uTimePauseAdaptiveVideoUntil )
+      {
+         for( int i=0; i<MAX_CONCURENT_VEHICLES; i++ )
+            g_State.vehiclesRuntimeInfo[i].bIsDoingAdaptive = false;
          return;
+      }
       log_line("[AdaptiveVideo] Resumed after pause.");
       s_uTimePauseAdaptiveVideoUntil = 0;
    }
@@ -385,22 +395,36 @@ void adaptive_video_periodic_loop(bool bForceSyncNow)
       type_global_state_vehicle_runtime_info* pRuntimeInfo = &(g_State.vehiclesRuntimeInfo[i]);
       Model* pModel = findModelWithId(g_State.vehiclesRuntimeInfo[i].uVehicleId, 28);
 
-      if ( (NULL == pModel) || pModel->isVideoLinkFixedOneWay() || (! pModel->hasCamera()) || (get_sw_version_build(pModel) < 242) )
+      if ( (NULL == pModel) || pModel->isVideoLinkFixedOneWay() || (! pModel->hasCamera()) || (get_sw_version_build(pModel) < 284) )
+      {
+         g_State.vehiclesRuntimeInfo[i].bIsDoingAdaptive = false;
          continue;
-
+      }
       if ( ! is_sw_version_atleast(pModel, 10, 6) )
+      {
+         g_State.vehiclesRuntimeInfo[i].bIsDoingAdaptive = false;
          continue;
-        
+      }
+      // If link is lost, do not try to send adaptive packets to vehicle
+      if ( g_State.vehiclesRuntimeInfo[i].bIsVehicleFastUplinkFromControllerLost && g_State.vehiclesRuntimeInfo[i].bIsVehicleSlowUplinkFromControllerLost )
+      {
+         g_State.vehiclesRuntimeInfo[i].bIsDoingAdaptive = false;
+         continue;
+      }
       shared_mem_video_stream_stats* pSMVideoStreamInfo = get_shared_mem_video_stream_stats_for_vehicle(&g_SM_VideoDecodeStats, g_State.vehiclesRuntimeInfo[i].uVehicleId);
       ProcessorRxVideo* pProcessorRxVideo = ProcessorRxVideo::getVideoProcessorForVehicleId(pModel->uVehicleId, 0);
 
       // If haven't received yet the video stream, just skip
       if ( (NULL == pSMVideoStreamInfo) || (NULL == pProcessorRxVideo) )
+      {
+         g_State.vehiclesRuntimeInfo[i].bIsDoingAdaptive = false;
          continue;
-
+      }
       if ( (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_LINK )
+      {
+         g_State.vehiclesRuntimeInfo[i].bIsDoingAdaptive = true;
          _adaptive_video_check_vehicle(pModel, pRuntimeInfo, pSMVideoStreamInfo);
-
+      }
       if ( (pModel->video_link_profiles[pModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags) & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME )
          _adaptive_keyframe_check_vehicle(pModel, pRuntimeInfo, pSMVideoStreamInfo);
 

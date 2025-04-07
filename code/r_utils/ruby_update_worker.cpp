@@ -704,6 +704,7 @@ int main(int argc, char *argv[])
    for( int i=0; i<10; i++ )
       hardware_sleep_ms(200);
    _write_return_code(1, "Completed");
+   hw_execute_bash_command("sync", NULL);   
    log_line("Process finished.");
    return (0);
 } 

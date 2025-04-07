@@ -305,7 +305,7 @@ Popup::Popup(const char* title, float x, float y, float timeoutSec)
    m_RenderHeight = 0;
    m_bBelowMenu = false;
    m_bTopmost = false;
-   m_idFont = g_idFontMenu;
+   m_uIdFont = g_idFontMenu;
    m_idIcon = 0;
    m_idIcon2 = 0;
    m_ColorIcon[0] = m_ColorIcon[1] = m_ColorIcon[2] = 0.0;
@@ -358,7 +358,7 @@ Popup::Popup(const char* title, float x, float y, float maxWidth, float timeoutS
    m_RenderHeight = 0;
    m_bBelowMenu = false;
    m_bTopmost = false;
-   m_idFont = g_idFontMenu;
+   m_uIdFont = g_idFontMenu;
    m_idIcon = 0;
    m_idIcon2 = 0;
    m_ColorIcon[0] = m_ColorIcon[1] = m_ColorIcon[2] = 0.0;
@@ -406,7 +406,7 @@ Popup::Popup(bool bCentered, const char* title, float timeoutSec)
    m_RenderHeight = 0;
    m_bBelowMenu = false;
    m_bTopmost = false;
-   m_idFont = g_idFontMenu;
+   m_uIdFont = g_idFontMenu;
    m_idIcon = 0;
    m_idIcon2 = 0;
    m_ColorIcon[0] = m_ColorIcon[1] = m_ColorIcon[2] = 0.0;
@@ -445,14 +445,14 @@ const char* Popup::getTitle()
 
 void Popup::setFont(u32 idFont)
 {
-   m_idFont = idFont;
+   m_uIdFont = idFont;
    m_bInvalidated = true;
    setCustomPadding(m_fPadding);
 }
 
 u32 Popup::getFontId()
 {
-   return m_idFont;
+   return m_uIdFont;
 }
 
 void Popup::setCenteredTexts()
@@ -528,13 +528,13 @@ void Popup::setCustomPadding(float fPadding)
 {
    m_fPadding = fPadding;
    
-   m_fPaddingX = POPUP_MARGINS*g_pRenderEngine->textHeight(m_idFont)/g_pRenderEngine->getAspectRatio();
-   m_fPaddingY = POPUP_MARGINS*g_pRenderEngine->textHeight(m_idFont);
+   m_fPaddingX = POPUP_MARGINS*g_pRenderEngine->textHeight(m_uIdFont)/g_pRenderEngine->getAspectRatio();
+   m_fPaddingY = POPUP_MARGINS*g_pRenderEngine->textHeight(m_uIdFont);
 
    if ( m_fPadding > 0.0001 )
    {
-      m_fPaddingX = g_pRenderEngine->textHeight(m_idFont) * m_fPadding/g_pRenderEngine->getAspectRatio();
-      m_fPaddingY = g_pRenderEngine->textHeight(m_idFont) * m_fPadding;
+      m_fPaddingX = g_pRenderEngine->textHeight(m_uIdFont) * m_fPadding/g_pRenderEngine->getAspectRatio();
+      m_fPaddingY = g_pRenderEngine->textHeight(m_uIdFont) * m_fPadding;
    }
    m_bInvalidated = true;
 }
@@ -728,7 +728,7 @@ void Popup::onShow()
 
 float Popup::computeIconsSizes()
 {
-   float height_text = g_pRenderEngine->textHeight(m_idFont);
+   float height_text = g_pRenderEngine->textHeight(m_uIdFont);
    m_fIconWidth = 0;
    m_fIconWidth2 = 0;
    m_fIconHeight = 0;
@@ -780,7 +780,7 @@ float Popup::computeIconsSizes()
 
 void Popup::computeSize()
 {
-   float height_text = g_pRenderEngine->textHeight(m_idFont);
+   float height_text = g_pRenderEngine->textHeight(m_uIdFont);
 
    if ( m_fMaxWidth > 0.8 )
       m_fMaxWidth = 0.8;
@@ -797,13 +797,18 @@ void Popup::computeSize()
    {
       if ( 0 != m_szTitle[0] )
       {
-         fMaxTextWidth = g_pRenderEngine->textWidth(m_idFont, m_szTitle);
+         //fMaxTextWidth = g_pRenderEngine->textWidth(m_uIdFont, m_szTitle);
+         fMaxTextWidth = g_pRenderEngine->getMessageWidth(m_szTitle, m_fMaxWidth, m_uIdFont );
       }  
       for (int i = 0; i<m_LinesCount; i++)
       {
-         float fTextWidth = g_pRenderEngine->textWidth(m_idFont, (const char*)(m_szLines[i]));
+         //float fTextWidth = g_pRenderEngine->textWidth(m_uIdFont, (const char*)(m_szLines[i]));
+         //if ( m_bSmallLines )
+         //   fTextWidth = g_pRenderEngine->textWidth(g_idFontMenuSmall, (const char*)(m_szLines[i]));
+         float fTextWidth = g_pRenderEngine->getMessageWidth((const char*)(m_szLines[i]), m_fMaxWidth, m_uIdFont);
          if ( m_bSmallLines )
-            fTextWidth = g_pRenderEngine->textWidth(g_idFontMenuSmall, (const char*)(m_szLines[i]));
+            fTextWidth = g_pRenderEngine->getMessageWidth((const char*)(m_szLines[i]), m_fMaxWidth, g_idFontMenuSmall);
+         
          if ( fTextWidth > fMaxTextWidth )
             fMaxTextWidth = fTextWidth;
       }
@@ -819,7 +824,7 @@ void Popup::computeSize()
    
    if ( 0 != m_szTitle[0] )
    {
-      float fHeight = g_pRenderEngine->getMessageHeight(m_szTitle, POPUP_LINE_SPACING, fMaxTextWidth, m_idFont);
+      float fHeight = g_pRenderEngine->getMessageHeight(m_szTitle, POPUP_LINE_SPACING, fMaxTextWidth, m_uIdFont);
       m_RenderHeight += fHeight;
    }
 
@@ -827,7 +832,7 @@ void Popup::computeSize()
    {
       m_RenderHeight += height_text*POPUP_LINE_SPACING;
       
-      float fHeight = g_pRenderEngine->getMessageHeight((const char*)(m_szLines[i]), POPUP_LINE_SPACING, fMaxTextWidth, m_idFont);
+      float fHeight = g_pRenderEngine->getMessageHeight((const char*)(m_szLines[i]), POPUP_LINE_SPACING, fMaxTextWidth, m_uIdFont);
       if ( m_bSmallLines )
          fHeight = g_pRenderEngine->getMessageHeight((const char*)(m_szLines[i]), POPUP_LINE_SPACING, fMaxTextWidth, g_idFontMenuSmall);
       m_RenderHeight += fHeight;
@@ -865,7 +870,7 @@ void Popup::Render()
    if ( g_TimeNow > m_uTimeoutEndTime )
       return;
 
-   float height_text = g_pRenderEngine->textHeight(m_idFont);
+   float height_text = g_pRenderEngine->textHeight(m_uIdFont);
 
    float alfaOrg = g_pRenderEngine->getGlobalAlfa();
    float alfa = alfaOrg;
@@ -935,13 +940,13 @@ void Popup::Render()
       float fHeightText = 0.0;
       if ( m_bCenterTexts )
       {
-         float fTextWidth = g_pRenderEngine->textWidth(m_idFont, m_szTitle);
+         float fTextWidth = g_pRenderEngine->textWidth(m_uIdFont, m_szTitle);
          if ( fTextWidth > m_RenderWidth - 2.0 * m_fPaddingX )
             fTextWidth = m_RenderWidth - 2.0 * m_fPaddingX;
-         fHeightText = g_pRenderEngine->drawMessageLines(xTextStart + 0.5*(fMaxTextWidth-fTextWidth), yTextStart, m_szTitle, POPUP_LINE_SPACING, fMaxTextWidth, m_idFont);
+         fHeightText = g_pRenderEngine->drawMessageLines(xTextStart + 0.5*(fMaxTextWidth-fTextWidth), yTextStart, m_szTitle, POPUP_LINE_SPACING, fMaxTextWidth, m_uIdFont);
       }
       else
-         fHeightText = g_pRenderEngine->drawMessageLines(xTextStart, yTextStart, m_szTitle, POPUP_LINE_SPACING, fMaxTextWidth, m_idFont);
+         fHeightText = g_pRenderEngine->drawMessageLines(xTextStart, yTextStart, m_szTitle, POPUP_LINE_SPACING, fMaxTextWidth, m_uIdFont);
       yTextStart += fHeightText;
    }
    
@@ -965,13 +970,13 @@ void Popup::Render()
       {
          if ( m_bCenterTexts )
          {
-            float fTextWidth = g_pRenderEngine->textWidth(m_idFont, (const char*)(m_szLines[i]));
+            float fTextWidth = g_pRenderEngine->textWidth(m_uIdFont, (const char*)(m_szLines[i]));
             if ( fTextWidth > m_RenderWidth - 2.0 * m_fPaddingX )
                fTextWidth = m_RenderWidth - 2.0 * m_fPaddingX;
-            fHeightText = g_pRenderEngine->drawMessageLines(xTextStart + 0.5*(fMaxTextWidth-fTextWidth), yTextStart, m_szLines[i], POPUP_LINE_SPACING, fMaxTextWidth, m_idFont);
+            fHeightText = g_pRenderEngine->drawMessageLines(xTextStart + 0.5*(fMaxTextWidth-fTextWidth), yTextStart, m_szLines[i], POPUP_LINE_SPACING, fMaxTextWidth, m_uIdFont);
          }
          else
-            fHeightText = g_pRenderEngine->drawMessageLines(xTextStart, yTextStart, m_szLines[i], POPUP_LINE_SPACING, fMaxTextWidth, m_idFont);
+            fHeightText = g_pRenderEngine->drawMessageLines(xTextStart, yTextStart, m_szLines[i], POPUP_LINE_SPACING, fMaxTextWidth, m_uIdFont);
       }
       yTextStart += fHeightText;
    }

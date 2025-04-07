@@ -367,7 +367,7 @@ int main(int argc, char *argv[])
    hw_execute_bash_command(szComm, NULL);
    sprintf(szComm, "chmod 777 %s* 2>&1 1>/dev/null", FOLDER_MEDIA);
    hw_execute_bash_command(szComm, NULL);
-
+   hw_execute_bash_command("sync", NULL);
    log_line("Finished processing video file.");
    return 0;
 } 

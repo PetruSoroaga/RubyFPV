@@ -576,7 +576,7 @@ float osd_show_video_profile_mode(float xPos, float yPos, u32 uFontId, bool bLef
       return 0.0;
 
    strcpy(szBuff, str_get_video_profile_name(pVDS->PHVS.uCurrentVideoLinkProfile));
-   int diffEC = pVDS->PHVS.uCurrentBlockECPackets - pActiveModel->video_link_profiles[pVDS->PHVS.uCurrentVideoLinkProfile].block_fecs;
+   int diffEC = pVDS->PHVS.uCurrentBlockECPackets - pActiveModel->video_link_profiles[pVDS->PHVS.uCurrentVideoLinkProfile].iBlockECs;
 
    if ( diffEC > 0 )
    {

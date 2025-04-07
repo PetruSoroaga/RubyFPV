@@ -2314,6 +2314,13 @@ bool process_command(u8* pBuffer, int length)
 
    if ( uCommandType == COMMAND_ID_SET_VIDEO_PARAMS )
    {
+      if ( iParamsLength != sizeof(video_parameters_t) )
+      {
+         log_softerror_and_alarm("Received video params size invalid (%d bytes received, expected %d bytes)",
+            iParamsLength, sizeof(video_parameters_t));
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
+         return true;
+      }
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
 
       video_parameters_t* params = (video_parameters_t*)(pBuffer + sizeof(t_packet_header)+sizeof(t_packet_header_command));
@@ -2468,6 +2475,14 @@ bool process_command(u8* pBuffer, int length)
    
    if ( uCommandType == COMMAND_ID_UPDATE_VIDEO_LINK_PROFILES )
    {
+      if ( iParamsLength != MAX_VIDEO_LINK_PROFILES*sizeof(type_video_link_profile) )
+      {
+         log_softerror_and_alarm("Received video params size invalid (%d bytes received, expected %d bytes)",
+            iParamsLength, MAX_VIDEO_LINK_PROFILES*sizeof(type_video_link_profile));
+         sendCommandReply(COMMAND_RESPONSE_FLAGS_FAILED, 0, 0);
+         return true;
+      }
+
       sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
 
       video_parameters_t oldVideoParams;

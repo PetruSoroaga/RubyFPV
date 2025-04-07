@@ -33,7 +33,8 @@ typedef struct
    u32 uVideoBlockIndex;
    bool bEmpty;
    int iMaxReceivedDataPacketIndex;
-   int iEndOfFramePacketIndex;
+   int iMaxReceivedDataOrECPacketIndex;
+   int iEndOfFrameDetectedAtPacketIndex;
    u32 uReceivedTime;
    int iBlockDataSize;
    int iBlockDataPackets;
@@ -67,12 +68,14 @@ class VideoRxPacketsBuffer
       // Returns true if the packet has the highest video block/packet index received (in order)
       bool checkAddVideoPacket(u8* pPacket, int iPacketLength);
 
-      u32 getMaxReceivedVideoBlockIndex();
-      int getMaxReceivedVideoBlockPacketIndex();
+      u32 getBufferBottomReceivedVideoBlockIndex();
+      u32 getBufferTopReceivedVideoBlockIndex();
+      int getTopBufferMaxReceivedVideoBlockPacketIndex();
 
       int getBlocksCountInBuffer();
       type_rx_video_block_info* getVideoBlockInBuffer(int iStartPosition);
-      type_rx_video_packet_info* getMarkFirstPacketToOutput(type_rx_video_block_info** ppOutputBlock, bool bPushIncompleteBlocks);
+      type_rx_video_packet_info* getFirstPacketInBuffer(type_rx_video_block_info** ppOutputBlock);
+      void goToNextPacketInBuffer();
       int discardOldBlocks(u32 uCutOffTime);
       void resetFrameEndDetectedFlag();
       bool isFrameEndDetected();
@@ -98,7 +101,7 @@ class VideoRxPacketsBuffer
       // Buffers state
       type_rx_video_block_info m_VideoBlocks[MAX_RXTX_BLOCKS_BUFFER];
       u8 m_TempVideoBuffer[MAX_PACKET_TOTAL_SIZE];
-
+      int m_iCountBlocksPresent;
       int m_iTopBufferIndex;
       int m_iBottomBufferIndexToOutput;
       int m_iBottomPacketIndexToOutput;

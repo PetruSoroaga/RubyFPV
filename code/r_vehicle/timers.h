@@ -33,7 +33,8 @@ extern u32 g_TimeLastQualityMeasurement;
 // Router
 
 extern u32 g_TimeFirstReceivedRadioPacketFromController;
-extern u32 g_TimeLastReceivedRadioPacketFromController;
+extern u32 g_TimeLastReceivedFastRadioPacketFromController;
+extern u32 g_TimeLastReceivedSlowRadioPacketFromController;
 extern u32 g_TimeLastDebugFPSComputeTime;
 extern u32 g_TimeLastLiveLogCheck;
 extern u32 g_TimeLastSetRadioLinkFlagsStartOperation;

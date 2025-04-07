@@ -744,7 +744,13 @@ void hw_init_worker_thread_attrs(pthread_attr_t* pAttr)
       log_softerror_and_alarm("[HwProcs] Failed to get thread default stack size. Error: %d (%s)", errno, strerror(errno));
 
    if ( 0 != pthread_attr_setstacksize(pAttr, 1024*16) )
+   {
+      #if defined (HW_PLATFORM_RADXA)
+      log_line("[HwProcs] ERROR: Failed to set thread new stack size. Error: %d (%s)", errno, strerror(errno));
+      #else
       log_softerror_and_alarm("[HwProcs] Failed to set thread new stack size. Error: %d (%s)", errno, strerror(errno));
+      #endif
+   }
 
    iStackSize = 0;
    if ( 0 == pthread_attr_getstacksize(pAttr, &iStackSize) )

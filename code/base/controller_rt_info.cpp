@@ -126,6 +126,7 @@ controller_runtime_info_vehicle* controller_rt_info_get_vehicle_info(controller_
       if ( pRTInfo->vehicles[i].uVehicleId == 0 )
       {
          pRTInfo->vehicles[i].uVehicleId = uVehicleId;
+         pRTInfo->vehicles[i].iCountBlocksInVideoRxBuffers = 0;
          return &(pRTInfo->vehicles[i]);
       }
    }

@@ -125,13 +125,14 @@ typedef struct
 
    int width;
    int height;
-   int block_packets;
-   int block_fecs;
+   int iBlockPackets;
+   int iBlockECs;
+   int iECPercentage;
    int video_data_length;
    int keyframe_ms;
    // v 7.7: changed keyframe to miliseconds instead of frames count
    int fps;
-   u32 bitrate_fixed_bps; // in bits per second, 0 for auto
+   u32 bitrate_fixed_bps; // in bits/second, 0 for auto
 
 } type_video_link_profile;
 
@@ -411,7 +412,7 @@ typedef struct
    u32  interface_radiotype_and_driver[MAX_RADIO_INTERFACES]; // low byte: radio type, second byte = driver type, third byte: supported card flag
    u8   interface_supported_bands[MAX_RADIO_INTERFACES];  // bits 0-3: 2.3, 2.4, 2.5, 5.8 bands
    char interface_szMAC[MAX_RADIO_INTERFACES][MAX_MAC_LENGTH];
-   char interface_szPort[MAX_RADIO_INTERFACES][6]; // first byte - first char, sec byte - sec char
+   char interface_szPort[MAX_RADIO_INTERFACES][MAX_RADIO_PORT_NAME_LENGTH]; // first byte - first char, sec byte - sec char
    u32  interface_capabilities_flags[MAX_RADIO_INTERFACES]; // what the card is used for: video/data/relay/tx/rx
    u32  interface_current_frequency_khz[MAX_RADIO_INTERFACES]; // current frequency for this card
    u32  interface_current_radio_flags[MAX_RADIO_INTERFACES]; // radio flags: legacy/MCS datarate type, frame type, STBC, LDP, MCS etc
@@ -612,6 +613,7 @@ class Model
       void resetOSDFlags(int iScreen = -1);
       void resetOSDStatsFlags(int iScreen = -1);
       void resetOSDScreenToLayout(int iScreen, int iLayout);
+      void checkUpdateOSDRadioLinksFlags(osd_parameters_t* pOSDParams);
       void resetTelemetryParams();
       void resetRCParams();
       void resetVideoParamsToDefaults();
@@ -681,6 +683,7 @@ class Model
       int get_video_profile_ec_scheme(int iVideoProfile, int* piData, int* piEC);
       int get_level_shift_ec_scheme(int iTotalLevelsShift, int* piData, int* piEC);
       int get_current_max_video_packets_for_all_profiles();
+      void convertECPercentageToData(type_video_link_profile* pVideoProfile);
 
       bool isAudioCapableAndEnabled();
       void constructLongName();

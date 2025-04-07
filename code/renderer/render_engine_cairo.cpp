@@ -37,6 +37,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <unistd.h>
 #include <math.h>
 #include <stdio.h>
@@ -227,6 +228,8 @@ cairo_t* RenderEngineCairo::_getActiveCairoContext()
 
 void* RenderEngineCairo::_loadRawFontImageObject(const char* szFileName)
 {
+   return NULL;
+   /*
    if ( (NULL == szFileName) || (0 == szFileName[0]) )
    {
       log_softerror_and_alarm("[RenderEngineCairo] Failed to load image. Invalid filename.");
@@ -241,6 +244,7 @@ void* RenderEngineCairo::_loadRawFontImageObject(const char* szFileName)
           cairo_image_surface_get_width(pImage),
           cairo_image_surface_get_width(pImage), pImage );
    return (void*) pImage;
+   */
 }
 
 void RenderEngineCairo::_freeRawFontImageObject(void* pImageObject)
@@ -1414,7 +1418,7 @@ void RenderEngineCairo::_updateCurrentFontToUse(RenderEngineRawFont* pFont, bool
       else if ( s_iLastCairoFontFamilyId == 1 )
          cairo_select_font_face(pCairoCtx, "DejaVu Sans", CAIRO_FONT_SLANT_NORMAL, iStyle);
       else
-         cairo_select_font_face(pCairoCtx, "Nimbus", CAIRO_FONT_SLANT_NORMAL, iStyle);
+         cairo_select_font_face(pCairoCtx, "Nimbus Sans", CAIRO_FONT_SLANT_NORMAL, iStyle);
    }
 
    //cairo_select_font_face(pCairoCtx, "Roboto", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
@@ -1427,20 +1431,67 @@ void RenderEngineCairo::_updateCurrentFontToUse(RenderEngineRawFont* pFont, bool
 float RenderEngineCairo::textRawWidthScaled(u32 fontId, float fScale, const char* szText)
 {
    RenderEngineRawFont* pFont = _getRawFontFromId(fontId);
-   if ( NULL == pFont )
+   if ( (NULL == pFont) || (NULL == szText) || (0 == szText[0]) )
       return 0.0;
 
    cairo_t* pCairoCtx = _getActiveCairoContext();
    if ( NULL == pCairoCtx )
        pCairoCtx = _createTempDrawContext();
-   cairo_move_to(pCairoCtx, 0,0);
+   
    _updateCurrentFontToUse(pFont, false);
-   cairo_set_font_size(pCairoCtx, pFont->lineHeight*0.8*fScale);
+   int iPixels = pFont->lineHeight*0.8*fScale;
+   if ( iPixels < 6 )
+      iPixels = 6;
+   cairo_set_font_size(pCairoCtx, iPixels);
 
    char szTxt[256];
    memset(szTxt, 0, sizeof(szTxt));
-   strncpy(szTxt, szText, sizeof(szTxt)-2);
+   strncpy(szTxt, szText, sizeof(szTxt)-3);
    
+   cairo_scaled_font_t * pSFont = cairo_get_scaled_font(pCairoCtx);
+   
+   cairo_glyph_t* glyphs = NULL;
+   int glyph_count = 0;
+   cairo_text_cluster_t* clusters = NULL;
+   int cluster_count = 0;
+   cairo_text_cluster_flags_t clusterflags;
+
+   cairo_status_t result = cairo_scaled_font_text_to_glyphs(pSFont, 0, 0, szTxt, strlen(szTxt), &glyphs, &glyph_count, &clusters, &cluster_count, &clusterflags);
+   if ( result != CAIRO_STATUS_SUCCESS )
+   {
+      log_softerror_and_alarm("[RenderEngineCairo] Failed to get text width: (%s)", szTxt);
+      return 0.0;
+   }
+
+   if ( (0 == glyph_count) && (0 == cluster_count) )
+   {
+      log_softerror_and_alarm("[RenderEngineCairo] Failed to get text width glyphs: (%s)", szTxt);
+      return 0.0;
+   }
+
+   float fWidthPixelsGlyphs = 0.0;
+
+   int glyph_index = 0;
+   int byte_index = 0;
+   for (int i = 0; i<cluster_count; i++)
+   {
+     cairo_text_cluster_t* cluster = &clusters[i];
+     cairo_glyph_t* clusterglyphs = &glyphs[glyph_index];
+
+     // get extents for the glyphs in the cluster
+     cairo_text_extents_t extents;
+     cairo_scaled_font_glyph_extents(pSFont, clusterglyphs, cluster->num_glyphs, &extents);
+     fWidthPixelsGlyphs += extents.x_advance;
+     glyph_index += cluster->num_glyphs;
+     byte_index += cluster->num_bytes;
+  }
+ 
+   if ( fWidthPixelsGlyphs <= 1.0 )
+      return 0.0;
+
+   return fWidthPixelsGlyphs * m_fPixelWidth * fScale;
+   
+   /*
    char* szParse = szTxt;
    char* szWord = NULL;
    int iCountWords = 0;
@@ -1475,44 +1526,11 @@ float RenderEngineCairo::textRawWidthScaled(u32 fontId, float fScale, const char
    }
 
    return fWidth;
+   */
+
    //cairo_text_extents_t cte;
    //cairo_text_extents(pCairoCtx, szText, &cte);
    //float fWidth = cte.x_advance;
-
-   /*
-   cairo_scaled_font_t * pSFont = cairo_get_scaled_font(pCairoCtx);
-   
-   cairo_glyph_t* glyphs = NULL;
-   int glyph_count = 0;
-   cairo_text_cluster_t* clusters = NULL;
-   int cluster_count = 0;
-   cairo_text_cluster_flags_t clusterflags;
-
-   cairo_status_t stat = cairo_scaled_font_text_to_glyphs(pSFont, 0, 0, szText, strlen(szText), &glyphs, &glyph_count, &clusters, &cluster_count, &clusterflags);
-   float fWidthGlyphs = 0.0;
-
-   if ( stat == CAIRO_STATUS_SUCCESS )
-   {
-      //log_line("DBG glyph: %d glyphs, %d clusters", glyph_count, cluster_count);
-      int glyph_index = 0;
-      int byte_index = 0;
-      for (int i = 0; i < cluster_count; i++)
-      {
-        cairo_text_cluster_t* cluster = &clusters[i];
-        cairo_glyph_t* clusterglyphs = &glyphs[glyph_index];
-
-        // get extents for the glyphs in the cluster
-        cairo_text_extents_t extents;
-        cairo_scaled_font_glyph_extents(pSFont, clusterglyphs, cluster->num_glyphs, &extents);
-        // ... for later use
-        //log_line("DBG glyph: cluster %d: %d glyphs, %d bytes, width: %f, adv: %f", i,cluster->num_glyphs, cluster->num_bytes, extents.width, extents.x_advance);
-        // glyph/byte position
-        fWidthGlyphs += extents.x_advance;
-        glyph_index += cluster->num_glyphs;
-        byte_index += cluster->num_bytes;
-     }
-   }
-   */
 }
 
 /*
@@ -1561,7 +1579,15 @@ void RenderEngineCairo::_drawSimpleTextScaled(RenderEngineRawFont* pFont, const 
       return;
    }
    if ( (NULL == szText) || (0 == szText[0]) )
+   {
+      log_softerror_and_alarm("[RenderEngineCairo] Tried to draw NULL or empty string.");
       return;
+   }
+   if ( ! m_bStartedFrame )
+   {
+      log_error_and_alarm("[RenderEngineCairo] Tried to draw using outside of render frame");
+      return;
+   }
 
    if ( yPos < 0 )
       return;
@@ -1570,8 +1596,20 @@ void RenderEngineCairo::_drawSimpleTextScaled(RenderEngineRawFont* pFont, const 
    if ( yPos + pFont->lineHeight * fScale * m_fPixelHeight >= 1.0 )
       return;
 
+   char szTxt[256];
+   memset(szTxt, 0, sizeof(szTxt));
+   strncpy(szTxt, szText, sizeof(szTxt)-3);
+
+   u32 uFontId = _getRawFontId(pFont);
+
+   float fRenderWidth = textRawWidthScaled(uFontId, fScale, szTxt);
+   if ( fRenderWidth <= m_fPixelWidth )
+   {
+      log_softerror_and_alarm("[RenderEngineCairo] Tried to draw an invalid text (%s)", szTxt);
+      return;
+   }
    if ( m_bDrawBackgroundBoundingBoxes )
-      _drawSimpleTextBoundingBox(pFont, szText, xPos, yPos, 1.0);
+      _drawSimpleTextBoundingBox(pFont, szTxt, xPos, yPos, 1.0);
 
    float fColor[4];
    if ( m_bDrawBackgroundBoundingBoxes && m_bDrawBackgroundBoundingBoxesTextUsesSameStrokeColor )
@@ -1588,19 +1626,23 @@ void RenderEngineCairo::_drawSimpleTextScaled(RenderEngineRawFont* pFont, const 
       fColor[2] = m_ColorFill[2]/255.0;
       fColor[3] = m_ColorFill[3]/255.0;
    }
-   if ( (fColor[3] < 0.1) || (fColor[3] >= 1.0) )
+   if ( (fColor[3] < 0.25) || (fColor[3] >= 1.0) )
       fColor[3] = 1.0;
 
    cairo_set_source_rgba(m_pCairoCtx, fColor[0], fColor[1], fColor[2], fColor[3]);
    cairo_move_to(m_pCairoCtx, xPos * m_iRenderWidth, yPos * m_iRenderHeight + pFont->baseLine);
    _updateCurrentFontToUse(pFont, false);
-   cairo_set_font_size(m_pCairoCtx, pFont->lineHeight*0.8);
-   cairo_show_text(m_pCairoCtx, szText);
+   int iPixels = pFont->lineHeight*0.8;
+   if ( iPixels < 6 )
+      iPixels = 6;
+
+   cairo_set_font_size(m_pCairoCtx, iPixels);
+   cairo_show_text(m_pCairoCtx, szTxt);
 }
 
 void RenderEngineCairo::_bltFontChar(int iDestX, int iDestY, int iSrcX, int iSrcY, int iSrcWidth, int iSrcHeight, RenderEngineRawFont* pFont)
 {
-   if ( NULL == pFont )
+   if ( (NULL == pFont) || (NULL == pFont->pImageObject) )
       return;
    if ( (iDestX < 0) || (iDestY < 0) || (iDestX+iSrcWidth >= m_iRenderWidth) || (iDestY+iSrcHeight >= m_iRenderHeight) )
       return;

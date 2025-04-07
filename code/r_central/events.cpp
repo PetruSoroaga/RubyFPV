@@ -447,35 +447,56 @@ bool _onEventCheck_NegociateRadioLinks(Model* pCurrentlyStoredModel, Model* pNew
 
    if ( NULL != pCurrentlyStoredModel )
    if ( !(pCurrentlyStoredModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS) )
+   {
+      log_line("Currently stored model has not negociated radio links.");
       g_bMustNegociateRadioLinksFlag = true;
+   }
 
-   if ( (NULL != g_pCurrentModel) && (NULL != pCurrentlyStoredModel) )
+   if ((NULL != g_pCurrentModel) && (NULL != pCurrentlyStoredModel) )
    if ( g_pCurrentModel->uVehicleId == pCurrentlyStoredModel->uVehicleId )
    if ( !(pCurrentlyStoredModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS) )
+   {
+      log_line("Currently stored model (2) has not negociated radio links.");
       g_bMustNegociateRadioLinksFlag = true;
+   }
 
    if ( NULL != pNewReceivedModel )
    if ( !(pNewReceivedModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS) )
+   {
+      log_line("Received model has not negociated radio links.");
       g_bMustNegociateRadioLinksFlag = true;
-
+   }
    if ( (NULL != pCurrentlyStoredModel) && (NULL != pNewReceivedModel) )
    if ( pCurrentlyStoredModel->radioInterfacesParams.interfaces_count != pNewReceivedModel->radioInterfacesParams.interfaces_count )
+   {
+      log_line("Received model and current model have different interfaces count.");
       g_bMustNegociateRadioLinksFlag = true;
-
+   }
    if ( (NULL != pCurrentlyStoredModel) && (NULL != pNewReceivedModel) )
    for( int i=0; i<pCurrentlyStoredModel->radioInterfacesParams.interfaces_count; i++ )
    {
        if ( pCurrentlyStoredModel->radioInterfacesParams.interface_card_model[i] != pNewReceivedModel->radioInterfacesParams.interface_card_model[i] )
-           g_bMustNegociateRadioLinksFlag = true;
+       {
+          log_line("Received model and current model have different interfaces model for radio interface %d: %d != %d", i+1, pCurrentlyStoredModel->radioInterfacesParams.interface_card_model[i], pNewReceivedModel->radioInterfacesParams.interface_card_model[i] );
+          g_bMustNegociateRadioLinksFlag = true;
+       }
        if ( pCurrentlyStoredModel->radioInterfacesParams.interface_radiotype_and_driver[i] != pNewReceivedModel->radioInterfacesParams.interface_radiotype_and_driver[i] )
-           g_bMustNegociateRadioLinksFlag = true;
+       {
+          log_line("Received model and current model have different interfaces drivers for radio interface %d: %d != %d", i+1, pCurrentlyStoredModel->radioInterfacesParams.interface_radiotype_and_driver[i], pNewReceivedModel->radioInterfacesParams.interface_radiotype_and_driver[i] );
+          g_bMustNegociateRadioLinksFlag = true;
+       }
        if ( 0 != strcmp(pCurrentlyStoredModel->radioInterfacesParams.interface_szMAC[i], pNewReceivedModel->radioInterfacesParams.interface_szMAC[i]) )
-           g_bMustNegociateRadioLinksFlag = true;
+       {
+          log_line("Received model and current model have different interfaces names for radio interface %d: (%s) != (%s)", i+1, pCurrentlyStoredModel->radioInterfacesParams.interface_szMAC[i], pNewReceivedModel->radioInterfacesParams.interface_szMAC[i] );
+          g_bMustNegociateRadioLinksFlag = true;
+       }
    }
 
    if ( g_bLinkWizardAfterUpdate )
+   {
+      log_line("An update was done. Must show radio link wizard.");
       g_bMustNegociateRadioLinksFlag = true;
-   
+   }
    //if ( g_bDidAnUpdate )
    //   g_bMustNegociateRadioLinksFlag = false;
 
@@ -528,6 +549,14 @@ bool _onEventCheck_RadioChanged(Model* pCurrentlyStoredModel, Model* pNewReceive
 // Returns true if a big change is detected that requires re-pairing
 bool _onEventCheckChangesToModel(Model* pCurrentlyStoredModel, Model* pNewReceivedModel)
 {
+   log_line("[Events] onEventCheckChangesToModel: currently stored model: %u, new received model: %u",
+      (NULL == pCurrentlyStoredModel)?0:pCurrentlyStoredModel->uVehicleId,
+      (NULL == pNewReceivedModel)?0:pNewReceivedModel->uVehicleId);
+
+   log_line("[Events] onEventCheckChangesToModel: negociated radio? currently stored model: %s, new received model: %s",
+      (NULL == pCurrentlyStoredModel)?"N/A" : ((pCurrentlyStoredModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no"),
+      (NULL == pNewReceivedModel)?"N/A" : ((pNewReceivedModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no"));
+
    if ( (NULL == pCurrentlyStoredModel) || (NULL == pNewReceivedModel) )
    {
       g_bMustNegociateRadioLinksFlag = _onEventCheck_NegociateRadioLinks(pCurrentlyStoredModel, pNewReceivedModel);
@@ -605,6 +634,11 @@ bool _onEventCheckNewPairedModelForUIActionsToTake()
 {
    log_line("[Events] Checking for pairing UI actions to take...");
 
+   if ( s_bEventTookPairingUIAction )
+   {
+      log_line("[Events] Checking for pairing UI actions to take: already has an action in progres.");
+      return true;
+   }
    // Remove vehicle will reboot message, if present
    Menu* pTopMenu = menu_get_top_menu();
    if ( (NULL != pTopMenu) && menu_has_menu(MENU_ID_CONFIRMATION+3*1000) )
@@ -1121,6 +1155,7 @@ bool onEventReceivedModelSettings(u32 uVehicleId, u8* pBuffer, int length, bool 
    g_pCurrentModel = getCurrentModel();
 
    log_line("[Events] Updated current local vehicle with received vehicle settings.");
+   log_line("Currently stored model now (VID %u) has negociated radio? %s", g_pCurrentModel->uVehicleId, (g_pCurrentModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_HAS_NEGOCIATED_LINKS)?"yes":"no");
 
    pCurrentlyStoredModel->logVehicleRadioInfo();
 

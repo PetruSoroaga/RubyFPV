@@ -515,12 +515,15 @@ int RenderEngine::loadRawFont(int iFamilyId, const char* szFontFile, int iBold)
 
    log_line("[RenderEngineRaw] Loading font: %s", szFile);
    m_pRawFonts[m_iCountRawFonts]->pImageObject = _loadRawFontImageObject(szFile);
+   #if defined (HW_PLATFORM_RADXA)
+   #else
    if ( NULL == m_pRawFonts[m_iCountRawFonts]->pImageObject )
    {
       log_softerror_and_alarm("[RenderEngineRaw] Failed to load font: %s (can't load font image)", szFile);
       fclose(fd);
       return -4;
    }
+   #endif
    if ( 2 != fscanf(fd, "%d %d", &(m_pRawFonts[m_iCountRawFonts]->lineHeight), &(m_pRawFonts[m_iCountRawFonts]->baseLine) ) )
    {
       log_error_and_alarm("[RenderEngineRaw] Invalid font file (%s).", szFontFile);
@@ -752,7 +755,7 @@ float RenderEngine::textRawHeight(u32 fontId)
 {
    RenderEngineRawFont* pFont = _getRawFontFromId(fontId);
    if ( NULL == pFont )
-      return 0.0;
+      return 10.0 * m_fPixelHeight;
 
    return pFont->lineHeight * m_fPixelHeight;
 }
@@ -791,6 +794,7 @@ void RenderEngine::_drawSimpleTextBoundingBox(RenderEngineRawFont* pFont, const 
    u32 uFontId = _getRawFontId(pFont);
    float fTextWidth = textRawWidthScaled(uFontId, fScale, szText);
    float fTextHeight = textRawHeight(uFontId);
+   float space_width = _get_raw_space_width(pFont);
 
    if ( (fTextWidth < 0.0001) || (fTextHeight < 0.0001) )
       return;
@@ -800,8 +804,8 @@ void RenderEngine::_drawSimpleTextBoundingBox(RenderEngineRawFont* pFont, const 
    float xBoundingEnd = xPos + fTextWidth;
    float yBoundingEnd = yPos + fTextHeight;
 
-   xBoundingStart -= 0.7*pFont->chars[' '-pFont->charIdFirst].xAdvance * m_fPixelWidth;
-   xBoundingEnd += 0.7*pFont->chars[' '-pFont->charIdFirst].xAdvance * m_fPixelWidth;
+   xBoundingStart -= 0.7 * space_width;
+   xBoundingEnd += 0.7 * space_width;
    yBoundingStart += 1 * m_fPixelHeight;
    yBoundingEnd -= 2 * m_fPixelHeight;
    yBoundingStart += pFont->lineHeight*0.03 * m_fPixelHeight;
@@ -912,6 +916,79 @@ void RenderEngine::drawTextLeftScaled(float xPos, float yPos, u32 fontId, float 
       _drawSimpleText(pFont, szText, xPos-wText, yPos);
  }
 
+float RenderEngine::getMessageWidth(const char* text, float max_width, u32 fontId)
+{
+   if ( (NULL == text) || (0 == text[0]) )
+      return 0.0;
+
+   RenderEngineRawFont* pFont = _getRawFontFromId(fontId);
+   if ( NULL == pFont )
+      return 0.0;
+
+   float fMaxLineWidth = 0.0;
+
+   char szText[256];
+   memset(szText, 0, sizeof(szText));
+   strncpy(szText, text, sizeof(szText)-2);
+   //const char* szTokens = " ，。\n";
+   char* szParse = szText;
+   char* szWord = NULL;
+   float line_width = 0;
+   int countWords = 0;
+   int countLineWords = 0;
+   int countLines = 0;
+
+   float space_width = _get_raw_space_width(pFont);
+
+   while ( *szParse )
+   {
+      szWord = szParse;
+      while ( *szParse )
+      {
+         if ( ((*szParse) == ' ') || ((*szParse) == '\n') )
+         {
+            *szParse = 0;
+            szParse++;
+            break;
+         }
+         szParse++;
+      }
+      if ( NULL == szWord )
+         break;
+      if ( 0 == szWord[0] )
+         continue;
+      countWords++;
+      countLineWords++;
+      float fWidthWord = textRawWidthScaled(fontId, 1.0, szWord);
+
+      if ( (line_width+fWidthWord) <= max_width + 0.0001 )
+      {
+         line_width += fWidthWord;
+         if ( countLineWords > 1 )
+            line_width += space_width;
+         if ( line_width > fMaxLineWidth )
+            fMaxLineWidth = line_width;
+      }
+      else
+      {
+         countLines++;
+         line_width = fWidthWord;
+         if ( line_width > fMaxLineWidth )
+            fMaxLineWidth = line_width;
+         countLineWords = 1;
+      }
+
+      if ( (0 != szWord[0]) && (szWord[strlen(szWord)-1] == '\n') )
+      {
+         countLines++;
+         
+         line_width = 0.0;
+         countLineWords = 0;
+      }
+   }
+
+   return fMaxLineWidth;
+}
 
 float RenderEngine::getMessageHeight(const char* text, float line_spacing_percent, float max_width, u32 fontId)
 {
@@ -923,19 +1000,6 @@ float RenderEngine::getMessageHeight(const char* text, float line_spacing_percen
    if ( NULL == pFont )
       return 0.05;
 
-   if ( 0 == strlen(text) )
-      return 0.0;
-
-   if ( ! m_bEnableFontScaling )
-      fTextHeight = textHeight(fontId);
-   else
-   {
-      //float ff = textHeight(fontId);
-      //if ( ff > 0.0001 )
-      //   fScale = fTextHeight / ff;
-      //else
-      //   fScale = 1.0;
-   }
    float height = 0.0;
 
    char szText[256];
@@ -1012,7 +1076,7 @@ float RenderEngine::getMessageHeight(const char* text, float line_spacing_percen
 
 float RenderEngine::drawMessageLines(float xPos, float yPos, const char* text, float line_spacing_percent, float max_width, u32 fontId)
 {
-   if ( NULL == text || 0 == text[0] )
+   if ( (NULL == text) || (0 == text[0]) )
       return 0.0;
 
    RenderEngineRawFont* pFont = _getRawFontFromId(fontId);
@@ -1021,26 +1085,13 @@ float RenderEngine::drawMessageLines(float xPos, float yPos, const char* text, f
       log_error_and_alarm("[RenderEngineRaw] Tried to drawMesageLines using a NULL font object");
       return 0.05;
    }
-   if ( 0 == strlen(text) )
-      return 0.0;
 
    if ( yPos < 0 )
       return 0.0;
 
    float fTextHeight = textHeight(fontId);
-   
    float fScale = 1.0;
-   if ( ! m_bEnableFontScaling )
-      fTextHeight = textHeight(fontId);
-   else
-   {
-      float ff = textHeight(fontId);
-      if ( ff > 0.0001 )
-         fScale = fTextHeight / ff;
-      else
-         fScale = 1.0;
-   }
-
+ 
    m_uTextFontMixColor[0] = m_ColorFill[0];
    m_uTextFontMixColor[1] = m_ColorFill[1];
    m_uTextFontMixColor[2] = m_ColorFill[2];
@@ -1061,7 +1112,7 @@ float RenderEngine::drawMessageLines(float xPos, float yPos, const char* text, f
    float height = 0.0;
    char szText[256];
    memset(szText, 0, sizeof(szText));
-   strncpy(szText, text, sizeof(szText)-2);
+   strncpy(szText, text, sizeof(szText)-3);
    //const char* szTokens = " ，。\n";
    char* szParse = szText;
    char* szWord = NULL;
@@ -1105,9 +1156,9 @@ float RenderEngine::drawMessageLines(float xPos, float yPos, const char* text, f
             line_width += space_width;
             xTmp += space_width;
          }
-         if ( m_bEnableFontScaling )
-            _drawSimpleTextScaled(pFont, szWord, xTmp, yTmp, 0.7);
-         else
+         //if ( m_bEnableFontScaling )
+         //   _drawSimpleTextScaled(pFont, szWord, xTmp, yTmp, 0.7);
+         //else
             _drawSimpleText(pFont, szWord, xTmp, yTmp);
 
          line_width += fWidthWord;
@@ -1131,9 +1182,9 @@ float RenderEngine::drawMessageLines(float xPos, float yPos, const char* text, f
          if ( yTmp + pFont->lineHeight*fScale * m_fPixelHeight >= 1.0 )
             return height;
 
-         if ( m_bEnableFontScaling )
-            _drawSimpleTextScaled(pFont, szWord, xTmp, yTmp, 0.7);
-         else
+         //if ( m_bEnableFontScaling )
+         //   _drawSimpleTextScaled(pFont, szWord, xTmp, yTmp, 0.7);
+         //else
             _drawSimpleText(pFont, szWord, xTmp, yTmp);
 
          xTmp += fWidthWord;

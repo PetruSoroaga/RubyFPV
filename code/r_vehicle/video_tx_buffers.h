@@ -52,7 +52,7 @@ class VideoTxPacketsBuffer
       void _checkAllocatePacket(int iBufferIndex, int iPacketIndex);
       void _fillVideoPacketHeaders(int iBufferIndex, int iPacketIndex, bool bIsECPacket, int iRawVideoDataSize, u32 uNALPresenceFlags, bool bEndOfTransmissionFrame);
       void _addNewVideoPacket(u8* pRawVideoData, int iRawVideoDataSize, u32 uNALPresenceFlags, bool bEndOfTransmissionFrame);
-      void _sendPacket(int iBufferIndex, int iPacketIndex, u32 uRetransmissionId);
+      bool _sendPacket(int iBufferIndex, int iPacketIndex, u32 uRetransmissionId);
       static int m_siVideoBuffersInstancesCount;
       bool m_bInitialized;
       bool m_bOverflowFlag;

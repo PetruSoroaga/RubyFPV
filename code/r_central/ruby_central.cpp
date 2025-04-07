@@ -388,16 +388,21 @@ void _render_video_background()
       if ( pModel->b_mustSyncFromVehicle )
          bVehicleHasCamera = true;
       if ( bVehicleHasCamera && link_has_received_videostream(uVehicleIdFullVideo) )
+      if ( (uVehicleSoftwareVersion >>16) == SYSTEM_SW_BUILD_NUMBER )
          return;
    }
 
    g_pRenderEngine->setGlobalAlfa(1.0);
 
    double c1[4] = {0,0,0,1};
+   if ( (uVehicleSoftwareVersion >>16) < 284 )
+      c1[0] = 70;
+   if ( (uVehicleSoftwareVersion >>16) > SYSTEM_SW_BUILD_NUMBER )
+      c1[0] = 70;
    g_pRenderEngine->setColors(c1);
    g_pRenderEngine->drawRect(0, 0, 1,1 );
 
-   double c[4] = {255,255,255,1};
+   double c[4] = {200,200,200,1};
    g_pRenderEngine->setColors(c);
 
    char szText[256];
@@ -428,16 +433,27 @@ void _render_video_background()
          log_line("Waiting for video feed from VID %u", uVehicleIdFullVideo);
       }
    }
+
+   if ( ((uVehicleSoftwareVersion >>16) < 284) )
+      strcpy(szText, L("Vehicle OTA software update required"));
+   if ( (uVehicleSoftwareVersion >>16) > SYSTEM_SW_BUILD_NUMBER )
+      strcpy(szText, L("Controller software update required"));
+
    float width_text = g_pRenderEngine->textRawWidth(g_idFontOSDBig, szText);
    g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45, g_idFontOSDBig, szText);
    g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45, g_idFontOSDBig, szText);
 
-   if ( (!g_bSearching) && ((uVehicleSoftwareVersion >>16)  < 262) )
+   if ( !g_bSearching )
+   if ( ((uVehicleSoftwareVersion >>16) < 284) || ((uVehicleSoftwareVersion >>16) > SYSTEM_SW_BUILD_NUMBER) )
    {
       float fHeight = 1.5*g_pRenderEngine->textHeight(g_idFontOSDBig);
-      width_text = g_pRenderEngine->textRawWidth(g_idFontOSDBig, L("Video protocols have changed. You must update your vehicle"));
-      g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45+fHeight, g_idFontOSDBig, L("Video protocols have changed. You must update your vehicle"));
-      g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45+fHeight, g_idFontOSDBig, L("Video protocols have changed. You must update your vehicle"));
+      char szWarning[256];
+      strcpy(szWarning, L("Video protocols have changed. You must update your vehicle"));
+      if ( (uVehicleSoftwareVersion >>16) > SYSTEM_SW_BUILD_NUMBER )
+         strcpy(szWarning, L("Video protocols have changed. You must update your controller"));
+      width_text = g_pRenderEngine->textRawWidth(g_idFontOSDBig, szWarning);
+      g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45+fHeight, g_idFontOSDBig, szWarning);
+      g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45+fHeight, g_idFontOSDBig, szWarning);
    }
 }
 
@@ -480,6 +496,21 @@ void _render_background_and_paddings(bool bForceBackground)
       bShowBgPicture = false;
       bShowBgVideo = true;
    }
+
+   if ( ! bShowBgPicture )
+   if ( NULL != g_pCurrentModel )
+   {
+      u32 uVehicleSoftwareVersion = g_pCurrentModel->sw_version;
+      Model* pModel = relay_controller_get_relayed_vehicle_model(g_pCurrentModel);
+      if ( NULL != pModel )
+      if ( relay_controller_must_display_remote_video(pModel) )
+         uVehicleSoftwareVersion = pModel->sw_version;
+      if ( (uVehicleSoftwareVersion >>16) < 284 )
+         bShowBgVideo = true;
+      if ( (uVehicleSoftwareVersion >>16) > SYSTEM_SW_BUILD_NUMBER )
+         bShowBgVideo = true;
+   }
+
 
    if ( bShowBgPicture )
    {

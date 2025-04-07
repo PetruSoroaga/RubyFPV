@@ -138,7 +138,7 @@ typedef struct
    char szDriver[32];
    char szMAC[MAX_MAC_LENGTH]; // MAC or serial port name or SPI name
    char szProductId[12];
-   char szUSBPort[6];  // [A-X], [A-X][1-9], ... or serial port name or SPI name
+   char szUSBPort[MAX_RADIO_PORT_NAME_LENGTH];  // [A-X], [A-X][1-9], ... or serial port name or SPI name
    int iRadioType;
    int iRadioDriver;
    u32 uHardwareParamsList[MAX_RADIO_HW_PARAMS];
@@ -221,6 +221,7 @@ int hardware_radio_is_wifi_radio(radio_hw_info_t* pRadioInfo);
 int hardware_radio_is_serial_radio(radio_hw_info_t* pRadioInfo);
 int hardware_radio_is_elrs_radio(radio_hw_info_t* pRadioInfo);
 int hardware_radio_is_sik_radio(radio_hw_info_t* pRadioInfo);
+int hardware_radio_index_is_high_capacity(int iRadioIndex);
 int hardware_radio_index_is_wifi_radio(int iRadioIndex);
 int hardware_radio_index_is_serial_radio(int iHWInterfaceIndex);
 int hardware_radio_index_is_elrs_radio(int iHWInterfaceIndex);

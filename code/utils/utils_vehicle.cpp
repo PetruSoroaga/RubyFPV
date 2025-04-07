@@ -130,12 +130,14 @@ bool videoLinkProfileIsOnlyECSchemeChanged(type_video_link_profile* pOldProfile,
 
    type_video_link_profile tmp;
    memcpy(&tmp, pNewProfile, sizeof(type_video_link_profile) );
-   tmp.block_packets = pOldProfile->block_packets;
-   tmp.block_fecs = pOldProfile->block_fecs;
+   tmp.iBlockPackets = pOldProfile->iBlockPackets;
+   tmp.iBlockECs = pOldProfile->iBlockECs;
+   tmp.iECPercentage = pOldProfile->iECPercentage;
  
    if ( 0 == memcmp(pOldProfile, &tmp, sizeof(type_video_link_profile)) )
-   if ( (pOldProfile->block_packets != pNewProfile->block_packets) ||
-        (pOldProfile->block_fecs != pNewProfile->block_fecs) )
+   if ( (pOldProfile->iBlockPackets != pNewProfile->iBlockPackets) ||
+        (pOldProfile->iBlockECs != pNewProfile->iBlockECs) ||
+        (pOldProfile->iECPercentage != pNewProfile->iECPercentage) )
       return true;
    return false;
 }

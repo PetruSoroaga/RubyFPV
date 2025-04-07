@@ -30,6 +30,7 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <math.h>
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/models.h"
@@ -56,6 +57,11 @@ u16 s_uPendingKFValue = 0;
 int s_iPendingAdaptiveRadioDataRate = 0;
 u32 s_uTimeSetPendingAdaptiveRadioDataRate = 0;
 
+// Set inital state to uplink lost, to use lower video scheme, untill pairing comes from controller
+bool s_bAdaptiveIsInUplinkLostState = true;
+u32  s_uAdaptiveVideoTemporaryBitrate = 0;
+u32  s_uAdaptiveTimeToSetInitialBitrate = 0;
+
 void adaptive_video_init()
 {
    log_line("[AdaptiveVideo] Init...");
@@ -66,11 +72,49 @@ void adaptive_video_init()
    s_iPendingAdaptiveRadioDataRate = 0;
    s_uTimeSetPendingAdaptiveRadioDataRate = 0;
 
-   s_uLastVideoProfileRequestedByController = 0;
+   s_uLastVideoProfileRequestedByController = 0xFF;
    s_uTimeLastVideoProfileRequestedByController = 0;
-   log_line("[AdaptiveVideo] Current KF ms: %d, pending KF ms: %d", s_uCurrentKFValue, s_uPendingKFValue);
+   s_uAdaptiveTimeToSetInitialBitrate = g_TimeNow + 2000;
+   log_line("[AdaptiveVideo] Done init. Current KF ms: %d, pending KF ms: %d", s_uCurrentKFValue, s_uPendingKFValue);
 }
 
+void _adaptive_video_check_apply_capture_video_bitrate(const char* szReason)
+{
+   int iVideoProfile = g_pCurrentModel->video_params.user_selected_video_link_profile;
+   if ( s_uLastVideoProfileRequestedByController != 0xFF )
+      iVideoProfile = (int)s_uLastVideoProfileRequestedByController;
+
+   // Update capture video bitrate, qpdelta
+   u32 uBitrateBPS = g_pCurrentModel->video_link_profiles[iVideoProfile].bitrate_fixed_bps;
+
+   if ( s_bAdaptiveIsInUplinkLostState )
+   {
+      uBitrateBPS = (uBitrateBPS * 66) /100;
+      if ( uBitrateBPS < DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE )
+         uBitrateBPS = DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE;
+   }
+   if ( 0 != s_uAdaptiveVideoTemporaryBitrate )
+      uBitrateBPS = s_uAdaptiveVideoTemporaryBitrate;
+
+   log_line("[AdaptiveVideo] Check apply video bitrate (reason: %s): temp bitrate: %u, degraded state? %s, bitrate to set: %u",
+      ((szReason!=NULL)?szReason:"N/A"), s_uAdaptiveVideoTemporaryBitrate, s_bAdaptiveIsInUplinkLostState?"yes":"no", uBitrateBPS);
+
+   if ( g_pCurrentModel->hasCamera() )
+   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
+      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, uBitrateBPS/100000, 0);
+      
+   if ( g_pCurrentModel->hasCamera() )
+   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+   {
+      if ( (uBitrateBPS != hardware_camera_maj_get_current_bitrate()) &&
+           (hardware_camera_maj_get_current_qpdelta() != g_pCurrentModel->video_link_profiles[iVideoProfile].iIPQuantizationDelta) )
+         hardware_camera_maj_set_bitrate_and_qpdelta( uBitrateBPS, g_pCurrentModel->video_link_profiles[iVideoProfile].iIPQuantizationDelta);
+      else if ( uBitrateBPS != hardware_camera_maj_get_current_bitrate() )
+         hardware_camera_maj_set_bitrate(uBitrateBPS); 
+      else if ( hardware_camera_maj_get_current_qpdelta() != g_pCurrentModel->video_link_profiles[iVideoProfile].iIPQuantizationDelta )
+         hardware_camera_maj_set_qpdelta(g_pCurrentModel->video_link_profiles[iVideoProfile].iIPQuantizationDelta);
+   }
+}
 
 void adaptive_video_set_kf_for_current_video_profile(u16 uKeyframe)
 {
@@ -94,8 +138,8 @@ void adaptive_video_set_last_profile_requested_by_controller(int iVideoProfile)
    log_line("[AdaptiveVideo] Set new video profile requested by controller: (%d) %s, current video profile: %d",
        iVideoProfile, str_get_video_profile_name(iVideoProfile), s_uLastVideoProfileRequestedByController);
    log_line("[AdaptiveVideo] Current video profile settings: EC: %d/%d, %d (%d) max bytes in video data, bitrate: %u bps",
-      g_pCurrentModel->video_link_profiles[iVideoProfile].block_packets,
-      g_pCurrentModel->video_link_profiles[iVideoProfile].block_fecs,
+      g_pCurrentModel->video_link_profiles[iVideoProfile].iBlockPackets,
+      g_pCurrentModel->video_link_profiles[iVideoProfile].iBlockECs,
       g_pCurrentModel->video_link_profiles[iVideoProfile].video_data_length,
       (NULL != g_pVideoTxBuffers)?g_pVideoTxBuffers->getCurrentUsableRawVideoDataSize():0,
       g_pCurrentModel->video_link_profiles[iVideoProfile].bitrate_fixed_bps);
@@ -109,26 +153,9 @@ void adaptive_video_set_last_profile_requested_by_controller(int iVideoProfile)
       //log_line("[AdaptiveVideo] Set new KF ms value requested by controller: %d (current KF ms: %d)", s_uPendingKFValue, s_uCurrentKFValue);
    }
 
-   // Update capture video bitrate, qpdelta
-   u32 uBitrateBPS = g_pCurrentModel->video_link_profiles[iVideoProfile].bitrate_fixed_bps;
+   _adaptive_video_check_apply_capture_video_bitrate("set profile from controller");
 
-   if ( g_pCurrentModel->hasCamera() )
-   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, uBitrateBPS/100000, 0);
-      
-   if ( g_pCurrentModel->hasCamera() )
-   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-   {
-      if ( (uBitrateBPS != hardware_camera_maj_get_current_bitrate()) &&
-           (hardware_camera_maj_get_current_qpdelta() != g_pCurrentModel->video_link_profiles[iVideoProfile].iIPQuantizationDelta) )
-         hardware_camera_maj_set_bitrate_and_qpdelta( uBitrateBPS, g_pCurrentModel->video_link_profiles[iVideoProfile].iIPQuantizationDelta);
-      else if ( uBitrateBPS != hardware_camera_maj_get_current_bitrate() )
-         hardware_camera_maj_set_bitrate(uBitrateBPS); 
-      else if ( hardware_camera_maj_get_current_qpdelta() != g_pCurrentModel->video_link_profiles[iVideoProfile].iIPQuantizationDelta )
-         hardware_camera_maj_set_qpdelta(g_pCurrentModel->video_link_profiles[iVideoProfile].iIPQuantizationDelta);
-   }
-
-   // Update adaptive video rate for tx radio:
+   // Update adaptive video data rate for tx radio:
    if ( s_uLastVideoProfileRequestedByController == g_pCurrentModel->video_params.user_selected_video_link_profile )
    {
       packet_utils_set_adaptive_video_datarate(0);
@@ -202,25 +229,66 @@ void _adaptive_video_send_kf_to_capture_program(u16 uNewKeyframeMs)
    }
 }
 
-u32 adaptive_video_set_bitrate(u32 uBitrateBPS)
+void adaptive_video_set_temporary_bitrate(u32 uBitrateBPS)
 {
    if ( ! g_pCurrentModel->hasCamera() )
-      return 0;
+      return;
 
-   u32 uReturn = 0;
-   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-      uReturn = video_source_csi_get_last_set_videobitrate();
-   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-      uReturn = hardware_camera_maj_get_current_bitrate();
+   log_line("[AdaptiveVideo] Set temporary video bitrate to %u bps (current temp videobitrate is: %u bps)", uBitrateBPS, s_uAdaptiveVideoTemporaryBitrate);
+   s_uAdaptiveVideoTemporaryBitrate = uBitrateBPS;
 
-   log_line("[AdaptiveVideo] Set video bitrate to %u bps (current (temp) videobitrate is: %u bps)", uBitrateBPS, uReturn);
+   _adaptive_video_check_apply_capture_video_bitrate("set temp bitrate");
+}
 
-   if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-      video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, uBitrateBPS/100000, 0);
-   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-      hardware_camera_maj_set_bitrate(uBitrateBPS);
+bool adaptive_video_is_in_degraded_state()
+{
+   return s_bAdaptiveIsInUplinkLostState;
+}
 
-   return uReturn;
+u32  adaptive_video_get_degraded_ec_packets_count()
+{
+   int iVideoProfile = g_pCurrentModel->video_params.user_selected_video_link_profile;
+   if ( s_uLastVideoProfileRequestedByController != 0xFF )
+      iVideoProfile = (int)s_uLastVideoProfileRequestedByController;
+   u32 uECPackets = g_pCurrentModel->video_link_profiles[iVideoProfile].iBlockECs;
+   u32 uMidEC = (u32) rintf((float)g_pCurrentModel->video_link_profiles[iVideoProfile].iBlockPackets/2.0);
+   if ( uECPackets < uMidEC )
+   {
+      uECPackets = uMidEC;
+      if ( uECPackets == 0 )
+         uECPackets = 1;
+   }
+   return uECPackets;
+}
+
+
+void adaptive_video_on_uplink_lost()
+{
+   if ( s_bAdaptiveIsInUplinkLostState )
+      return;
+
+   log_line("[AdaptiveVideo] on uplink lost.");
+   s_bAdaptiveIsInUplinkLostState = true;
+   _adaptive_video_check_apply_capture_video_bitrate("on uplink lost");
+}
+
+void adaptive_video_on_uplink_recovered()
+{
+   if ( ! s_bAdaptiveIsInUplinkLostState )
+      return;
+   log_line("[AdaptiveVideo] on uplink recovered.");
+   s_bAdaptiveIsInUplinkLostState = false;
+   _adaptive_video_check_apply_capture_video_bitrate("on uplink recovered");
+}
+
+void adaptive_video_on_user_video_bitrate_changed(u32 uOldBitrate, u32 uNewBitrate)
+{
+   if ( adaptive_video_get_current_active_video_profile() != g_pCurrentModel->video_params.user_selected_video_link_profile )
+      return;
+   if ( uOldBitrate == uNewBitrate )
+      return;
+
+   _adaptive_video_check_apply_capture_video_bitrate("user video profile bitrate changed");
 }
 
 void adaptive_video_on_capture_restarted()
@@ -255,6 +323,14 @@ void adaptive_video_periodic_loop()
       return;
    
    s_uTimeLastTimeAdaptivePeriodicLoop = g_TimeNow;
+   
+   if ( 0 != s_uAdaptiveTimeToSetInitialBitrate )
+   if ( g_TimeNow >= s_uAdaptiveTimeToSetInitialBitrate )
+   {
+      s_uAdaptiveTimeToSetInitialBitrate = 0;
+      _adaptive_video_check_apply_capture_video_bitrate("initial set");
+   }
+
    u32 uDeltaTime = DEFAULT_LOWER_VIDEO_RADIO_DATARATE_AFTER_MS;
    #if defined HW_PLATFORM_RASPBERRY
    uDeltaTime *= 2;

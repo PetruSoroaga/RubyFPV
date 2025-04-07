@@ -48,7 +48,8 @@ t_sik_radio_state g_SiKRadiosState;
 
 bool g_bReinitializeRadioInProgress = false;
 bool g_bReceivedPairingRequest = false;
-bool g_bHasLinkToController = false;
+bool g_bHasFastUplinkFromController = false;
+bool g_bHasSlowUplinkFromController = false;
 bool g_bHadEverLinkToController = false;
 bool g_bHasSentVehicleSettingsAtLeastOnce = false;
 

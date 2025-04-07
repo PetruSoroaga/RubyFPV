@@ -917,6 +917,7 @@ void MenuVehicleOSDElements::onSelectItem()
       else if ( 3 == m_pItemsSelect[19]->getSelectedIndex() )
          params.osd_flags[iScreenIndex] |= OSD_FLAG_SHOW_RADIO_LINKS | OSD_FLAG_SHOW_VEHICLE_RADIO_LINKS;
 
+      g_pCurrentModel->checkUpdateOSDRadioLinksFlags(&params);
       params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
@@ -931,6 +932,7 @@ void MenuVehicleOSDElements::onSelectItem()
       else
          params.osd_flags2[iScreenIndex] |= OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_BARS | OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS;
       
+      g_pCurrentModel->checkUpdateOSDRadioLinksFlags(&params);
       params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
@@ -944,6 +946,9 @@ void MenuVehicleOSDElements::onSelectItem()
          params.osd_flags3[iScreenIndex] |= OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR;
       else
          params.osd_flags3[iScreenIndex] |= OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_PERCENT;
+
+      g_pCurrentModel->checkUpdateOSDRadioLinksFlags(&params);
+      params.osd_layout_preset[iScreenIndex] = OSD_PRESET_CUSTOM;
       sendToVehicle = true;
    }
 
