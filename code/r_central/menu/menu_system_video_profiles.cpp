@@ -404,8 +404,8 @@ void MenuSystemVideoProfiles::valuesToUI()
       m_pItemsSlider[k*20+10]->setCurrentValue(4*g_pCurrentModel->video_link_profiles[k].bitrate_fixed_bps/1000/1000);
       m_pItemsSlider[k*20+11]->setCurrentValue(g_pCurrentModel->video_link_profiles[k].video_data_length);
       m_pItemsSlider[k*20+11]->setEnabled(false);
-      m_pItemsSlider[k*20+12]->setCurrentValue(g_pCurrentModel->video_link_profiles[k].block_packets);
-      m_pItemsSlider[k*20+13]->setCurrentValue(g_pCurrentModel->video_link_profiles[k].block_fecs);
+      m_pItemsSlider[k*20+12]->setCurrentValue(g_pCurrentModel->video_link_profiles[k].iBlockPackets);
+      m_pItemsSlider[k*20+13]->setCurrentValue(g_pCurrentModel->video_link_profiles[k].iBlockECs);
 
       m_pItemsSlider[k*20+16]->setCurrentValue(g_pCurrentModel->video_link_profiles[k].fps);
       m_pItemsSlider[k*20+16]->setEnabled(true);
@@ -510,7 +510,7 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
 
    // Propagate changes to lower video profile
 
-   propagate_video_profile_changes_to_lower_profiles(&g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], &(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]), &(profiles[0]));
+   propagate_video_profile_changes_to_lower_profiles(g_pCurrentModel, &g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile], &(profiles[g_pCurrentModel->video_params.user_selected_video_link_profile]), &(profiles[0]));
 
    for( int k=VIDEO_PROFILE_MQ; k<=VIDEO_PROFILE_LQ; k++ )
    {
@@ -561,8 +561,8 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
       else
          profiles[k].uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME;
       profiles[k].video_data_length = m_pItemsSlider[k*20+11]->getCurrentValue();
-      profiles[k].block_packets = m_pItemsSlider[k*20+12]->getCurrentValue();
-      profiles[k].block_fecs    = m_pItemsSlider[k*20+13]->getCurrentValue();
+      profiles[k].iBlockPackets = m_pItemsSlider[k*20+12]->getCurrentValue();
+      profiles[k].iBlockECs = m_pItemsSlider[k*20+13]->getCurrentValue();
       profiles[k].bitrate_fixed_bps = m_pItemsSlider[k*20+10]->getCurrentValue()*1000*1000/4;
    }
 

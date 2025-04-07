@@ -90,8 +90,8 @@ class ProcessorRxVideo
       
       void updateHistoryStats(u32 uTimeNow);
       // Returns how many retransmission packets where requested, if any
-      virtual int periodicLoop(u32 uTimeNow, bool bForceSyncNow);
-      virtual int handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, int length);
+      int periodicLoop(u32 uTimeNow, bool bForceSyncNow);
+      void handleReceivedVideoPacket(int interfaceNb, u8* pBuffer, int length);
 
       static int m_siInstancesCount;
       static FILE* m_fdLogFile;
@@ -108,6 +108,8 @@ class ProcessorRxVideo
       
       void updateControllerRTInfoAndVideoDecodingStats(u8* pRadioPacket, int iPacketLength);
       
+      void _checkUpdateRetransmissionsState();
+      void checkUpdateRetransmissionsState();
       // Returns how many retransmission packets where requested, if any
       int checkAndRequestMissingPackets(bool bForceSyncNow);
       void checkAndDiscardBlocksTooOld();
@@ -134,6 +136,7 @@ class ProcessorRxVideo
       type_last_rx_packet_info m_InfoLastReceivedVideoPacket;
       u8 m_uLastReceivedVideoLinkProfile;
 
+      u32 m_uLastTimeCheckedForMissingPackets;
       u32 m_uLastTimeRequestedRetransmission;
       u32 m_uRequestRetransmissionUniqueId;
 

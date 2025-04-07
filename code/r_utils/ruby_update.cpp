@@ -101,6 +101,31 @@ void update_openipc_cpu(Model* pModel)
 }
 
 
+void do_update_to_110()
+{
+   log_line("Doing update to 11.0");
+ 
+   if ( ! s_isVehicle )
+   {
+     
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].iBlockPackets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
+
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].iECPercentage = DEFAULT_VIDEO_EC_RATE_HQ;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].iECPercentage = DEFAULT_VIDEO_EC_RATE_HP;
+   pModel->video_link_profiles[VIDEO_PROFILE_USER].iECPercentage = DEFAULT_VIDEO_EC_RATE_HQ;
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].iECPercentage = DEFAULT_VIDEO_EC_RATE_MQ;
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].iECPercentage = DEFAULT_VIDEO_EC_RATE_LQ;
+   
+   log_line("Updated model VID %u (%s) to v11.0", pModel->uVehicleId, pModel->getLongName());
+}
+
+
 void do_update_to_108()
 {
    log_line("Doing update to 10.8");
@@ -374,8 +399,8 @@ void do_update_to_103()
    pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
    pModel->video_link_profiles[VIDEO_PROFILE_LQ].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_LQ<<8);
 
-   pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
-   pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].iBlockPackets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].iBlockECs = DEFAULT_LQ_VIDEO_BLOCK_ECS;
    pModel->video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
 
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
@@ -699,14 +724,14 @@ void do_update_to_98()
       pModel->video_link_profiles[i].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
    }
 
-   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
-   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
-   pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
-   pModel->video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
-   pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
-   pModel->video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].iBlockPackets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].iBlockECs = DEFAULT_VIDEO_BLOCK_ECS_HQ;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].iBlockPackets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].iBlockECs = DEFAULT_VIDEO_BLOCK_ECS_HP;
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].iBlockPackets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].iBlockECs = DEFAULT_MQ_VIDEO_BLOCK_ECS;
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].iBlockPackets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].iBlockECs = DEFAULT_LQ_VIDEO_BLOCK_ECS;
 
    pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK);
    pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
@@ -1043,11 +1068,6 @@ void do_update_to_90()
    // Remove deprecated DEVELOPER-FLAGS_BIT-USE_OLD_EC_SCHEME flag
    pModel->uDeveloperFlags &= ~((u32)(((u32)0x01)<<18));
 
-   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
-   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
-
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
-   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].radio_datarate_video_bps = DEFAULT_HP_VIDEO_RADIO_DATARATE;
    pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_HP_VIDEO_BITRATE;
 
@@ -1302,6 +1322,8 @@ int main(int argc, char *argv[])
       do_update_to_107();
    if ( (iMajor < 10) || (iMajor == 10 && iMinor <= 8) )
       do_update_to_108();
+   if ( iMajor < 11 )
+      do_update_to_110();
 
 
    saveCurrentModel();

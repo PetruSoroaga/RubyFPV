@@ -71,7 +71,6 @@ bool s_bMustReopenRadioInterfacesForWrite[MAX_RADIO_INTERFACES];
 
 u32 s_uTestLinkCountPingsReceived = 0;
 bool s_bSwitchedToTemporaryVideoBitrateOnTest = false;
-u32 s_uTemporaryVideoBitrateBeforeTestLink = 0;
 
 bool test_link_is_in_progress()
 {
@@ -103,7 +102,7 @@ void _test_link_end_and_notify()
    saveCurrentModel();
 
    if ( s_bSwitchedToTemporaryVideoBitrateOnTest )
-      adaptive_video_set_bitrate(s_uTemporaryVideoBitrateBeforeTestLink);
+      adaptive_video_set_temporary_bitrate(0);
    s_bSwitchedToTemporaryVideoBitrateOnTest = false;
 
    t_packet_header PH;
@@ -312,7 +311,7 @@ void _test_link_switch_to_state(int iNewState, u32 uTimeout)
       if ( !s_bSwitchedToTemporaryVideoBitrateOnTest )
       {
          s_bSwitchedToTemporaryVideoBitrateOnTest = true;
-         s_uTemporaryVideoBitrateBeforeTestLink = adaptive_video_set_bitrate(DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE);
+         adaptive_video_set_temporary_bitrate(DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE);
       }
       return;
    }
@@ -384,7 +383,7 @@ void _test_link_switch_to_state(int iNewState, u32 uTimeout)
    if ( s_iTestLinkState == TEST_LINK_STATE_END )
    {
       if ( s_bSwitchedToTemporaryVideoBitrateOnTest )
-         adaptive_video_set_bitrate(s_uTemporaryVideoBitrateBeforeTestLink);
+         adaptive_video_set_temporary_bitrate(0);
       s_bSwitchedToTemporaryVideoBitrateOnTest = false;
       return;
    }
@@ -392,7 +391,7 @@ void _test_link_switch_to_state(int iNewState, u32 uTimeout)
    if ( s_iTestLinkState == TEST_LINK_STATE_ENDED )
    {
       if ( s_bSwitchedToTemporaryVideoBitrateOnTest )
-         adaptive_video_set_bitrate(s_uTemporaryVideoBitrateBeforeTestLink);
+         adaptive_video_set_temporary_bitrate(0);
       s_bSwitchedToTemporaryVideoBitrateOnTest = false;
 
       s_iTestLinkState = TEST_LINK_STATE_NONE;

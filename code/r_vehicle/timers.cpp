@@ -27,7 +27,8 @@ u32 g_TimeLastQualityMeasurement = 0;
 // Router
 
 u32 g_TimeFirstReceivedRadioPacketFromController = 0;
-u32 g_TimeLastReceivedRadioPacketFromController = 0;
+u32 g_TimeLastReceivedFastRadioPacketFromController = 0;
+u32 g_TimeLastReceivedSlowRadioPacketFromController = 0;
 u32 g_TimeLastDebugFPSComputeTime = 0;
 u32 g_TimeLastLiveLogCheck = 0;
 u32 g_TimeLastSetRadioLinkFlagsStartOperation = 0;

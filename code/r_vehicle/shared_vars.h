@@ -76,7 +76,8 @@ extern t_sik_radio_state g_SiKRadiosState;
 
 extern bool g_bReinitializeRadioInProgress;
 extern bool g_bReceivedPairingRequest;
-extern bool g_bHasLinkToController;
+extern bool g_bHasFastUplinkFromController;
+extern bool g_bHasSlowUplinkFromController;
 extern bool g_bHadEverLinkToController;
 extern bool g_bHasSentVehicleSettingsAtLeastOnce;
 

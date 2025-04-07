@@ -179,7 +179,6 @@ int process_received_ruby_message(int iInterfaceIndex, u8* pPacketBuffer)
          }
          */
          radio_stats_remove_received_info_for_vid(&g_SM_RadioStats, uOldControllerId);
-         process_data_tx_video_reset_retransmissions_history_info();
       }
       else
          log_line("Controller ID has not changed.");

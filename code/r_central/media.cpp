@@ -88,10 +88,9 @@ void _media_remove_invalid_files()
 
          // Remove small files (less than 3 bytes)
 
-         log_line("Removing invalid media file: [%s]", dir->d_name);
+         log_line("Removing invalid media file (size too small: %d bytes): [%s]", lSize, dir->d_name);
 
          // Remove invalid file and info file for it
-
          strcpy(szFile, dir->d_name);
          int pos = strlen(szFile);
          while (pos > 0 && szFile[pos] != '.')
@@ -112,7 +111,6 @@ void _media_remove_invalid_files()
          strcat(szFile, "png");
          snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s%s", FOLDER_MEDIA, szFile);
          hw_execute_bash_command(szComm, NULL);
-
          ruby_signal_alive();
       }
       closedir(d);

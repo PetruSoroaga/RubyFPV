@@ -272,13 +272,14 @@ int _process_received_ruby_message(int iRuntimeIndex, int iInterfaceIndex, u8* p
       if ( uAlarm & ALARM_ID_LINK_TO_CONTROLLER_LOST )
       {
          if ( iRuntimeIndex != -1 )
-            g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleLinkToControllerLostAlarm = true;
+         {
+            g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleFastUplinkFromControllerLost = true;
+            g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleSlowUplinkFromControllerLost = true;
+         }
          log_line("Received alarm that vehicle lost the connection from controller.");
       }
       if ( uAlarm & ALARM_ID_LINK_TO_CONTROLLER_RECOVERED )
       {
-         if ( iRuntimeIndex != -1 )
-            g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleLinkToControllerLostAlarm = false;
          log_line("Received alarm that vehicle recovered the connection from controller.");
       }
       
@@ -591,7 +592,7 @@ void _check_update_first_pairing_done_if_needed(int iInterfaceIndex, u8* pPacket
       g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
 }
 
-void _check_update_bidirectional_link_state(int iRuntimeIndex, u8 uPacketType, u8 uPacketFlags)
+void _check_update_bidirectional_link_state(int iInterfaceIndex, int iRuntimeIndex, u8 uPacketType, u8 uPacketFlags)
 {
    bool bPacketIsAck = false;
    if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_COMMANDS )
@@ -614,7 +615,11 @@ void _check_update_bidirectional_link_state(int iRuntimeIndex, u8 uPacketType, u
    {
       g_SM_RadioStats.uLastTimeReceivedAckFromAVehicle = g_TimeNow;
       g_State.vehiclesRuntimeInfo[iRuntimeIndex].uLastTimeReceivedAckFromVehicle = g_TimeNow;
-      g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleLinkToControllerLostAlarm = false;
+
+      if ( hardware_radio_index_is_wifi_radio(iInterfaceIndex) )
+         g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleFastUplinkFromControllerLost = false;
+      else
+         g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleSlowUplinkFromControllerLost = false;
    }
 }
 
@@ -722,7 +727,7 @@ int process_received_single_radio_packet(int iInterfaceIndex, u8* pData, int iDa
 
    int iRuntimeIndex = getVehicleRuntimeIndex(uVehicleIdSrc);
    if ( -1 != iRuntimeIndex )
-      _check_update_bidirectional_link_state(iRuntimeIndex, uPacketType, uPacketFlags);
+      _check_update_bidirectional_link_state(iInterfaceIndex, iRuntimeIndex, uPacketType, uPacketFlags);
 
    // Detect vehicle restart (stream packets indexes are starting again from zero or low value )
 
@@ -969,6 +974,38 @@ int process_received_single_radio_packet(int iInterfaceIndex, u8* pData, int iDa
               (uPacketType != PACKET_TYPE_RUBY_TELEMETRY_VIDEO_LINK_DEV_STATS) )
             ruby_ipc_channel_send_message(g_fIPCToTelemetry, pData, iDataLength);
       }
+
+      Model* pModel = findModelWithId(uVehicleIdSrc, 119);
+
+      if ( (NULL != pModel) && (get_sw_version_build(pModel) > 281) )
+      if ( (iRuntimeIndex != -1) && (uPacketType == PACKET_TYPE_RUBY_TELEMETRY_SHORT) )
+      {
+         t_packet_header_ruby_telemetry_short* pPHRTShort = (t_packet_header_ruby_telemetry_short*) (pData + sizeof(t_packet_header));
+         if ( pPHRTShort->uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_FAST_UPLINK_FROM_CONTROLLER )
+            g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleFastUplinkFromControllerLost = false;
+         else
+            g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleFastUplinkFromControllerLost = true;
+         
+         if ( pPHRTShort->uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_SLOW_UPLINK_FROM_CONTROLLER )
+            g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleSlowUplinkFromControllerLost = false;
+         else
+            g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleSlowUplinkFromControllerLost = true;
+      }
+      if ( (NULL != pModel) && (get_sw_version_build(pModel) > 281) )
+      if ( (iRuntimeIndex != -1) && (uPacketType == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED) )
+      {
+         t_packet_header_ruby_telemetry_extended_v4* pPHRTE = (t_packet_header_ruby_telemetry_extended_v4*) (pData + sizeof(t_packet_header));
+         if ( pPHRTE->uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_FAST_UPLINK_FROM_CONTROLLER )
+            g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleFastUplinkFromControllerLost = false;
+         else
+            g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleFastUplinkFromControllerLost = true;
+         
+         if ( pPHRTE->uRubyFlags & FLAG_RUBY_TELEMETRY_HAS_SLOW_UPLINK_FROM_CONTROLLER )
+            g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleSlowUplinkFromControllerLost = false;
+         else
+            g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleSlowUplinkFromControllerLost = true;
+      }
+
       bool bSendToCentral = false;
       bool bSendRelayedTelemetry = false;
 

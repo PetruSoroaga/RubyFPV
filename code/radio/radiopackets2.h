@@ -279,11 +279,10 @@ typedef struct
       //    bit 0  - 0/1: has (t_packet_header_video_segment_debug_info) after video packet;
       //    bit 1  - deprecated in 10.2
       //    bit 2  - 0/1: is on lower video bitrate
-      //    bit 3  - 0/1: is end of a NAL
-      //    bit 4  - 0/1: is start of a NAL
+      //    bit 3  - 0/1: is start of a NAL
+      //    bit 4  - 0/1: is end of a NAL
       //    bit 5  - 0/1: contains I-NAL data
       //    bit 6  - 0/1: contains P-NAL data
-      //    bit 7  - 0/1: contains SPS/PPS-NAL data
 
 
    u8 uStreamInfoFlags;
@@ -415,7 +414,8 @@ typedef struct
 #define FLAG_RUBY_TELEMETRY_HAS_EXTENDED_INFO ((u32)(((u32)0x01)<<11)) // if true, has the extended telemetry info after this telemetry header
 #define FLAG_RUBY_TELEMETRY_VEHICLE_HAS_CAMERA ((u32)(((u32)0x01)<<12)) // if true, vehicle has at least one camera
 #define FLAG_RUBY_TELEMETRY_HAS_VEHICLE_TELEMETRY_DATA ((u32)(((u32)0x01)<<13)) // if the FC sends any valid data to Ruby serial port
-
+#define FLAG_RUBY_TELEMETRY_HAS_FAST_UPLINK_FROM_CONTROLLER ((u32)(((u32)0x01)<<14)) // false if the fast uplink from controller is lost for more than TIMEOUT_LINK_TO_CONTROLLER_LOST
+#define FLAG_RUBY_TELEMETRY_HAS_SLOW_UPLINK_FROM_CONTROLLER ((u32)(((u32)0x01)<<15)) // false if the slow uplink from controller is lost for more than TIMEOUT_LINK_TO_CONTROLLER_LOST
 
 typedef struct
 {

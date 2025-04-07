@@ -66,12 +66,13 @@ int controllerAddedNewRadioInterfaces()
 
 void _controller_interfaces_add_card(const char* szMAC)
 {
-   if ( NULL == szMAC || 0 == szMAC[0] )
+   if ( (NULL == szMAC) || (0 == szMAC[0]) )
       return;
 
    radio_hw_info_t* pRadioInfo = hardware_get_radio_info_from_mac(szMAC);
 
-   strncpy(s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].szMAC, szMAC, MAX_MAC_LENGTH);
+   strncpy(s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].szMAC, szMAC, MAX_MAC_LENGTH-1);
+   s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].szMAC[MAX_MAC_LENGTH-1] = 0;
    s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].cardModel = 0;
    if ( NULL != pRadioInfo )
       s_CIS.listRadioInterfaces[s_CIS.radioInterfacesCount].cardModel = pRadioInfo->iCardModel;
@@ -102,7 +103,7 @@ void _controller_interfaces_add_card(const char* szMAC)
 
 int _controller_interfaces_get_card_index(const char* szMAC)
 {
-   if ( NULL == szMAC || 0 == szMAC[0] )
+   if ( (NULL == szMAC) || (0 == szMAC[0]) )
       return -1;
    int index = -1;
    for( int i=0; i<s_CIS.radioInterfacesCount; i++ )
@@ -528,7 +529,7 @@ void controllerSetCardTXOnly(const char* szMAC)
 // Returns the priority index (lower = higher priority )
 int controllerIsCardTXPreferred(const char* szMAC)
 {
-   if ( NULL == szMAC || 0 == szMAC[0] )
+   if ( (NULL == szMAC) || (0 == szMAC[0]) )
       return 0;
    for( int i=0; i<s_CIS.listMACTXPreferredCount; i++ )
       if ( 0 == strcmp(szMAC, s_CIS.listMACTXPreferredOrdered[i]) )
@@ -543,7 +544,7 @@ int controllerGetTXPreferredIndexForCard(const char* szMAC)
 
 void controllerSetCardTXPreferred(const char* szMAC)
 {
-   if ( NULL == szMAC || 0 == szMAC[0] )
+   if ( (NULL == szMAC) || (0 == szMAC[0]) )
       return;
 
    // Is already on top of the list?
@@ -572,7 +573,8 @@ void controllerSetCardTXPreferred(const char* szMAC)
 
    for( int i=s_CIS.listMACTXPreferredCount-1; i>0; i--)
       strcpy(s_CIS.listMACTXPreferredOrdered[i], s_CIS.listMACTXPreferredOrdered[i-1]);
-   strcpy(s_CIS.listMACTXPreferredOrdered[0], szMAC);
+   strncpy(s_CIS.listMACTXPreferredOrdered[0], szMAC, MAX_MAC_LENGTH-1);
+   s_CIS.listMACTXPreferredOrdered[0][MAX_MAC_LENGTH-1] = 0;
    s_CIS.listMACTXPreferredCount++;
    
    save_ControllerInterfacesSettings();
@@ -580,7 +582,7 @@ void controllerSetCardTXPreferred(const char* szMAC)
 
 void controllerRemoveCardTXPreferred(const char* szMAC)
 {
-   if ( NULL == szMAC || 0 == szMAC[0] )
+   if ( (NULL == szMAC) || (0 == szMAC[0]) )
       return;
    int iCurrentPriority = controllerIsCardTXPreferred(szMAC);
    if ( iCurrentPriority <= 0 )

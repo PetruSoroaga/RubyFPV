@@ -375,7 +375,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    u32 uOldDevFlags = g_pCurrentModel->uDeveloperFlags;
    u32 old_ef = g_pCurrentModel->enc_flags;
    bool bMustSignalOtherComponents = true;
-   bool bMustReinitVideo = true;
    int iPreviousRadioGraphsRefreshInterval = g_pCurrentModel->m_iRadioInterfacesGraphRefreshInterval;
 
    if ( changeType == MODEL_CHANGED_RADIO_POWERS )
@@ -521,7 +520,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    if ( changeType == MODEL_CHANGED_OSD_PARAMS )
    {
       log_line("Received local notification that model OSD params have been changed.");
-      bMustReinitVideo = false;
    }
 
    if ( changeType == MODEL_CHANGED_ROTATED_RADIO_LINKS )
@@ -840,7 +838,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    {
       log_line("Received local notification (type %d) that link capabilities flags changed, that do not require additional processing besides reloading the current model.", (int)changeType);
       bMustSignalOtherComponents = false;
-      bMustReinitVideo = false;
       return;
    }
 
@@ -848,7 +845,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    {
       log_line("Received local notification (type %d) that radio link params have changed on model's radio link %d.", (int)changeType, iExtraParam+1);
       bMustSignalOtherComponents = false;
-      bMustReinitVideo = false;
       return;
    }
 
@@ -904,7 +900,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
          hw_execute_bash_command(szCommand, NULL);
          return;
       }
-      bMustReinitVideo = false;
    }
 
    if ( changeType == MODEL_CHANGED_RADIO_DATARATES )
@@ -945,7 +940,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    {
       log_line("Received local notification that adaptive video link capabilities changed.");
       bMustSignalOtherComponents = false;
-      bMustReinitVideo = false;
 
       adaptive_video_on_capture_restarted();
       adaptive_video_set_last_profile_requested_by_controller(g_pCurrentModel->video_params.user_selected_video_link_profile);
@@ -962,7 +956,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
    {
       log_line("Received local notification that EC scheme was changed by user.");
       bMustSignalOtherComponents = false;
-      bMustReinitVideo = false;
       if ( NULL != g_pVideoTxBuffers )
          g_pVideoTxBuffers->updateVideoHeader(g_pCurrentModel);
 // To fix
@@ -983,21 +976,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
          str_get_video_profile_name(g_pCurrentModel->video_params.user_selected_video_link_profile));
 
       bMustSignalOtherComponents = false;
-      bMustReinitVideo = false;
-
-      if ( adaptive_video_get_current_active_video_profile() == g_pCurrentModel->video_params.user_selected_video_link_profile )
-      {
-         if ( g_pCurrentModel->hasCamera() )
-         if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
-            video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, uBitrateBPS/100000, 0);
-      
-         if ( g_pCurrentModel->hasCamera() )
-         if ( g_pCurrentModel->isActiveCameraOpenIPC() )
-            hardware_camera_maj_set_bitrate(uBitrateBPS);
-
-         if ( NULL != g_pProcessorTxVideo )
-            g_pProcessorTxVideo->setLastSetCaptureVideoBitrate(uBitrateBPS, false, 11);
-      }
+      adaptive_video_on_user_video_bitrate_changed(oldVideoLinkProfiles[g_pCurrentModel->video_params.user_selected_video_link_profile].bitrate_fixed_bps, uBitrateBPS);
       return;
    }
 
@@ -1031,7 +1010,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
             flag_update_sik_interface(i);
       }
       bMustSignalOtherComponents = false;
-      bMustReinitVideo = false;
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
       return;
@@ -1042,7 +1020,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       int iLink = iExtraParam;
       log_line("Received local notification that radio link %d was reseted.", iLink+1);
       bMustSignalOtherComponents = true;
-      bMustReinitVideo = false;
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
       return;
@@ -1077,7 +1054,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
       }
 
       bMustSignalOtherComponents = false;
-      bMustReinitVideo = false;
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
       return;
@@ -1121,11 +1097,7 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
          }
       }
       bMustSignalOtherComponents = false;
-      bMustReinitVideo = false;
    }
-
-   if ( bMustReinitVideo )
-      process_data_tx_video_signal_model_changed();
 
    // Signal other components about the model change
 
@@ -1183,7 +1155,6 @@ void process_local_control_packet(t_packet_header* pPH)
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_PAUSE_VIDEO )
    {
       log_line("Received controll message: Video is paused.");
-      process_data_tx_video_pause_tx();
       g_bVideoPaused = true;
    }
 
@@ -1242,7 +1213,6 @@ void process_local_control_packet(t_packet_header* pPH)
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_RESUME_VIDEO )
    {
       log_line("Received controll message: Video is resumed.");
-      process_data_tx_video_resume_tx();
       g_bVideoPaused = false;
    }
 

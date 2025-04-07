@@ -16,8 +16,8 @@ class MenuVehicleVideoEncodings: public Menu
       void sendVideoLinkProfile();
       void sendVideoParams();
 
-      int m_IndexPacketSize, m_IndexBlockPackets, m_IndexBlockFECs, m_IndexECSchemeSpread;
-      //int m_IndexDataRate;
+      int m_IndexPacketSize, m_IndexBlockPackets, m_IndexBlockECRate, m_IndexECSchemeSpread;
+      int m_IndexAutoKeyframe, m_IndexMaxKeyFrame, m_IndexKeyframeManual;
       int m_IndexH264Profile, m_IndexH264Level, m_IndexH264Refresh;
       int m_IndexRemoveH264PPS, m_IndexInsertH264PPS, m_IndexInsertH264SPSTimings;
       int m_IndexH264Slices;
@@ -32,4 +32,5 @@ class MenuVehicleVideoEncodings: public Menu
       //bool m_ShowBitrateWarning;
       MenuItemSlider* m_pItemsSlider[25];
       MenuItemSelect* m_pItemsSelect[40];
+      MenuItem* m_pMenuItemVideoKeyframeWarning;
 };

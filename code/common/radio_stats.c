@@ -785,7 +785,10 @@ int radio_stats_periodic_update(shared_mem_radio_stats* pSMRS, u32 timeNow)
       }
    }
 
-   if ( (timeNow >= pSMRS->lastComputeTime + pSMRS->refreshIntervalMs) || (timeNow < pSMRS->lastComputeTime) )
+   int iRefreshIntervalRadioLinksQ = pSMRS->refreshIntervalMs;
+   if ( iRefreshIntervalRadioLinksQ > 200 )
+      iRefreshIntervalRadioLinksQ = 200;
+   if ( (timeNow >= pSMRS->lastComputeTime + iRefreshIntervalRadioLinksQ) || (timeNow < pSMRS->lastComputeTime) )
    {
       pSMRS->lastComputeTime = timeNow;
       iReturn = 1;
@@ -800,8 +803,8 @@ int radio_stats_periodic_update(shared_mem_radio_stats* pSMRS, u32 timeNow)
       }
   
       // Update RX quality for each radio interface
-
-      int iIntervalsToUse = 2000 / pSMRS->graphRefreshIntervalMs;
+      int iTimeIntervalToInspect = 2000;
+      int iIntervalsToUse = iTimeIntervalToInspect / pSMRS->graphRefreshIntervalMs;
       if ( iIntervalsToUse < 3 )
          iIntervalsToUse = 3;
       if ( iIntervalsToUse >= sizeof(pSMRS->radio_interfaces[0].hist_rxPacketsCount)/sizeof(pSMRS->radio_interfaces[0].hist_rxPacketsCount[0]) )

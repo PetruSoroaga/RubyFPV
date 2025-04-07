@@ -35,6 +35,7 @@ typedef struct
 typedef struct
 {
    u32 uVehicleId;
+   int iCountBlocksInVideoRxBuffers;
    u8 uMinAckTime[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
    u8 uMaxAckTime[SYSTEM_RT_INFO_INTERVALS][MAX_RADIO_INTERFACES];
    u8 uCountReqRetrPackets[SYSTEM_RT_INFO_INTERVALS];

@@ -536,7 +536,7 @@ int _hardware_radio_sik_get_all_params(radio_hw_info_t* pRadioInfo, int iSerialP
       else
          strcat(szMAC, "NNN");
 
-      strncpy(pRadioInfo->szMAC, szMAC, MAX_MAC_LENGTH);
+      strncpy(pRadioInfo->szMAC, szMAC, MAX_MAC_LENGTH-1);
       pRadioInfo->szMAC[MAX_MAC_LENGTH-1] = 0;
       log_line("[HardwareRadio] Computed SiK radio MAC: [%s]", pRadioInfo->szMAC);
    }
@@ -838,8 +838,12 @@ radio_hw_info_t* hardware_radio_sik_try_detect_on_port(const char* szSerialPort)
          continue;
       }
 
-      strcat(s_radioHWInfoSikTemp.szMAC, "-");
-      strcat(s_radioHWInfoSikTemp.szMAC, szSerialPort + (strlen(szSerialPort)-1));
+      s_radioHWInfoSikTemp.szMAC[MAX_MAC_LENGTH-1] = 0;
+      if ( strlen(s_radioHWInfoSikTemp.szMAC) < MAX_MAC_LENGTH-3 )
+      {
+         strcat(s_radioHWInfoSikTemp.szMAC, "-");
+         strcat(s_radioHWInfoSikTemp.szMAC, szSerialPort + (strlen(szSerialPort)-1));
+      }
       log_line("[HardwareRadio]: Found SiK Radio on port %s, baud: %d, MAC: [%s], firmware is up to date: %s",
          szDevName, iSpeed, s_radioHWInfoSikTemp.szMAC,
          (s_radioHWInfoSikTemp.uExtraFlags & RADIO_HW_EXTRA_FLAG_FIRMWARE_OLD)?"no":"yes");

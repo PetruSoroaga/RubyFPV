@@ -63,19 +63,28 @@ u32 s_uLastCommandChangeDataRateCounter = MAX_U32;
 
 u32 s_uTotalBadPacketsReceived = 0;
 
-void _mark_link_from_controller_present()
+void _mark_link_from_controller_present(int iRadioInterface)
 {
    g_bHadEverLinkToController = true;
-   g_TimeLastReceivedRadioPacketFromController = g_TimeNow;
-   
-   if ( ! g_bHasLinkToController )
+
+   if ( hardware_radio_index_is_wifi_radio(iRadioInterface) )
+      g_TimeLastReceivedFastRadioPacketFromController = g_TimeNow;
+   else
+      g_TimeLastReceivedSlowRadioPacketFromController = g_TimeNow;
+
+   if ( (! g_bHasFastUplinkFromController) && (!g_bHasFastUplinkFromController) )
    {
-      g_bHasLinkToController = true;
       log_line("[Router] Link to controller recovered (received packets from controller).");
+
+      adaptive_video_on_uplink_recovered();
 
       if ( g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM )
          send_alarm_to_controller(ALARM_ID_LINK_TO_CONTROLLER_RECOVERED, 0, 0, 10);
    }
+   if ( hardware_radio_index_is_wifi_radio(iRadioInterface) )
+      g_bHasFastUplinkFromController = true;
+   else
+      g_bHasSlowUplinkFromController = true;
 }
 
 void _check_update_atheros_datarates(u32 linkIndex, int datarateVideoBPS)
@@ -195,6 +204,11 @@ int _handle_received_packet_error(int iInterfaceIndex, u8* pData, int nDataLengt
 
 void process_received_single_radio_packet(int iRadioInterface, u8* pData, int dataLength )
 {
+
+   //log_line("DBG remove");
+   //if ( ((g_TimeNow / 1000)/10) % 2 )
+   //   return;
+     
    t_packet_header* pPH = (t_packet_header*)pData;
    u32 uVehicleIdSrc = pPH->vehicle_id_src;
    u32 uVehicleIdDest = pPH->vehicle_id_dest;
@@ -264,7 +278,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
    if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->relay_params.isRelayEnabledOnRadioLinkId >= 0) )
    if ( uVehicleIdDest == g_pCurrentModel->relay_params.uRelayedVehicleId )
    {
-      _mark_link_from_controller_present();
+      _mark_link_from_controller_present(iRadioInterface);
   
       relay_process_received_single_radio_packet_from_controller_to_relayed_vehicle(iRadioInterface, pData, pPH->total_length);
       return;
@@ -277,7 +291,7 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
       return;
    }
    if ( uVehicleIdSrc == g_uControllerId )
-      _mark_link_from_controller_present();
+      _mark_link_from_controller_present(iRadioInterface);
 
    if ( (uPacketFlags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_RC )
    {

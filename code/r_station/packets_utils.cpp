@@ -333,7 +333,7 @@ int compute_packet_uplink_datarate(int iVehicleRadioLink, int iRadioInterface, t
       int iRuntimeIndex = getVehicleRuntimeIndex(g_pCurrentModel->uVehicleId);
       if ( -1 != iRuntimeIndex )
       {
-         if ( g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleLinkToControllerLostAlarm )
+         if ( g_State.vehiclesRuntimeInfo[iRuntimeIndex].bIsVehicleFastUplinkFromControllerLost )
             bUseLowest = true;
          if ( g_State.vehiclesRuntimeInfo[iRuntimeIndex].uLastTimeReceivedAckFromVehicle > g_TimeNow + 1000 )
             bUseLowest = true;

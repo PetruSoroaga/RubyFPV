@@ -30,9 +30,9 @@ void check_encoding_change(t_packet_header_video_full_77* pdpv)
       schemeChanged = true;
    if ( s_uCurrentEncodingExtraInfo != pdpv->uProfileEncodingFlags )
       schemeChanged = true;
-   if ( s_iCurrentEncodingBlockPackets != pdpv->block_packets )
+   if ( s_iCurrentEncodingBlockPackets != pdpv->iBlockPackets )
       schemeChanged = true;
-   if ( s_iCurrentEncodingBlockFECs != pdpv->block_fecs )
+   if ( s_iCurrentEncodingBlockFECs != pdpv->iBlockECs )
       schemeChanged = true;
 
    if ( ! schemeChanged )
@@ -42,8 +42,8 @@ void check_encoding_change(t_packet_header_video_full_77* pdpv)
 
    s_iCurrentEncodingScheme = pdpv->encoding_scheme;
    s_uCurrentEncodingExtraInfo = pdpv->uProfileEncodingFlags;
-   s_iCurrentEncodingBlockPackets = pdpv->block_packets;
-   s_iCurrentEncodingBlockFECs = pdpv->block_fecs;
+   s_iCurrentEncodingBlockPackets = pdpv->iBlockPackets;
+   s_iCurrentEncodingBlockFECs = pdpv->iBlockECs;
 
    for( int i=0; i<MAX_BLOCKS_BUFFER; i++ )
    {
@@ -103,7 +103,7 @@ void parse_video_packet(u8* pBuffer, int payloadLength)
       if ( 0 < s_BufferVideoPackets[index][j].video_width )
          countPackets++;
 
-   if ( countPackets >= pdpv->block_packets + pdpv->block_fecs )
+   if ( countPackets >= pdpv->iBlockPackets + pdpv->iBlockECs )
    {
       log_line("Out block index: %d", pdpv->video_block_index);
       s_BufferBlockIndexes[index] = MAX_U32;

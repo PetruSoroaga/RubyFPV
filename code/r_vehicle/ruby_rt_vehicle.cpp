@@ -770,7 +770,6 @@ int process_and_send_packets()
 
       t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
       pPH->packet_flags &= (~PACKET_FLAGS_BIT_CAN_START_TX);
-
       if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
       {
          // Update Ruby telemetry info if we are sending Ruby telemetry to controller
@@ -783,6 +782,20 @@ int process_and_send_packets()
 
             type_radio_tx_timers* pRadioTxInfo = (type_radio_tx_timers*) (pPacketBuffer + sizeof(t_packet_header) + sizeof(type_u32_couters));
             memcpy(pRadioTxInfo, &g_RadioTxTimers, sizeof(type_radio_tx_timers));
+         }
+
+         if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_SHORT )
+         {
+            t_packet_header_ruby_telemetry_short* pPHRTShort = (t_packet_header_ruby_telemetry_short*) (pPacketBuffer + sizeof(t_packet_header));
+            if ( g_bHasFastUplinkFromController )
+               pPHRTShort->uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_FAST_UPLINK_FROM_CONTROLLER;
+            else
+               pPHRTShort->uRubyFlags &= ~FLAG_RUBY_TELEMETRY_HAS_FAST_UPLINK_FROM_CONTROLLER;
+
+            if ( g_bHasSlowUplinkFromController )
+               pPHRTShort->uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_SLOW_UPLINK_FROM_CONTROLLER;
+            else
+               pPHRTShort->uRubyFlags &= ~FLAG_RUBY_TELEMETRY_HAS_SLOW_UPLINK_FROM_CONTROLLER;
          }
 
          if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED )
@@ -817,14 +830,43 @@ int process_and_send_packets()
                pPHRTE->uplink_rssi_dbm[i] = g_UplinkInfoRxStats[i].lastReceivedDBM + 200;
                pPHRTE->uplink_noise_dbm[i] = g_UplinkInfoRxStats[i].lastReceivedNoiseDBM;
                pPHRTE->uplink_link_quality[i] = g_SM_RadioStats.radio_interfaces[i].rxQuality;
-               if ( g_TimeLastReceivedRadioPacketFromController < g_TimeNow-2000 )
+               
+               if ( hardware_radio_index_is_wifi_radio(i))
+               {
+                  if ( g_TimeLastReceivedFastRadioPacketFromController < g_TimeNow-TIMEOUT_LINK_TO_CONTROLLER_LOST )
+                     pPHRTE->uplink_link_quality[i] = 0;
+                  else if ( (TIMEOUT_LINK_TO_CONTROLLER_LOST >= 2000) && (g_TimeLastReceivedFastRadioPacketFromController < g_TimeNow-(TIMEOUT_LINK_TO_CONTROLLER_LOST-1000)) && (pPHRTE->uplink_link_quality[i] > 20) )
+                     pPHRTE->uplink_link_quality[i] = 20;
+               }
+               else
+               {
+                  if ( g_TimeLastReceivedSlowRadioPacketFromController < g_TimeNow-TIMEOUT_LINK_TO_CONTROLLER_LOST )
+                     pPHRTE->uplink_link_quality[i] = 0;
+                  else if ( (TIMEOUT_LINK_TO_CONTROLLER_LOST >= 2000) && (g_TimeLastReceivedSlowRadioPacketFromController < g_TimeNow-(TIMEOUT_LINK_TO_CONTROLLER_LOST-1000)) && (pPHRTE->uplink_link_quality[i] > 20) )
+                     pPHRTE->uplink_link_quality[i] = 20;
+               }
+
+               if ( hardware_radio_index_is_wifi_radio(i) )
+               if ( ! g_bHasFastUplinkFromController )
                   pPHRTE->uplink_link_quality[i] = 0;
-               else if ( (g_TimeLastReceivedRadioPacketFromController < g_TimeNow-1500) && (pPHRTE->uplink_link_quality[i] > 20) )
-                  pPHRTE->uplink_link_quality[i] = 20;
+
+               if ( ! hardware_radio_index_is_wifi_radio(i) )
+               if ( ! g_bHasSlowUplinkFromController )
+                  pPHRTE->uplink_link_quality[i] = 0;
             }
 
             pPHRTE->txTimePerSec = g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage;
 
+            if ( g_bHasFastUplinkFromController )
+               pPHRTE->uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_FAST_UPLINK_FROM_CONTROLLER;
+            else
+               pPHRTE->uRubyFlags &= ~FLAG_RUBY_TELEMETRY_HAS_FAST_UPLINK_FROM_CONTROLLER;
+
+            if ( g_bHasSlowUplinkFromController )
+               pPHRTE->uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_SLOW_UPLINK_FROM_CONTROLLER;
+            else
+               pPHRTE->uRubyFlags &= ~FLAG_RUBY_TELEMETRY_HAS_SLOW_UPLINK_FROM_CONTROLLER;
+            
             // Update extra info: retransmissions
             
             if ( pPHRTE->extraSize > 0 )
@@ -930,8 +972,6 @@ void cleanUp()
    s_fIPCRouterFromTelemetry = -1;
    s_fIPCRouterToRC = -1;
    s_fIPCRouterFromRC = -1;
-
-   process_data_tx_video_uninit();
 }
   
 int router_open_pipes()
@@ -1920,10 +1960,13 @@ void _main_loop()
    if ( (0 == iCountConsumedHighPrio) && (0 == iCountConsumedRegPrio) )
    if ( (NULL != g_pProcessStats) && (0 != g_pProcessStats->lastRadioRxTime) && (g_TimeNow > TIMEOUT_LINK_TO_CONTROLLER_LOST) && (g_pProcessStats->lastRadioRxTime + TIMEOUT_LINK_TO_CONTROLLER_LOST < g_TimeNow) )
    {
-      if ( g_TimeLastReceivedRadioPacketFromController + TIMEOUT_LINK_TO_CONTROLLER_LOST < g_TimeNow )
-      if ( g_bHasLinkToController )
+      if ( g_TimeLastReceivedFastRadioPacketFromController + TIMEOUT_LINK_TO_CONTROLLER_LOST < g_TimeNow )
+      if ( g_TimeLastReceivedSlowRadioPacketFromController + TIMEOUT_LINK_TO_CONTROLLER_LOST < g_TimeNow )
+      if ( g_bHasFastUplinkFromController || g_bHasSlowUplinkFromController )
       {
-         g_bHasLinkToController = false;
+         g_bHasFastUplinkFromController = false;
+         g_bHasSlowUplinkFromController = false;
+         adaptive_video_on_uplink_lost();
          if ( g_pCurrentModel->osd_params.osd_preferences[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_PREFERENCES_BIT_FLAG_SHOW_CONTROLLER_LINK_LOST_ALARM )
             send_alarm_to_controller(ALARM_ID_LINK_TO_CONTROLLER_LOST, 0, 0, 5);
       }
@@ -1939,6 +1982,12 @@ void _main_loop()
          saveCurrentModel();
          onEventRelayModeChanged(uOldRelayMode, g_pCurrentModel->relay_params.uCurrentRelayMode, "stop");
       }
+   }
+   if ( g_TimeLastReceivedFastRadioPacketFromController + TIMEOUT_LINK_TO_CONTROLLER_LOST < g_TimeNow )
+   if ( g_bHasFastUplinkFromController )
+   {
+      g_bHasFastUplinkFromController = false;
+      adaptive_video_on_uplink_lost();
    }
 
    g_pProcessStats->uLoopSubStep = 26;

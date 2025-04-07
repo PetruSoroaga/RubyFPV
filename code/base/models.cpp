@@ -476,20 +476,30 @@ bool Model::loadVersion10(FILE* fd)
    for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
    {
       char szTmp[256];
+      char szTmp2[256];
       if ( 3 != fscanf(fd, "%d %d %u", &(radioInterfacesParams.interface_card_model[i]), &(radioInterfacesParams.interface_link_id[i]), &(radioInterfacesParams.interface_current_frequency_khz[i])) )
          { log_softerror_and_alarm("Load model8: Error on line 7a"); return false; }
 
-      if ( 8 != fscanf(fd, "%u %d %u %d %d %d %s %s", &u4, &tmp2, &tmp32, &tmp5, &tmp6, &tmp7, radioInterfacesParams.interface_szMAC[i], szTmp) )
+      if ( 8 != fscanf(fd, "%u %d %u %d %d %d %s %s", &u4, &tmp2, &tmp32, &tmp5, &tmp6, &tmp7, szTmp2, szTmp) )
          { log_softerror_and_alarm("Load model8: Error on line 7b"); return false; }
       radioInterfacesParams.interface_capabilities_flags[i] = u4;
       radioInterfacesParams.interface_supported_bands[i] = (u8)tmp2;
       radioInterfacesParams.interface_radiotype_and_driver[i] = tmp32;
       radioInterfacesParams.interface_current_radio_flags[i] = tmp5;
       radioInterfacesParams.interface_raw_power[i] = tmp6;
-      radioInterfacesParams.interface_szMAC[i][strlen(radioInterfacesParams.interface_szMAC[i])-1] = 0;
-      szTmp[strlen(szTmp)-1] = 0;
-      szTmp[2] = 0;
-      strcpy(radioInterfacesParams.interface_szPort[i], szTmp);      
+
+      szTmp[sizeof(szTmp)/sizeof(szTmp[0]) - 1] = 0;
+      szTmp2[sizeof(szTmp2)/sizeof(szTmp2[0]) - 1] = 0;
+      strncpy(radioInterfacesParams.interface_szMAC[i], szTmp2, MAX_MAC_LENGTH-1);
+      radioInterfacesParams.interface_szMAC[i][MAX_MAC_LENGTH-1] = 0;
+      int iStrLen = strlen(radioInterfacesParams.interface_szMAC[i]);
+      if ( (iStrLen > 1) && (radioInterfacesParams.interface_szMAC[i][iStrLen-1] == '-') )
+         radioInterfacesParams.interface_szMAC[i][iStrLen-1] = 0;
+      strncpy(radioInterfacesParams.interface_szPort[i], szTmp, MAX_RADIO_PORT_NAME_LENGTH-1);
+      radioInterfacesParams.interface_szPort[i][MAX_RADIO_PORT_NAME_LENGTH-1] = 0;
+      iStrLen = strlen(radioInterfacesParams.interface_szPort[i]);
+      if ( (iStrLen > 1) && (radioInterfacesParams.interface_szPort[i][iStrLen-1] == '-') )
+         radioInterfacesParams.interface_szPort[i][iStrLen-1] = 0;
    }
 
    if ( 9 != fscanf(fd, "%d %d %d %d %d %d %d %d %d", &tmp1, &radioInterfacesParams.iAutoVehicleTxPower, &radioInterfacesParams.iAutoControllerTxPower, &radioInterfacesParams.iDummyR3, &radioInterfacesParams.iDummyR4, &radioInterfacesParams.iDummyR5, &radioInterfacesParams.iDummyR6,  &radioInterfacesParams.iDummyR7, &radioInterfacesParams.iDummyR8) )
@@ -619,7 +629,7 @@ bool Model::loadVersion10(FILE* fd)
       if ( bOk && (2 != fscanf(fd, "%d %d", &(video_link_profiles[i].width), &(video_link_profiles[i].height))) )
          { log_softerror_and_alarm("Load model8: Error on video link profiles 2"); bOk = false; }
 
-      if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].block_packets), &(video_link_profiles[i].block_fecs), &(video_link_profiles[i].video_data_length), &(video_link_profiles[i].fps), &(video_link_profiles[i].keyframe_ms))) )
+      if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].iBlockPackets), &(video_link_profiles[i].iBlockECs), &(video_link_profiles[i].video_data_length), &(video_link_profiles[i].fps), &(video_link_profiles[i].keyframe_ms))) )
          { log_softerror_and_alarm("Load model8: Error on video link profiles 3"); bOk = false; }
       
       if ( bOk && (5 != fscanf(fd, "%d %d %d %d %d", &(video_link_profiles[i].h264profile), &(video_link_profiles[i].h264level), &(video_link_profiles[i].h264refresh), &(video_link_profiles[i].h264quantization), &(video_link_profiles[i].iIPQuantizationDelta))) )
@@ -1019,6 +1029,14 @@ bool Model::loadVersion10(FILE* fd)
       }
    }
 
+   if ( bOk )
+   {
+      for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+      {
+         if ( 1 != fscanf(fd, "%d", &video_link_profiles[i].iECPercentage) )
+            video_link_profiles[i].iECPercentage = DEFAULT_VIDEO_EC_RATE_HQ;
+      }
+   }
    //--------------------------------------------------
    // End reading file;
    //----------------------------------------
@@ -1281,7 +1299,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
       strcat(szModel, szSetting);
       sprintf(szSetting, "%d %d\n", video_link_profiles[i].width, video_link_profiles[i].height);
       strcat(szModel, szSetting);
-      sprintf(szSetting, "   %d %d %d %d %d   ", video_link_profiles[i].block_packets, video_link_profiles[i].block_fecs, video_link_profiles[i].video_data_length, video_link_profiles[i].fps, video_link_profiles[i].keyframe_ms);
+      sprintf(szSetting, "   %d %d %d %d %d   ", video_link_profiles[i].iBlockPackets, video_link_profiles[i].iBlockECs, video_link_profiles[i].video_data_length, video_link_profiles[i].fps, video_link_profiles[i].keyframe_ms);
       strcat(szModel, szSetting);
       sprintf(szSetting, "%d %d %d %d %d\n", video_link_profiles[i].h264profile, video_link_profiles[i].h264level, video_link_profiles[i].h264refresh, video_link_profiles[i].h264quantization, video_link_profiles[i].iIPQuantizationDelta);
       strcat(szModel, szSetting);
@@ -1526,6 +1544,15 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
          strcat(szModel, "\n");
    }
 
+   for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
+      if ( i != 0 )
+         strcat(szModel, " ");
+      sprintf(szSetting, "%d", video_link_profiles[i].iECPercentage);
+      strcat(szModel, szSetting);
+   }
+   strcat(szModel, "\n");
+
    // End writing values to file
    // ---------------------------------------------------
 
@@ -1573,10 +1600,10 @@ void Model::resetVideoLinkProfiles(int iProfile)
       video_link_profiles[i].h264quantization = DEFAULT_VIDEO_H264_QUANTIZATION;
       video_link_profiles[i].iIPQuantizationDelta = DEFAULT_VIDEO_H264_IPQUANTIZATION_DELTA_HP;
 
-      video_link_profiles[i].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
-      video_link_profiles[i].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
+      video_link_profiles[i].iBlockPackets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
+      video_link_profiles[i].iBlockECs = DEFAULT_VIDEO_BLOCK_ECS_HP;
       video_link_profiles[i].video_data_length = DEFAULT_VIDEO_DATA_LENGTH;
-
+      video_link_profiles[i].iECPercentage = DEFAULT_VIDEO_EC_RATE_HQ;
       video_link_profiles[i].fps = DEFAULT_VIDEO_FPS;
       if ( hardware_board_is_openipc(hardware_getBoardType()) )
          video_link_profiles[i].fps = DEFAULT_VIDEO_FPS_OIPC;
@@ -1622,8 +1649,9 @@ void Model::resetVideoLinkProfiles(int iProfile)
            hardware_board_is_goke(hardware_getBoardType()) )
          video_link_profiles[VIDEO_PROFILE_BEST_PERF].bitrate_fixed_bps = DEFAULT_VIDEO_BITRATE_PI_ZERO;
 
-      video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
-      video_link_profiles[VIDEO_PROFILE_BEST_PERF].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].iBlockPackets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].iBlockECs = DEFAULT_VIDEO_BLOCK_ECS_HP;
+      video_link_profiles[VIDEO_PROFILE_BEST_PERF].iECPercentage = DEFAULT_VIDEO_EC_RATE_HP;
       video_link_profiles[VIDEO_PROFILE_BEST_PERF].radio_datarate_video_bps = DEFAULT_HP_VIDEO_RADIO_DATARATE;
    }
 
@@ -1632,8 +1660,9 @@ void Model::resetVideoLinkProfiles(int iProfile)
    {
       video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK;
       video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
-      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
-      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HQ;
+      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].iBlockPackets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
+      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].iBlockECs = DEFAULT_VIDEO_BLOCK_ECS_HQ;
+      video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].iECPercentage = DEFAULT_VIDEO_EC_RATE_HQ;
       video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].iIPQuantizationDelta = DEFAULT_VIDEO_H264_IPQUANTIZATION_DELTA_HQ;
    }
 
@@ -1642,8 +1671,9 @@ void Model::resetVideoLinkProfiles(int iProfile)
    {
       video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_MAX_RETRANSMISSION_WINDOW_MASK;
       video_link_profiles[VIDEO_PROFILE_USER].uProfileEncodingFlags |= (DEFAULT_VIDEO_RETRANS_MS5_HQ<<8);
-      video_link_profiles[VIDEO_PROFILE_USER].block_packets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
-      video_link_profiles[VIDEO_PROFILE_USER].block_fecs = DEFAULT_VIDEO_BLOCK_FECS_HP;
+      video_link_profiles[VIDEO_PROFILE_USER].iBlockPackets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
+      video_link_profiles[VIDEO_PROFILE_USER].iBlockECs = DEFAULT_VIDEO_BLOCK_ECS_HP;
+      video_link_profiles[VIDEO_PROFILE_USER].iECPercentage = DEFAULT_VIDEO_EC_RATE_HQ;
       video_link_profiles[VIDEO_PROFILE_USER].iIPQuantizationDelta = DEFAULT_VIDEO_H264_IPQUANTIZATION_DELTA_HQ;
    }
 
@@ -1658,8 +1688,9 @@ void Model::resetVideoLinkProfiles(int iProfile)
       video_link_profiles[VIDEO_PROFILE_MQ].h264level = 2; // 4.2
       video_link_profiles[VIDEO_PROFILE_MQ].h264refresh = 2; // both
       video_link_profiles[VIDEO_PROFILE_MQ].h264quantization = DEFAULT_VIDEO_H264_QUANTIZATION; // auto
-      video_link_profiles[VIDEO_PROFILE_MQ].block_packets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
-      video_link_profiles[VIDEO_PROFILE_MQ].block_fecs = DEFAULT_MQ_VIDEO_BLOCK_FECS;
+      video_link_profiles[VIDEO_PROFILE_MQ].iBlockPackets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
+      video_link_profiles[VIDEO_PROFILE_MQ].iBlockECs = DEFAULT_MQ_VIDEO_BLOCK_ECS;
+      video_link_profiles[VIDEO_PROFILE_MQ].iECPercentage = DEFAULT_VIDEO_EC_RATE_MQ;
       video_link_profiles[VIDEO_PROFILE_MQ].bitrate_fixed_bps = DEFAULT_MQ_VIDEO_BITRATE;
    }
 
@@ -1675,8 +1706,9 @@ void Model::resetVideoLinkProfiles(int iProfile)
       video_link_profiles[VIDEO_PROFILE_LQ].h264level = 2; // 4.2
       video_link_profiles[VIDEO_PROFILE_LQ].h264refresh = 2; // both
       video_link_profiles[VIDEO_PROFILE_LQ].h264quantization = DEFAULT_VIDEO_H264_QUANTIZATION; // auto
-      video_link_profiles[VIDEO_PROFILE_LQ].block_packets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
-      video_link_profiles[VIDEO_PROFILE_LQ].block_fecs = DEFAULT_LQ_VIDEO_BLOCK_FECS;
+      video_link_profiles[VIDEO_PROFILE_LQ].iBlockPackets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
+      video_link_profiles[VIDEO_PROFILE_LQ].iBlockECs = DEFAULT_LQ_VIDEO_BLOCK_ECS;
+      video_link_profiles[VIDEO_PROFILE_LQ].iECPercentage = DEFAULT_VIDEO_EC_RATE_LQ;
       video_link_profiles[VIDEO_PROFILE_LQ].bitrate_fixed_bps = DEFAULT_LQ_VIDEO_BITRATE;
    }
    
@@ -2060,8 +2092,10 @@ void Model::populateRadioInterfacesInfoFromHardware()
       radioInterfacesParams.interface_radiotype_and_driver[i] = ((pRadioHWInfo->iRadioType) & 0xFF) | ((pRadioHWInfo->iRadioDriver << 8) & 0xFF00);
       if ( pRadioHWInfo->isSupported )
          radioInterfacesParams.interface_radiotype_and_driver[i] |= 0xFF0000;
-      strcpy(radioInterfacesParams.interface_szMAC[i], pRadioHWInfo->szMAC );
-      strcpy(radioInterfacesParams.interface_szPort[i], pRadioHWInfo->szUSBPort);
+      strncpy(radioInterfacesParams.interface_szMAC[i], pRadioHWInfo->szMAC, MAX_MAC_LENGTH-1 );
+      radioInterfacesParams.interface_szMAC[i][MAX_MAC_LENGTH-1] = 0;
+      strncpy(radioInterfacesParams.interface_szPort[i], pRadioHWInfo->szUSBPort, MAX_RADIO_PORT_NAME_LENGTH-1);
+      radioInterfacesParams.interface_szPort[i][MAX_RADIO_PORT_NAME_LENGTH-1] = 0;
 
       radioInterfacesParams.interface_card_model[i] = pRadioHWInfo->iCardModel;
       
@@ -2785,6 +2819,8 @@ bool Model::validate_settings()
    else
       rc_params.dummy1 = false;
 
+   checkUpdateOSDRadioLinksFlags(&osd_params);
+
    if ( telemetry_params.vehicle_mavlink_id <= 0 || telemetry_params.vehicle_mavlink_id > 255 )
       telemetry_params.vehicle_mavlink_id = DEFAULT_MAVLINK_SYS_ID_VEHICLE;
    if ( telemetry_params.controller_mavlink_id <= 0 || telemetry_params.controller_mavlink_id > 255 )
@@ -2826,8 +2862,12 @@ bool Model::validate_settings()
       audio_params.uPacketLength = DEFAULT_AUDIO_PACKET_LENGTH;
      
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
+   {
       if ( video_link_profiles[i].video_data_length > MAX_VIDEO_PACKET_DATA_SIZE )
          video_link_profiles[i].video_data_length = MAX_VIDEO_PACKET_DATA_SIZE;
+   
+      convertECPercentageToData(&(video_link_profiles[i]));
+   }
 
    if ( video_params.videoAdjustmentStrength < 1 || video_params.videoAdjustmentStrength > 10 )
       video_params.videoAdjustmentStrength = DEFAULT_VIDEO_PARAMS_ADJUSTMENT_STRENGTH;
@@ -3311,6 +3351,7 @@ void Model::resetOSDFlags(int iScreen)
       osd_params.osd_flags3[2] |= OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR;
    }
    resetOSDStatsFlags();
+   checkUpdateOSDRadioLinksFlags(&osd_params);
 }
 
 void Model::resetOSDStatsFlags(int iScreen)
@@ -3384,6 +3425,32 @@ void Model::resetOSDScreenToLayout(int iScreen, int iLayout)
          osd_params.osd_flags[iScreen] |= OSD_FLAG_SHOW_CPU_INFO;
          osd_params.osd_flags2[iScreen] |= OSD_FLAG2_SHOW_STATS_VIDEO | OSD_FLAG2_SHOW_MINIMAL_VIDEO_DECODE_STATS;// | OSD_FLAG2_SHOW_MINIMAL_RADIO_INTERFACES_STATS;
       }
+   }
+   checkUpdateOSDRadioLinksFlags(&osd_params);
+}
+
+void Model::checkUpdateOSDRadioLinksFlags(osd_parameters_t* pOSDParams)
+{
+   if ( NULL == pOSDParams )
+      return;
+
+   for( int i=0; i<MODEL_MAX_OSD_SCREENS; i++ )
+   {
+      if ( ! ( pOSDParams->osd_flags2[i] & OSD_FLAG2_SHOW_RADIO_LINK_QUALITY_NUMBERS ) )
+         continue;
+
+      int iCountNumbers = 0;
+      if ( pOSDParams->osd_flags3[i] & OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM )
+         iCountNumbers++;
+      if ( pOSDParams->osd_flags3[i] & OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR )
+         iCountNumbers++;
+      if ( pOSDParams->osd_flags3[i] & OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_PERCENT )
+         iCountNumbers++;
+
+      if ( iCountNumbers == 2 )
+         continue;
+      pOSDParams->osd_flags3[i] &= ~(OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_PERCENT );
+      pOSDParams->osd_flags3[i] |= OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_DBM | OSD_FLAG3_SHOW_RADIO_LINK_QUALITY_NUMBERS_SNR;
    }
 }
 
@@ -4004,7 +4071,7 @@ bool Model::radioLinkIsWiFiRadio(int iRadioLinkIndex)
 
 bool Model::radioLinkIsSiKRadio(int iRadioLinkIndex)
 {
-   if ( iRadioLinkIndex < 0 || iRadioLinkIndex >= radioLinksParams.links_count )
+   if ( (iRadioLinkIndex < 0) || (iRadioLinkIndex >= radioLinksParams.links_count) )
       return false;
 
    for( int i=0; i<radioInterfacesParams.interfaces_count; i++ )
@@ -4941,14 +5008,14 @@ int Model::get_video_profile_total_levels(int iProfile)
    if ( iProfile < 0 || iProfile >= MAX_VIDEO_LINK_PROFILES )
       return 0;
 
-   int iDataCount = video_link_profiles[iProfile].block_packets;
-   int iECCount = video_link_profiles[iProfile].block_fecs;
+   int iDataCount = video_link_profiles[iProfile].iBlockPackets;
+   int iECCount = video_link_profiles[iProfile].iBlockECs;
 
    if ( video_link_profiles[iProfile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME )
    if ( iProfile != video_params.user_selected_video_link_profile )
-   if ( iDataCount < video_link_profiles[video_params.user_selected_video_link_profile].block_packets )
+   if ( iDataCount < video_link_profiles[video_params.user_selected_video_link_profile].iBlockPackets )
    {
-      iDataCount = video_link_profiles[video_params.user_selected_video_link_profile].block_packets;
+      iDataCount = video_link_profiles[video_params.user_selected_video_link_profile].iBlockPackets;
       iECCount = iDataCount/4;
    }
 
@@ -5016,17 +5083,17 @@ int Model::get_level_shift_ec_scheme(int iTotalLevelsShift, int* piData, int* pi
    int iVideoProfile = get_video_profile_from_total_levels_shift(iTotalLevelsShift);
    int iProfileLevelShift = get_video_profile_level_shift_from_total_levels_shift(iTotalLevelsShift);
 
-   int iDataCount = video_link_profiles[iVideoProfile].block_packets;
-   int iECCount = video_link_profiles[iVideoProfile].block_fecs;
+   int iDataCount = video_link_profiles[iVideoProfile].iBlockPackets;
+   int iECCount = video_link_profiles[iVideoProfile].iBlockECs;
 
    if ( video_link_profiles[iVideoProfile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_AUTO_EC_SCHEME )
    if ( iVideoProfile != video_params.user_selected_video_link_profile )
-   if ( iDataCount < video_link_profiles[video_params.user_selected_video_link_profile].block_packets )
+   if ( iDataCount < video_link_profiles[video_params.user_selected_video_link_profile].iBlockPackets )
    {
-      iDataCount = video_link_profiles[video_params.user_selected_video_link_profile].block_packets;
+      iDataCount = video_link_profiles[video_params.user_selected_video_link_profile].iBlockPackets;
       iECCount = iDataCount/4;
 
-      float fECRateUser = (float)video_link_profiles[video_params.user_selected_video_link_profile].block_fecs/(float)video_link_profiles[video_params.user_selected_video_link_profile].block_packets;
+      float fECRateUser = (float)video_link_profiles[video_params.user_selected_video_link_profile].iBlockECs/(float)video_link_profiles[video_params.user_selected_video_link_profile].iBlockPackets;
       float fECRateNew = (float)iECCount/(float)iDataCount;
       if ( fECRateNew < fECRateUser )
          iECCount = fECRateUser * (float)iDataCount;
@@ -5053,12 +5120,29 @@ int Model::get_current_max_video_packets_for_all_profiles()
    int iMax = 0;
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
    {
-      if ( video_link_profiles[i].block_packets + video_link_profiles[i].block_fecs > iMax )
-         iMax = video_link_profiles[i].block_packets + video_link_profiles[i].block_fecs;
-      if ( 2*video_link_profiles[i].block_packets > iMax )
-         iMax = 2*video_link_profiles[i].block_packets;
+      if ( video_link_profiles[i].iBlockPackets + video_link_profiles[i].iBlockECs > iMax )
+         iMax = video_link_profiles[i].iBlockPackets + video_link_profiles[i].iBlockECs;
+      if ( 2*video_link_profiles[i].iBlockPackets > iMax )
+         iMax = 2*video_link_profiles[i].iBlockPackets;
    }
    return iMax;
+}
+
+void Model::convertECPercentageToData(type_video_link_profile* pVideoProfile)
+{
+   if ( NULL == pVideoProfile )
+      return;
+
+   if ( pVideoProfile->iECPercentage > 100 )
+      pVideoProfile->iECPercentage = 100;
+   if ( pVideoProfile->iECPercentage < 0 )
+      pVideoProfile->iECPercentage = 0;
+   float fECPackets =((float)pVideoProfile->iBlockPackets * (float)pVideoProfile->iECPercentage) / 100.0;
+   pVideoProfile->iBlockECs = (int)fECPackets;
+   if ( 0 != pVideoProfile->iECPercentage )
+      pVideoProfile->iBlockECs = rintf(fECPackets);
+   if ( pVideoProfile->iBlockECs < 0 )
+      pVideoProfile->iBlockECs = 0;
 }
 
 const char* Model::getShortName()
@@ -5270,8 +5354,10 @@ void Model::copy_radio_interface_params(int iFrom, int iTo)
    radioInterfacesParams.interface_raw_power[iTo] = radioInterfacesParams.interface_raw_power[iFrom];
    radioInterfacesParams.interface_radiotype_and_driver[iTo] = radioInterfacesParams.interface_radiotype_and_driver[iFrom];
    radioInterfacesParams.interface_supported_bands[iTo] = radioInterfacesParams.interface_supported_bands[iFrom];
-   strcpy( radioInterfacesParams.interface_szMAC[iTo], radioInterfacesParams.interface_szMAC[iFrom]);
-   strcpy( radioInterfacesParams.interface_szPort[iTo], radioInterfacesParams.interface_szPort[iFrom]);
+   strncpy( radioInterfacesParams.interface_szMAC[iTo], radioInterfacesParams.interface_szMAC[iFrom], MAX_MAC_LENGTH-1);
+   radioInterfacesParams.interface_szMAC[iTo][MAX_MAC_LENGTH-1] = 0;
+   strncpy( radioInterfacesParams.interface_szPort[iTo], radioInterfacesParams.interface_szPort[iFrom], MAX_RADIO_PORT_NAME_LENGTH-1);
+   radioInterfacesParams.interface_szPort[iTo][MAX_RADIO_PORT_NAME_LENGTH-1] = 0;
    radioInterfacesParams.interface_capabilities_flags[iTo] = radioInterfacesParams.interface_capabilities_flags[iFrom];
    radioInterfacesParams.interface_current_frequency_khz[iTo] = radioInterfacesParams.interface_current_frequency_khz[iFrom];
    radioInterfacesParams.interface_current_radio_flags[iTo] = radioInterfacesParams.interface_current_radio_flags[iFrom];

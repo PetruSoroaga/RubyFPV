@@ -140,7 +140,7 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
    }
 
    float height_text = g_pRenderEngine->textHeight(g_idFontMenu);
-   float valueWidth = g_pRenderEngine->textWidth(g_idFontMenu, "AAA");
+   float valueWidth = g_pRenderEngine->textWidth(g_idFontMenu, "A.AA");
    if ( m_ValueMax > 999 )
       valueWidth += g_pRenderEngine->textWidth(g_idFontMenu, "A");
    if ( 0 != m_szSufix[0] )
@@ -148,6 +148,8 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
       valueWidth += g_pRenderEngine->textWidth(g_idFontMenu, " ");
       valueWidth += g_pRenderEngine->textWidth(g_idFontMenu, m_szSufix);
    }
+   if ( g_pRenderEngine->textWidth(g_idFontMenu, szValue) > valueWidth )
+      valueWidth = g_pRenderEngine->textWidth(g_idFontMenu, szValue);
    float valueMargin = 0.4*height_text;
    float paddingV = Menu::getSelectionPaddingY();
    float paddingH = Menu::getSelectionPaddingX();
@@ -159,15 +161,15 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
    if ( sliderWidth < fMinSliderWidth )
       sliderWidth = fMinSliderWidth;
 
-   if ( fWidthSelection + sliderWidth + valueWidth + valueMargin + Menu::getMenuPaddingX() + m_fMarginX > m_pMenu->getUsableWidth() )
+   if ( fWidthSelection + sliderWidth + valueWidth + 2.0*valueMargin + Menu::getMenuPaddingX() + m_fMarginX > m_pMenu->getUsableWidth() )
    {
-      sliderWidth = m_pMenu->getUsableWidth() - m_fMarginX - fWidthSelection - valueWidth - valueMargin - Menu::getMenuPaddingX();
+      sliderWidth = m_pMenu->getUsableWidth() - m_fMarginX - fWidthSelection - valueWidth - 2.0*valueMargin - Menu::getMenuPaddingX();
       if ( sliderWidth < fMinSliderWidth )
          sliderWidth = fMinSliderWidth;
    }
 
-   if ( fWidthSelection + sliderWidth + valueWidth + valueMargin + Menu::getMenuPaddingX() + m_fMarginX > m_pMenu->getUsableWidth() )
-      fWidthSelection = m_pMenu->getUsableWidth() - m_fMarginX - sliderWidth - valueWidth - valueMargin - Menu::getMenuPaddingX();
+   if ( fWidthSelection + sliderWidth + valueWidth + 2.0*valueMargin + Menu::getMenuPaddingX() + m_fMarginX > m_pMenu->getUsableWidth() )
+      fWidthSelection = m_pMenu->getUsableWidth() - m_fMarginX - sliderWidth - 2.0*valueWidth - valueMargin - Menu::getMenuPaddingX();
 
    RenderBaseTitle(xPos, yPos, bSelected, fWidthSelection);
 
@@ -194,7 +196,7 @@ void MenuItemSlider::Render(float xPos, float yPos, bool bSelected, float fWidth
       if ( m_bIsEditing )
       {
          g_pRenderEngine->setColors(get_Color_MenuItemSelectedBg());
-         g_pRenderEngine->drawRoundRect(xPosSlider-valueWidth-valueMargin-paddingH, yPos-paddingV, sliderWidth + valueWidth + valueMargin + 2.0*paddingH, fHeightEdit + 2.0*paddingV, 0.1*Menu::getMenuPaddingY());
+         g_pRenderEngine->drawRoundRect(xPosSlider-valueWidth-2.0*valueMargin-paddingH, yPos-paddingV, sliderWidth + valueWidth + 2.0*valueMargin + 2.0*paddingH, fHeightEdit + 2.0*paddingV, 0.1*Menu::getMenuPaddingY());
       }
       if ( m_bIsEditing )
          g_pRenderEngine->setColors(get_Color_MenuItemSelectedText());

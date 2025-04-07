@@ -367,9 +367,9 @@ int controller_count_asignable_radio_interfaces_to_vehicle_radio_link(Model* pMo
    return iErrorCode;
 }
 
-void propagate_video_profile_changes_to_lower_profiles(type_video_link_profile* pOrgProfile, type_video_link_profile* pUpdatedProfile, type_video_link_profile* pAllProfiles)
+void propagate_video_profile_changes_to_lower_profiles(Model* pModel, type_video_link_profile* pOrgProfile, type_video_link_profile* pUpdatedProfile, type_video_link_profile* pAllProfiles)
 {
-   if ( (NULL == pOrgProfile) || (NULL == pUpdatedProfile) || (NULL == pAllProfiles) )
+   if ( (NULL == pModel) || (NULL == pOrgProfile) || (NULL == pUpdatedProfile) || (NULL == pAllProfiles) )
       return;
 
    // If EC scheme spreading factor has changed by user, update MQ and LQ video profiles spreading factor too
@@ -491,6 +491,25 @@ void propagate_video_profile_changes_to_lower_profiles(type_video_link_profile* 
    pAllProfiles[VIDEO_PROFILE_MQ].uProfileFlags |= uNoiseLevel;
    pAllProfiles[VIDEO_PROFILE_LQ].uProfileFlags &= ~ VIDEO_PROFILE_FLAGS_MASK_NOISE;
    pAllProfiles[VIDEO_PROFILE_LQ].uProfileFlags |= uNoiseLevel;
+
+
+   // if EC on user profile is greater than EC on MQ,LQ, update MQ,LQ too
+   if ( pUpdatedProfile != &(pAllProfiles[VIDEO_PROFILE_MQ]) )
+   if ( pUpdatedProfile != &(pAllProfiles[VIDEO_PROFILE_LQ]) )
+   {
+      if ( pUpdatedProfile->iECPercentage > pAllProfiles[VIDEO_PROFILE_MQ].iECPercentage )
+         pAllProfiles[VIDEO_PROFILE_MQ].iECPercentage = pUpdatedProfile->iECPercentage;
+      else
+         pAllProfiles[VIDEO_PROFILE_MQ].iECPercentage = DEFAULT_VIDEO_EC_RATE_MQ;
+
+      if ( pUpdatedProfile->iECPercentage > pAllProfiles[VIDEO_PROFILE_LQ].iECPercentage )
+         pAllProfiles[VIDEO_PROFILE_LQ].iECPercentage = pUpdatedProfile->iECPercentage;
+      else
+         pAllProfiles[VIDEO_PROFILE_LQ].iECPercentage = DEFAULT_VIDEO_EC_RATE_MQ;
+
+      pModel->convertECPercentageToData(&(pAllProfiles[VIDEO_PROFILE_MQ]));
+      pModel->convertECPercentageToData(&(pAllProfiles[VIDEO_PROFILE_LQ]));
+   }
 }
 
 int tx_powers_get_max_usable_power_mw_for_controller()
@@ -667,7 +686,7 @@ int controller_utils_import_all_from_usb(bool bImportAnyFound) { return 0; }
 bool controller_utils_usb_import_has_matching_controller_id_file() { return false; }
 bool controller_utils_usb_import_has_any_controller_id_file() { return false; }
 int controller_count_asignable_radio_interfaces_to_vehicle_radio_link(Model* pModel, int iVehicleRadioLinkId) { return 0; }
-void propagate_video_profile_changes_to_lower_profiles(type_video_link_profile* pOrg, type_video_link_profile* pUpdated, type_video_link_profile* pAllProfiles){}
+void propagate_video_profile_changes_to_lower_profiles(Model* pModel, type_video_link_profile* pOrg, type_video_link_profile* pUpdated, type_video_link_profile* pAllProfiles){}
 int tx_powers_get_max_usable_power_mw_for_controller(){ return 0; }
 void compute_controller_radio_tx_powers(Model* pModel, shared_mem_radio_stats* pSMRS){}
 void apply_controller_radio_tx_powers(Model* pModel, shared_mem_radio_stats* pSMRS){}

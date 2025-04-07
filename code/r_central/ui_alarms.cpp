@@ -862,7 +862,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
       {
          s_TimeLastCPUOverloadAlarmRecording = g_TimeNow;
          uIconId = g_idIconSDCard;
-         sprintf(szAlarmText, "Your controllerhad a CPU spike recording video to the SD card." );
+         sprintf(szAlarmText, "Your controller had a CPU spike recording video to the SD card." );
          sprintf(szAlarmText2, "If this is recurent, switch to a faster SD card or disable this alarm from System->Alarms.");
       }
       else

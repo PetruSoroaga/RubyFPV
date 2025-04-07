@@ -93,7 +93,7 @@ void MenuRoot::addItems()
    removeAllItems();
    m_iIndexSpectator = -1;
 
-   m_iIndexSimpleSetup = addMenuItem(new MenuItem(L("Quick setup"), L("Quickly change the most common vehicle settings.")));
+   m_iIndexSimpleSetup = addMenuItem(new MenuItem(L("Quick vehicle setup"), L("Quickly change the most common vehicle settings.")));
    m_iIndexSearch = addMenuItem(new MenuItem(L("Search"), L("Search for vehicles.")));
    m_iIndexMyVehicles = addMenuItem(new MenuItem(L("My vehicles"), L("Manage my vehicles.")));
    addSeparator();
@@ -141,6 +141,12 @@ void MenuRoot::RenderVehicleInfo()
    char szLine5[128];
    char szRunType[32];
 
+   szLine1[0] = 0;
+   szLine2[0] = 0;
+   szLine4[0] = 0;
+   szLine5[0] = 0;
+   szRunType[0] = 0;
+
    bool bConnected = false;
    if ( link_has_received_main_vehicle_ruby_telemetry() )
       bConnected = true;
@@ -164,7 +170,7 @@ void MenuRoot::RenderVehicleInfo()
       if ( (NULL != g_pCurrentModel) && link_is_vehicle_online_now(g_pCurrentModel->uVehicleId) )
       {
          sprintf(szLine1, L("Connected to %s"), g_pCurrentModel->getLongName() );
-         sprintf(szBuff, "Running ver %d.%d", ((g_pCurrentModel->sw_version>>8) & 0xFF), (g_pCurrentModel->sw_version & 0xFF));
+         //sprintf(szBuff, "Running ver %d.%d", ((g_pCurrentModel->sw_version>>8) & 0xFF), (g_pCurrentModel->sw_version & 0xFF));
          height += g_pRenderEngine->textHeight(g_idFontMenuSmall);
          height += g_pRenderEngine->textHeight(g_idFontMenuSmall);
       }

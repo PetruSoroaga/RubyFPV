@@ -12,10 +12,6 @@
 
 #define MAX_RADIO_RX_QUEUE_INFO_VALUES 50
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef struct
 {
    u32 uVehicleId;
@@ -42,9 +38,12 @@ typedef struct
 {
    u32 uVehiclesIds[MAX_CONCURENT_VEHICLES];
 
-   int iIsVehicleLinkToControllerLostAlarm[MAX_CONCURENT_VEHICLES];
+   bool bIsVehicleFastUplinkFromControllerLost[MAX_CONCURENT_VEHICLES];
+   bool bIsVehicleSlowUplinkFromControllerLost[MAX_CONCURENT_VEHICLES];
    u32 uLastTimeReceivedAckFromVehicle[MAX_CONCURENT_VEHICLES];
    int iVehicleClockDeltaMilisec[MAX_CONCURENT_VEHICLES];
+   bool bIsDoingRetransmissions[MAX_CONCURENT_VEHICLES];
+   bool bIsDoingAdaptive[MAX_CONCURENT_VEHICLES];
    u32 uAverageCommandRoundtripMiliseconds[MAX_CONCURENT_VEHICLES];
    u32 uMaxCommandRoundtripMiliseconds[MAX_CONCURENT_VEHICLES];
    u32 uMinCommandRoundtripMiliseconds[MAX_CONCURENT_VEHICLES];
@@ -72,7 +71,3 @@ void shared_mem_router_vehicles_runtime_info_close(shared_mem_router_vehicles_ru
 shared_mem_radio_rx_queue_info* shared_mem_radio_rx_queue_info_open_for_read();
 shared_mem_radio_rx_queue_info* shared_mem_radio_rx_queue_info_open_for_write();
 void shared_mem_radio_rx_queue_info_close(shared_mem_radio_rx_queue_info* pAddress);
-
-#ifdef __cplusplus
-}  
-#endif 

@@ -1544,6 +1544,8 @@ int main(int argc, char *argv[])
    #endif
 
    detectSystemType();
+
+   #if defined (HW_PLATFORM_RASPBERRY) || defined (HW_PLATFORM_RADXA)
    if ( g_bDebug )
    if ( hardware_is_station() )
    {
@@ -1552,6 +1554,7 @@ int main(int argc, char *argv[])
        pP->nLogLevel = 0;
        save_Preferences();
    }
+   #endif
 
    hardware_release();
 

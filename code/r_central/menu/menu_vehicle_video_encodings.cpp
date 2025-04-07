@@ -34,6 +34,7 @@
 #include "menu_vehicle_video_encodings.h"
 #include "menu_item_select.h"
 #include "menu_item_section.h"
+#include "menu_item_text.h"
 #include "../../base/utils.h"
 #include "../../utils/utils_controller.h"
 
@@ -84,44 +85,42 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
 
    addMenuItem(new MenuItemSection(L("Data & Error Correction Settings")));
 
-   /*
-   m_pItemsSelect[16] = new MenuItemSelect("Radio Data Rate for Video", "Actual radio data rate to use for this video profile for video data transmission.");
-   m_pItemsSelect[16]->addSelection("Auto (Use Radio Link)");
-   for( int i=0; i<getDataRatesCount(); i++ )
-   {
-      if ( getDataRatesBPS()[i] < 3000000 )
-         continue;
-      str_getDataRateDescription(getDataRatesBPS()[i], 0, szBuff);
-      m_pItemsSelect[16]->addSelection(szBuff);
-   }
-   if ( NULL != g_pCurrentModel && ((g_pCurrentModel->radioInterfacesParams.interface_supported_bands[0] & RADIO_HW_SUPPORTED_BAND_58) || (g_pCurrentModel->radioInterfacesParams.interface_supported_bands[1] & RADIO_HW_SUPPORTED_BAND_58)) )
-   for( int i=0; i<=MAX_MCS_INDEX; i++ )
-   {
-      str_getDataRateDescription(-1-i, 0, szBuff);
-      m_pItemsSelect[16]->addSelection(szBuff);
-   }
-   m_pItemsSelect[16]->setIsEditable();
-   m_IndexDataRate = addMenuItem(m_pItemsSelect[16]);
-   */
-
+   ControllerSettings* pCS = get_ControllerSettings();
    Preferences* p = get_Preferences();
    int iMaxSize = p->iDebugMaxPacketSize-sizeof(t_packet_header)-sizeof(t_packet_header_video_segment);
    iMaxSize = (iMaxSize/10)*10;
-   m_pItemsSlider[0] = new MenuItemSlider(L("Packet size"), L("How big is each indivisible video packet over the air link. No major impact in link quality. Smaller packets and more EC packets increase the chance of error correction but also increases the video latency."), 100,iMaxSize,iMaxSize/2, fSliderWidth);
-   m_pItemsSlider[0]->setStep(10);
-   m_IndexPacketSize = addMenuItem(m_pItemsSlider[0]);
 
    int iMaxPackets = MAX_TOTAL_PACKETS_IN_BLOCK;
    if ( NULL != g_pCurrentModel )
       iMaxPackets = g_pCurrentModel->hwCapabilities.iMaxTxVideoBlockPackets;
-   m_pItemsSlider[1] = new MenuItemSlider(L("Data Packets in a Block"), L("How many indivisible packets are in a block. This has an impact on link recovery and error correction. Bigger values might increase the delay in video stream when link is degraded, but also increase the chance of error correction."), 2, iMaxPackets/2, iMaxPackets/4, fSliderWidth);
+
+   m_IndexPacketSize = -1;
+   if ( (NULL != pCS) && (0 != pCS->iDeveloperMode) )
+   if ( (NULL != g_pCurrentModel) && (! g_pCurrentModel->is_spectator) )
+   {
+      m_pItemsSlider[0] = new MenuItemSlider(L("Packet size"), L("How big is each indivisible video packet over the air link. No major impact in link quality. Smaller packets and more EC data increases the chance of error correction but also increases the video latency."), 100,iMaxSize,iMaxSize/2, fSliderWidth);
+      m_pItemsSlider[0]->setStep(10);
+      m_IndexPacketSize = addMenuItem(m_pItemsSlider[0]);
+      m_pMenuItems[m_IndexPacketSize]->setTextColor(get_Color_Dev());
+   }
+
+   m_pItemsSlider[1] = new MenuItemSlider(L("Video block size"), L("How many indivisible packets are in a video block. This has an impact on link recovery and error correction. Bigger values might increase the delay in video stream when link is degraded, but also increase the chance of error correction."), 2, iMaxPackets/2, iMaxPackets/4, fSliderWidth);
    m_IndexBlockPackets = addMenuItem(m_pItemsSlider[1]);
 
-   m_pItemsSlider[2] = new MenuItemSlider(L("EC Packets in a Block"), L("How many error correcting packets to add to a block.Bigger values increase the chance of error correction but decrease the usable link data rate buget."), 0, iMaxPackets/2, iMaxPackets/4, fSliderWidth);
-   m_IndexBlockFECs = addMenuItem(m_pItemsSlider[2]);
+   m_pItemsSelect[18] = new MenuItemSelect(L("Error Correction"), L("How much error correction data to add to the video data."));
+   m_pItemsSelect[18]->addSelection(L("None"));
+   m_pItemsSelect[18]->addSelection("10%");
+   m_pItemsSelect[18]->addSelection("20%");
+   m_pItemsSelect[18]->addSelection("30%");
+   m_pItemsSelect[18]->addSelection("40%");
+   m_pItemsSelect[18]->addSelection("50%");
+   m_pItemsSelect[18]->addSelection("60%");
+   m_pItemsSelect[18]->addSelection("70%");
+   m_pItemsSelect[18]->setIsEditable();
+   m_IndexBlockECRate = addMenuItem(m_pItemsSelect[18]);
 
-   m_pItemsSlider[2]->setExtraHeight( (1.0 + 2.0*MENU_ITEM_SPACING) * g_pRenderEngine->textHeight(g_idFontMenuSmall));
-
+   m_IndexECSchemeSpread = -1;
+   /*
    m_pItemsSelect[19] = new MenuItemSelect(L("EC Spreading Factor"), L("Spreads the EC packets accross multiple video blocks."));
    m_pItemsSelect[19]->addSelection("0");
    m_pItemsSelect[19]->addSelection("1");
@@ -129,8 +128,9 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    m_pItemsSelect[19]->addSelection("3");
    m_pItemsSelect[19]->setIsEditable();
    m_IndexECSchemeSpread = addMenuItem(m_pItemsSelect[19]);
+   */
 
-   addMenuItem(new MenuItemSection(L("H264 Encoder Settings")));
+   addMenuItem(new MenuItemSection(L("H264/H265 Encoder Settings")));
 
    m_IndexH264Profile = -1;
    m_IndexH264Level = -1;
@@ -138,7 +138,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
 
    if ( ! g_pCurrentModel->isRunningOnOpenIPCHardware() )
    {
-      m_pItemsSelect[4] = new MenuItemSelect("H264 Profile", "The higher the H264 profile, the higher the CPU usage on encode and decode and higher the end to end video latencey. Higher profiles can have lower video quality as more compression algorithms are used.");
+      m_pItemsSelect[4] = new MenuItemSelect("H264/H265 Profile", "The higher the H264/H265 profile, the higher the CPU usage on encode and decode and higher the end to end video latencey. Higher profiles can have lower video quality as more compression algorithms are used.");
       m_pItemsSelect[4]->addSelection("Baseline");
       m_pItemsSelect[4]->addSelection("Main");
       m_pItemsSelect[4]->addSelection("High");
@@ -153,7 +153,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
       m_pItemsSelect[5]->setIsEditable();
       m_IndexH264Level = addMenuItem(m_pItemsSelect[5]);
 
-      m_pItemsSelect[6] = new MenuItemSelect("H264 Inter Refresh", "");  
+      m_pItemsSelect[6] = new MenuItemSelect("H264/H265 Inter Refresh", "");  
       m_pItemsSelect[6]->addSelection("Cyclic");
       m_pItemsSelect[6]->addSelection("Adaptive");
       m_pItemsSelect[6]->addSelection("Both");
@@ -162,7 +162,30 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
       m_IndexH264Refresh = addMenuItem(m_pItemsSelect[6]);
    }
 
-   m_pItemsSelect[12] = new MenuItemSelect("H264 Slices", "Split video frames into multiple smaller parts. When having heavy radio interference there is a chance that not the entire video is corrupted if video is sliced up. But is uses more processing power.");
+   m_IndexAutoKeyframe = -1;
+   m_IndexKeyframeManual = -1;
+   m_pMenuItemVideoKeyframeWarning = NULL;
+
+   m_pItemsSelect[22] = new MenuItemSelect(L("Auto Keyframing"), L("Automatic keyframe adjustment based on radio link conditions."));
+   m_pItemsSelect[22]->addSelection(L("No"));
+   m_pItemsSelect[22]->addSelection(L("Yes"));
+   m_pItemsSelect[22]->setIsEditable();
+   m_IndexAutoKeyframe = addMenuItem(m_pItemsSelect[22]);
+
+   m_pItemsSlider[6] = new MenuItemSlider(L("Max Auto Keyframe (ms)"), 50,20000,0, fSliderWidth);
+   m_pItemsSlider[6]->setTooltip(L("Sets the max allowed keyframe interval (in miliseconds) when auto adjusting is enabled for video keyframe interval parameter."));
+   m_pItemsSlider[6]->setStep(10);
+   m_IndexMaxKeyFrame = addMenuItem(m_pItemsSlider[6]);
+
+   m_pItemsSlider[5] = new MenuItemSlider(L("Keyframe interval (ms)"), L("A keyframe is added every [n] miliseconds. Bigger keyframe values usually results in better quality video and lower bandwidth requirements but longer breakups if any."), 50,20000,200, fSliderWidth);
+   m_pItemsSlider[5]->setStep(10);
+   m_pItemsSlider[5]->setSufix("ms");
+   m_IndexKeyframeManual = addMenuItem(m_pItemsSlider[5]);
+   m_pMenuItemVideoKeyframeWarning = new MenuItemText("", true);
+   m_pMenuItemVideoKeyframeWarning->setHidden(true);
+   addMenuItem(m_pMenuItemVideoKeyframeWarning);
+
+   m_pItemsSelect[12] = new MenuItemSelect("H264/H265 Slices", "Split video frames into multiple smaller parts. When having heavy radio interference there is a chance that not the entire video is corrupted if video is sliced up. But is uses more processing power.");
    for( int i=1; i<=16; i++ )
    {
       sprintf(szBuff, "%d", i);
@@ -181,13 +204,13 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    m_IndexInsertH264SPSTimings = -1;
    if ( ! g_pCurrentModel->isRunningOnOpenIPCHardware() )
    {
-      m_pItemsSelect[7] = new MenuItemSelect("Insert H264 PPS Headers", "");  
+      m_pItemsSelect[7] = new MenuItemSelect("Insert H264/H265 PPS Headers", "");  
       m_pItemsSelect[7]->addSelection("No");
       m_pItemsSelect[7]->addSelection("Yes");
       m_pItemsSelect[7]->setIsEditable();
       m_IndexInsertH264PPS = addMenuItem(m_pItemsSelect[7]);
 
-      m_pItemsSelect[11] = new MenuItemSelect("Fill H264 SPS Timings", "");  
+      m_pItemsSelect[11] = new MenuItemSelect("Fill H264/H265 SPS Timings", "");  
       m_pItemsSelect[11]->addSelection("No");
       m_pItemsSelect[11]->addSelection("Yes");
       m_pItemsSelect[11]->setIsEditable();
@@ -206,7 +229,7 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
    }
    else
    {
-      m_pItemsSelect[8] = new MenuItemSelect("Auto H264 quantization", "Use default quantization for the H264 video encoding, or set a custom value.");  
+      m_pItemsSelect[8] = new MenuItemSelect("Auto H264/H265 quantization", "Use default quantization for the H264/H265 video encoding, or set a custom value.");  
       m_pItemsSelect[8]->addSelection("No");
       m_pItemsSelect[8]->addSelection("Yes");
       m_pItemsSelect[8]->setIsEditable();
@@ -217,36 +240,77 @@ MenuVehicleVideoEncodings::MenuVehicleVideoEncodings(void)
       m_IndexQuantValue = addMenuItem(m_pItemsSlider[4]);
    }
 
-   m_pItemsSelect[14] = new MenuItemSelect("Enable adaptive H264 quantization", "Enable algorithm that auto adjusts the H264 quantization to match the desired video bitrate in realtime.");  
+   m_pItemsSelect[14] = new MenuItemSelect("Enable adaptive H264/H265 quantization", "Enable algorithm that auto adjusts the H264/H265 quantization to match the desired video bitrate in realtime.");  
    m_pItemsSelect[14]->addSelection("No");
    m_pItemsSelect[14]->addSelection("Yes");
    m_pItemsSelect[14]->setIsEditable();
    m_IndexEnableAdaptiveQuantization = addMenuItem(m_pItemsSelect[14]);
 
-   m_pItemsSelect[15] = new MenuItemSelect("Adaptive H264 quantization strength", "How strongh should the algorithm be. The algorithm that auto adjusts the H264 quantization to match the desired video bitrate in realtime.");  
+   m_pItemsSelect[15] = new MenuItemSelect("Adaptive H264/H265 quantization strength", "How strongh should the algorithm be. The algorithm that auto adjusts the H264/H265 quantization to match the desired video bitrate in realtime.");  
    m_pItemsSelect[15]->addSelection("Low");
    m_pItemsSelect[15]->addSelection("High");
    m_pItemsSelect[15]->setIsEditable();
    m_IndexAdaptiveH264QuantizationStrength = addMenuItem(m_pItemsSelect[15]);
 
-   m_IndexResetParams = addMenuItem(new MenuItem(L("Reset Profile"), L("Resets the current video profile to the default values.")));
+   m_IndexResetParams = addMenuItem(new MenuItem(L("Reset Video Profile"), L("Resets the current video profile to the default values.")));
 }
 
 void MenuVehicleVideoEncodings::valuesToUI()
 {
    int iVideoProfile = g_pCurrentModel->video_params.user_selected_video_link_profile;
-   m_pItemsSlider[0]->setCurrentValue(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].video_data_length);
+   u32 uVideoProfileEncodingFlags = g_pCurrentModel->video_link_profiles[iVideoProfile].uProfileEncodingFlags;
+   int adaptiveKeyframe = (uVideoProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME)?1:0;
 
-   m_pItemsSlider[1]->setCurrentValue(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_packets);
+   if (adaptiveKeyframe && (! g_pCurrentModel->isVideoLinkFixedOneWay()) )
+   {
+      m_pItemsSelect[22]->setSelectedIndex(1);
+      m_pItemsSlider[6]->setEnabled(true);
+      m_pItemsSlider[5]->setEnabled(false);
+   }
+   else
+   {
+      m_pItemsSelect[22]->setSelectedIndex(0);
+      m_pItemsSlider[6]->setEnabled(false);
+      m_pItemsSlider[5]->setEnabled(true);
+   }
+   m_pItemsSlider[6]->setCurrentValue(g_pCurrentModel->video_params.uMaxAutoKeyframeIntervalMs);
+
+   if ( NULL != m_pMenuItemVideoKeyframeWarning )
+   {
+      m_pMenuItemVideoKeyframeWarning->setHidden(true);
+      if ( ! g_pCurrentModel->isVideoLinkFixedOneWay() )
+      if ( g_pCurrentModel->video_link_profiles[iVideoProfile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME )
+      {
+         m_pMenuItemVideoKeyframeWarning->setTitle(L("Adaptive keyframe is turned on. Keyframe interval will be dynamically adjusted by Ruby. If you want to use a fixed keyframe, turn off Adaptive Keyframe from Bidirectional settings menu or set the video link as One Way."));
+         m_pMenuItemVideoKeyframeWarning->setHidden(false);
+      }
+   }
+   if ( -1 != m_IndexKeyframeManual )
+   {
+      int keyframe_ms = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].keyframe_ms;
+      if ( keyframe_ms < 0 )
+         keyframe_ms = -keyframe_ms;
+      m_pItemsSlider[5]->setCurrentValue(keyframe_ms);
+   }
+
+   if ( m_IndexPacketSize != -1 )
+      m_pItemsSlider[0]->setCurrentValue(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].video_data_length);
+
+   m_pItemsSlider[1]->setCurrentValue(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].iBlockPackets);
    m_pItemsSlider[1]->setEnabled(true);
-   m_pItemsSlider[2]->setCurrentValue(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_fecs);
-   m_pItemsSlider[2]->setEnabled(true);
+
+   int iECPercent = g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].iECPercentage;
+   iECPercent = iECPercent/10;
+   if ( iECPercent > 7 )
+      iECPercent = 7;
+   m_pItemsSelect[18]->setSelectedIndex(iECPercent);
 
    u32 uECSpreadHigh = (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT)?1:0;
    u32 uECSpreadLow = (g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].uProfileEncodingFlags & VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT)?1:0;
    u32 uECSpread = uECSpreadLow + (uECSpreadHigh*2);
 
-   m_pItemsSelect[19]->setSelectedIndex((int) uECSpread);
+   if ( -1 != m_IndexECSchemeSpread )
+      m_pItemsSelect[19]->setSelectedIndex((int) uECSpread);
 
    if ( -1 != m_IndexNoise )
       m_pItemsSelect[20]->setSelectedIndex(g_pCurrentModel->video_link_profiles[iVideoProfile].uProfileFlags & VIDEO_PROFILE_FLAGS_MASK_NOISE);
@@ -356,23 +420,20 @@ void MenuVehicleVideoEncodings::Render()
    float y0 = RenderFrameAndTitle();
    float y = y0;
 
-   float x = m_xPos + m_sfMenuPaddingX;
-   
    for( int i=0; i<m_ItemsCount; i++ )
    {
       y += RenderItem(i,y);
-      if ( (i == m_IndexBlockFECs) && didRenderedLastItem() )
-      {
-         char szBuff[64];
-         sprintf(szBuff, "EC rate: %d%%", 100*g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_fecs/(g_pCurrentModel->video_link_profiles[g_pCurrentModel->video_params.user_selected_video_link_profile].block_packets));
-         g_pRenderEngine->drawText( x, y - (1.0 + 2.0*MENU_ITEM_SPACING) * g_pRenderEngine->textHeight(g_idFontMenuSmall), g_idFontMenuSmall, szBuff);
-      }
    }
    RenderEnd(y0);
 }
 
 void MenuVehicleVideoEncodings::sendVideoLinkProfile()
 {
+   if ( get_sw_version_build(g_pCurrentModel) < 283 )
+   {
+      addMessage(L("Video functionality has changed. You need to update your vehicle sowftware."));
+      return;
+   }
    type_video_link_profile profiles[MAX_VIDEO_LINK_PROFILES];
    for( int i=0; i<MAX_VIDEO_LINK_PROFILES; i++ )
       memcpy(&profiles[i], &(g_pCurrentModel->video_link_profiles[i]), sizeof(type_video_link_profile));
@@ -386,17 +447,31 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
       pProfile->uProfileFlags |= ((u32)(iNoise)) & VIDEO_PROFILE_FLAGS_MASK_NOISE;
    }
 
-   pProfile->video_data_length = m_pItemsSlider[0]->getCurrentValue();
-   pProfile->block_packets = m_pItemsSlider[1]->getCurrentValue();
-   pProfile->block_fecs = m_pItemsSlider[2]->getCurrentValue();
-   
-   u32 uECSpread = (u32) m_pItemsSelect[19]->getSelectedIndex();
+   if ( 0 == m_pItemsSelect[22]->getSelectedIndex() )
+      pProfile->uProfileEncodingFlags &= ~VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
+   else
+      pProfile->uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_ENABLE_ADAPTIVE_VIDEO_KEYFRAME;
 
-   pProfile->uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT | VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
-   if ( uECSpread & 0x01 )
-      pProfile->uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT;
-   if ( uECSpread & 0x02 )
-      pProfile->uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+   if ( -1 != m_IndexKeyframeManual )
+      pProfile->keyframe_ms = m_pItemsSlider[5]->getCurrentValue();
+
+   if ( -1 != m_IndexPacketSize )
+      pProfile->video_data_length = m_pItemsSlider[0]->getCurrentValue();
+   
+   pProfile->iBlockPackets = m_pItemsSlider[1]->getCurrentValue();
+   pProfile->iECPercentage = m_pItemsSelect[18]->getSelectedIndex() * 10;
+   g_pCurrentModel->convertECPercentageToData(pProfile);
+
+   if ( -1 != m_IndexECSchemeSpread )
+   {
+      u32 uECSpread = (u32) m_pItemsSelect[19]->getSelectedIndex();
+
+      pProfile->uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT | VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT);
+      if ( uECSpread & 0x01 )
+         pProfile->uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_LOWBIT;
+      if ( uECSpread & 0x02 )
+         pProfile->uProfileEncodingFlags |= VIDEO_PROFILE_ENCODING_FLAG_EC_SCHEME_SPREAD_FACTOR_HIGHBIT;
+   }
 
    pProfile->uProfileEncodingFlags &= ~(VIDEO_PROFILE_ENCODING_FLAG_ENABLE_VIDEO_ADAPTIVE_H264_QUANTIZATION | VIDEO_PROFILE_ENCODING_FLAG_VIDEO_ADAPTIVE_QUANTIZATION_STRENGTH_HIGH);
    if ( 1 == m_pItemsSelect[14]->getSelectedIndex() )
@@ -463,8 +538,9 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
    if ( pProfile->uProfileFlags == g_pCurrentModel->video_link_profiles[iVideoProfile].uProfileFlags )
    if ( pProfile->radio_datarate_video_bps == g_pCurrentModel->video_link_profiles[iVideoProfile].radio_datarate_video_bps )
    if ( pProfile->video_data_length == g_pCurrentModel->video_link_profiles[iVideoProfile].video_data_length )
-   if ( pProfile->block_packets == g_pCurrentModel->video_link_profiles[iVideoProfile].block_packets )
-   if ( pProfile->block_fecs == g_pCurrentModel->video_link_profiles[iVideoProfile].block_fecs )
+   if ( pProfile->iBlockPackets == g_pCurrentModel->video_link_profiles[iVideoProfile].iBlockPackets )
+   if ( pProfile->iBlockECs == g_pCurrentModel->video_link_profiles[iVideoProfile].iBlockECs )
+   if ( pProfile->iECPercentage == g_pCurrentModel->video_link_profiles[iVideoProfile].iECPercentage )
    if ( pProfile->uProfileEncodingFlags == g_pCurrentModel->video_link_profiles[iVideoProfile].uProfileEncodingFlags )
    if ( pProfile->h264level == g_pCurrentModel->video_link_profiles[iVideoProfile].h264level )
    if ( pProfile->h264profile == g_pCurrentModel->video_link_profiles[iVideoProfile].h264profile )
@@ -475,7 +551,7 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
 
    // Propagate changes to lower video profiles
 
-   propagate_video_profile_changes_to_lower_profiles( &g_pCurrentModel->video_link_profiles[iVideoProfile], pProfile, &(profiles[0]));
+   propagate_video_profile_changes_to_lower_profiles(g_pCurrentModel, &g_pCurrentModel->video_link_profiles[iVideoProfile], pProfile, &(profiles[0]));
 
    log_line("Sending video encoding flags: %s", str_format_video_encoding_flags(pProfile->uProfileEncodingFlags));
 
@@ -489,6 +565,11 @@ void MenuVehicleVideoEncodings::sendVideoLinkProfile()
 
 void MenuVehicleVideoEncodings::sendVideoParams()
 {
+   if ( get_sw_version_build(g_pCurrentModel) < 283 )
+   {
+      addMessage(L("Video functionality has changed. You need to update your vehicle sowftware."));
+      return;
+   }
    video_parameters_t params;
    memcpy(&params, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
    
@@ -510,6 +591,9 @@ void MenuVehicleVideoEncodings::onSelectItem()
    if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
       return;
 
+   if ( -1 == m_SelectedIndex )
+      return;
+
    if ( handle_commands_is_command_in_progress() )
    {
       handle_commands_show_popup_progress();
@@ -528,20 +612,22 @@ void MenuVehicleVideoEncodings::onSelectItem()
       return;    
    }
 
-   if ( m_IndexPacketSize == m_SelectedIndex || 
-        m_IndexBlockPackets == m_SelectedIndex || 
-        m_IndexBlockFECs == m_SelectedIndex ||
-        m_IndexECSchemeSpread == m_SelectedIndex )
+   if ( ((m_IndexPacketSize != -1) && (m_IndexPacketSize == m_SelectedIndex)) || 
+        m_IndexBlockPackets == m_SelectedIndex ||
+        m_IndexBlockECRate == m_SelectedIndex || 
+        ((-1 != m_IndexECSchemeSpread) && (m_IndexECSchemeSpread == m_SelectedIndex)) )
       sendVideoLinkProfile();
-
-   //if ( m_IndexDataRate == m_SelectedIndex )
-   //   sendVideoLinkProfile();
 
    if ( (-1 != m_IndexHDMIOutput) && (m_IndexHDMIOutput == m_SelectedIndex) )
    {
       if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )
       {
          addUnsupportedMessageOpenIPC(NULL);
+         return;
+      }
+      if ( get_sw_version_build(g_pCurrentModel) < 283 )
+      {
+         addMessage(L("Video functionality has changed. You need to update your vehicle sowftware."));
          return;
       }
       video_parameters_t paramsOld;
@@ -571,6 +657,17 @@ void MenuVehicleVideoEncodings::onSelectItem()
    if ( (-1 != m_IndexH264Refresh) && (m_IndexH264Refresh == m_SelectedIndex) )
       sendVideoLinkProfile();
 
+   if ( (-1 != m_IndexAutoKeyframe) && (m_IndexAutoKeyframe == m_SelectedIndex) )
+   {
+      sendVideoLinkProfile();
+      return;
+   }
+   if ( (-1 != m_IndexKeyframeManual) && (m_IndexKeyframeManual == m_SelectedIndex) )
+   {
+      sendVideoLinkProfile();
+      return;
+   }
+
    if ( (-1 != m_IndexRemoveH264PPS) && (m_IndexRemoveH264PPS == m_SelectedIndex) )
    {
       sendVideoParams();
@@ -589,6 +686,11 @@ void MenuVehicleVideoEncodings::onSelectItem()
 
    if ( m_IndexH264Slices == m_SelectedIndex )
    {
+      if ( get_sw_version_build(g_pCurrentModel) < 283 )
+      {
+         addMessage(L("Video functionality has changed. You need to update your vehicle sowftware."));
+         return;
+      }
       video_parameters_t paramsOld;
       memcpy(&paramsOld, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
       g_pCurrentModel->video_params.iH264Slices = 1 + m_pItemsSelect[12]->getSelectedIndex();
@@ -638,6 +740,22 @@ void MenuVehicleVideoEncodings::onSelectItem()
         (m_IndexAdaptiveH264QuantizationStrength == m_SelectedIndex) )
    {
       sendVideoLinkProfile();
+      return;
+   }
+
+   if ( m_IndexMaxKeyFrame == m_SelectedIndex )
+   {
+      if ( get_sw_version_build(g_pCurrentModel) < 283 )
+      {
+         addMessage(L("Video functionality has changed. You need to update your vehicle sowftware."));
+         return;
+      }
+      video_parameters_t paramsNew;
+      memcpy(&paramsNew, &g_pCurrentModel->video_params, sizeof(video_parameters_t));
+      paramsNew.uMaxAutoKeyframeIntervalMs = m_pItemsSlider[6]->getCurrentValue();
+
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_SET_VIDEO_PARAMS, 0, (u8*)&paramsNew, sizeof(video_parameters_t)) )
+         valuesToUI();
       return;
    }
 

@@ -45,7 +45,6 @@
 
 bool s_bIsNegociatingRadioLinks = false;
 u32 s_uTemporaryRadioFlagsBeforeNegociateRadio = 0;
-u32 s_uTemporaryVideoBitrateBeforeNegociateRadio = 0;
 int s_iTemporaryDatarateBeforeNegociateRadio = 0;
 u32 s_uTimeStartOfNegociatingRadioLinks = 0;
 u32 s_uTimeLastNegociateRadioLinksReceivedCommand = 0;
@@ -55,7 +54,9 @@ void _negociate_radio_link_end(bool bApply, int iDatarate, u32 uRadioFlags)
    if ( ! s_bIsNegociatingRadioLinks )
       return;
 
-   adaptive_video_set_bitrate(s_uTemporaryVideoBitrateBeforeNegociateRadio);
+   log_line("[NegociateRadioLink] Ending. Apply: %s, datarate: %d, radio flags: %u",
+       bApply?"yes":"no", iDatarate, uRadioFlags);
+   adaptive_video_set_temporary_bitrate(0);
    packet_utils_set_adaptive_video_datarate(s_iTemporaryDatarateBeforeNegociateRadio);
    radio_remove_temporary_frames_flags();
    radio_set_frames_flags(s_uTemporaryRadioFlagsBeforeNegociateRadio);
@@ -125,7 +126,7 @@ int negociate_radio_process_received_radio_link_messages(u8* pPacketBuffer)
          log_line("[NegociateRadioLink] Started negociation.");
          s_uTimeStartOfNegociatingRadioLinks = g_TimeNow;
          s_uTemporaryRadioFlagsBeforeNegociateRadio = radio_get_current_frames_flags();
-         s_uTemporaryVideoBitrateBeforeNegociateRadio = adaptive_video_set_bitrate(DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE);
+         adaptive_video_set_temporary_bitrate(DEFAULT_LOWEST_ALLOWED_ADAPTIVE_VIDEO_BITRATE);
          s_iTemporaryDatarateBeforeNegociateRadio = packet_utils_get_last_set_adaptive_video_datarate();
          log_line("[NegociateRadioLink] On start negociation: current adaptive datarate: %d, current radio flags: %s = %s", s_iTemporaryDatarateBeforeNegociateRadio, str_format_binary_number(s_uTemporaryRadioFlagsBeforeNegociateRadio), str_get_radio_frame_flags_description2(s_uTemporaryRadioFlagsBeforeNegociateRadio) );
       }
@@ -155,8 +156,9 @@ void negociate_radio_periodic_loop()
    if ( (! s_bIsNegociatingRadioLinks) || (0 == s_uTimeStartOfNegociatingRadioLinks) || (0 == s_uTimeLastNegociateRadioLinksReceivedCommand) )
       return;
 
-   if ( (g_TimeNow > s_uTimeStartOfNegociatingRadioLinks + 60*2*1000) || (g_TimeNow > s_uTimeLastNegociateRadioLinksReceivedCommand + 8000) )
+   if ( (g_TimeNow > s_uTimeStartOfNegociatingRadioLinks + 60*2*1000) || (g_TimeNow > s_uTimeLastNegociateRadioLinksReceivedCommand + 12000) )
    {
+      log_line("[NegociateRadioLink] Trigger end due to timeout (no progress received from controller).");
       _negociate_radio_link_end(false, 0, 0);
    }
 }

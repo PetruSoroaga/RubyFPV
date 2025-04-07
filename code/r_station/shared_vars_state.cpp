@@ -58,7 +58,8 @@ void resetVehicleRuntimeInfo(int iIndex)
       g_State.vehiclesRuntimeInfo[iIndex].uPingRoundtripTimeOnLocalRadioLinks[i] = 0;
    }
 
-   g_State.vehiclesRuntimeInfo[iIndex].bIsVehicleLinkToControllerLostAlarm = false;
+   g_State.vehiclesRuntimeInfo[iIndex].bIsVehicleFastUplinkFromControllerLost = true;
+   g_State.vehiclesRuntimeInfo[iIndex].bIsVehicleSlowUplinkFromControllerLost = true;
    g_State.vehiclesRuntimeInfo[iIndex].uLastTimeReceivedAckFromVehicle = 0;
    g_State.vehiclesRuntimeInfo[iIndex].uLastTimeRecvDataFromVehicle = 0;
    g_State.vehiclesRuntimeInfo[iIndex].iVehicleClockDeltaMilisec = 500000000;
@@ -74,6 +75,8 @@ void resetVehicleRuntimeInfo(int iIndex)
    g_State.vehiclesRuntimeInfo[iIndex].uMaxCommandRoundtripMiliseconds = MAX_U32;
    g_State.vehiclesRuntimeInfo[iIndex].uMinCommandRoundtripMiliseconds = MAX_U32;
    
+   g_State.vehiclesRuntimeInfo[iIndex].bIsDoingRetransmissions = false;
+   g_State.vehiclesRuntimeInfo[iIndex].bIsDoingAdaptive = false;
    g_State.vehiclesRuntimeInfo[iIndex].uPendingVideoProfileToSet = 0xFF;
    g_State.vehiclesRuntimeInfo[iIndex].uPendingVideoProfileToSetRequestedBy = 0;
    g_State.vehiclesRuntimeInfo[iIndex].uLastTimeSentVideoProfileRequest = 0;

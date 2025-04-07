@@ -18,13 +18,11 @@ class MenuVehicleVideoBidirectional: public Menu
       virtual void valuesToUI();
             
    private:
-      int m_IndexAutoKeyframe;
       int m_IndexAdaptiveVideo;
       int m_IndexRetransmissions;
       int m_IndexAdaptiveVideoLevel, m_IndexAdaptiveAlgorithm, m_IndexAdaptiveUseControllerToo;
       int m_IndexVideoLinkLost, m_IndexVideoAdjustStrength;
       int m_IndexRetransmissionsFast;
-      int m_IndexMaxKeyFrame;
       int m_IndexRetransmissionsAlgo;
       MenuItemSlider* m_pItemsSlider[15];
       MenuItemSelect* m_pItemsSelect[15];

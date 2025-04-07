@@ -123,6 +123,7 @@ class RenderEngine
      virtual void drawTextLeft(float xPos, float yPos, u32 fontId, const char* szText);
      virtual void drawTextScaled(float xPos, float yPos, u32 fontId, float fScale, const char* szText);
      virtual void drawTextLeftScaled(float xPos, float yPos, u32 fontId, float fScale, const char* szText);
+     virtual float getMessageWidth(const char* text, float max_width, u32 fontId);
      virtual float getMessageHeight(const char* text, float line_spacing_percent, float max_width, u32 fontId);
      virtual float drawMessageLines(float xPos, float yPos, const char* text, float line_spacing_percent, float max_width, u32 fontId);
      

@@ -18,6 +18,7 @@ class MenuVehicleSimpleSetup: public Menu
       virtual void onSelectItem();
 
       void setPairingSetup();
+      void setTelemetryDetectionType();
 
    protected:
       void addSearchItems();
@@ -36,6 +37,7 @@ class MenuVehicleSimpleSetup: public Menu
       MenuItemSlider* m_pItemsSlider[10];
 
       bool m_bPairingSetup;
+      bool m_bTelemetrySetup;
       bool m_bSearchingTelemetry;
       int  m_iSearchTelemetryType;
       int  m_iSearchTelemetryPort;
@@ -45,6 +47,7 @@ class MenuVehicleSimpleSetup: public Menu
       int m_iIndexMenuCancel;
       int m_iIndexOSDLayout;
       int m_iIndexOSDSettings;
+      int m_iIndexTelemetryDetect;
       int m_iIndexTelemetryType;
       int m_iIndexTelemetryPort;
       int m_iIndexCamera;

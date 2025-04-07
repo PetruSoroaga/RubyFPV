@@ -920,7 +920,7 @@ void osd_render_debug_stats()
    {
       uTmp[i] = pCRTInfo->uOutputedVideoPacketsMaxECUsed[i+iStartIntervals];  
    }
-   sprintf(szBuff, "Outputed video EC max packets used ( %d / %d )", pActiveModel->video_link_profiles[pActiveModel->video_params.user_selected_video_link_profile].block_packets, pActiveModel->video_link_profiles[pActiveModel->video_params.user_selected_video_link_profile].block_fecs);
+   sprintf(szBuff, "Outputed video EC max packets used ( %d / %d )", pActiveModel->video_link_profiles[pActiveModel->video_params.user_selected_video_link_profile].iBlockPackets, pActiveModel->video_link_profiles[pActiveModel->video_params.user_selected_video_link_profile].iBlockECs);
    g_pRenderEngine->drawText(xPos, y, s_idFontStats, szBuff);
    y += height_text*1.3;
    y += _osd_render_debug_stats_graph_values(fGraphXStart, y, hGraphSmall, fWidthGraph, uTmp, iCountIntervals);

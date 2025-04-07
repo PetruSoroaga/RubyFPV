@@ -548,6 +548,8 @@ void _hardware_assign_usb_from_physical_ports()
             int nb = atoi(&(szPort[iPosMinus]))-1;
             if ( nb < 0 )
                nb = 0;
+            if ( nb > 9 )
+               nb = 9;
             sRadioInfo[i].szUSBPort[0] = 'A' + nb;
             sRadioInfo[i].szUSBPort[1] = 0;
             log_line("[HardwareRadio] Assigned short USB port to radio interface %d: [%s]", i+1, sRadioInfo[i].szUSBPort);
@@ -583,11 +585,13 @@ void _hardware_assign_usb_from_physical_ports()
          int nb = atoi(szNb)-1;
          if ( nb < 0 )
             nb = 0;
+         if ( nb > 9 )
+            nb = 9;
          sRadioInfo[i].szUSBPort[0] = 'A' + nb;
          sRadioInfo[i].szUSBPort[1] = 0;
          if ( iPosMinus < iPosEnd )
-            strncpy(&(sRadioInfo[i].szUSBPort[1]), &(szPort[iPosMinus]), 5);
-         sRadioInfo[i].szUSBPort[5] = 0;
+            strncpy(&(sRadioInfo[i].szUSBPort[1]), &(szPort[iPosMinus]), MAX_RADIO_PORT_NAME_LENGTH-1);
+         sRadioInfo[i].szUSBPort[MAX_RADIO_PORT_NAME_LENGTH-1] = 0;
          log_line("[HardwareRadio] Assigned USB port to radio interface %d: [%s]", i+1, sRadioInfo[i].szUSBPort);
       }
    }
@@ -608,7 +612,7 @@ void _hardware_assign_usb_from_physical_ports()
    
    for( int i=0; i<s_iHwRadiosCount-1; i++ )
    for( int j=i+1; j<s_iHwRadiosCount; j++ )
-      if ( strncmp( sRadioInfo[i].szUSBPort, sRadioInfo[j].szUSBPort, 6 ) > 0 )
+      if ( strncmp( sRadioInfo[i].szUSBPort, sRadioInfo[j].szUSBPort, MAX_RADIO_PORT_NAME_LENGTH-1 ) > 0 )
       {
          radio_hw_info_t tmp;
          memcpy(&tmp, &(sRadioInfo[i]), sizeof(radio_hw_info_t));
@@ -1020,7 +1024,8 @@ int _hardware_enumerate_wifi_radios()
             }
          }
          szComm[iSt] = 0;
-         strcpy(sRadioInfo[i].szMAC, szComm);
+         strncpy(sRadioInfo[i].szMAC, szComm, MAX_MAC_LENGTH-1);
+         sRadioInfo[i].szMAC[MAX_MAC_LENGTH-1] = 0;
       }
 
       // Find physical interface number, in form phy#0
@@ -1978,7 +1983,7 @@ int hardware_get_radio_index_from_mac(const char* szMAC)
 {
    if ( ! s_HardwareRadiosEnumeratedOnce )
       hardware_enumerate_radio_interfaces();
-   if ( NULL == szMAC || 0 == szMAC[0] )
+   if ( (NULL == szMAC) || (0 == szMAC[0]) )
       return -1;
    for( int i=0; i<s_iHwRadiosCount; i++ )
       if ( 0 == strcmp(szMAC, sRadioInfo[i].szMAC ) )
@@ -2218,6 +2223,13 @@ int hardware_radio_is_elrs_radio(radio_hw_info_t* pRadioInfo)
    return 1;
 }
 
+int hardware_radio_index_is_high_capacity(int iRadioIndex)
+{
+   if ( (iRadioIndex <0) || (iRadioIndex >= s_iHwRadiosCount) )
+      return 0;
+   return sRadioInfo[iRadioIndex].isHighCapacityInterface;
+}
+
 int hardware_radio_index_is_wifi_radio(int iRadioIndex)
 {
    if ( (iRadioIndex <0) || (iRadioIndex >= s_iHwRadiosCount) )
@@ -2313,7 +2325,7 @@ radio_hw_info_t* hardware_get_radio_info_for_usb_port(const char* szUSBPort)
 {
    if ( ! s_HardwareRadiosEnumeratedOnce )
       hardware_enumerate_radio_interfaces();
-   if ( NULL == szUSBPort || 0 == szUSBPort[0] )
+   if ( (NULL == szUSBPort) || (0 == szUSBPort[0]) )
       return NULL;
 
    for( int i=0; i<s_iHwRadiosCount; i++ )
@@ -2326,7 +2338,7 @@ radio_hw_info_t* hardware_get_radio_info_from_mac(const char* szMAC)
 {
    if ( ! s_HardwareRadiosEnumeratedOnce )
       hardware_enumerate_radio_interfaces();
-   if ( NULL == szMAC || 0 == szMAC[0] )
+   if ( (NULL == szMAC) || (0 == szMAC[0]) )
       return NULL;
 
    for( int i=0; i<s_iHwRadiosCount; i++ )
