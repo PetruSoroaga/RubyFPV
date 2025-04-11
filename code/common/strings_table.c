@@ -86,7 +86,7 @@ type_localized_strings s_LocalizedStringsTable[] =
   {"Looking for %s (%s, %s / %s)...", "扫描 %s (%s, %s / %s)...", "", "", "", "Поиск %s (%s, %s / %s)...", "", 0},
   {"Warning: There is a different vehicle (%s) on the same frequency as your current vehicle (%s)!", "警告：当前频段存在另一设备 (%s) 与您的设备 (%s) 冲突！", "", "", "", "Внимание: Другое устройство (%s) найдено на той же частоте, что и ваше настоящее устройство (%s)!", "", 0},
   {"Warning: There is a different vehicle (%s) on the same frequency (%s) as your current vehicle (%s)!", "警告：存在另一台设备(%s)在当前频段(%s)与您的设备(%s)冲突！", "", "", "", "Внимание: Другое устройство (%s) найдено на той же частоте (%s), что и ваше настоящее устройство (%s)!", "", 0},
-  {"Warning: There is a different vehicle (%s) on the same frequencies (%s/%s) as your current vehicle (%s)!", "警告：警告：存在另一台设备(%s)在当前双频段(%s/%s)与您的设备(%s)冲突！", "", "", "", "Внимание: Другое устройство (%s) найдено на тех же частотах (%s/%s), что и ваше настоящее устройство (%s)!", "", 0},
+  {"Warning: There is a different vehicle (%s) on the same frequencies (%s/%s) as your current vehicle (%s)!", "警告：存在另一台设备(%s)在当前双频段(%s/%s)与您的设备(%s)冲突！", "", "", "", "Внимание: Другое устройство (%s) найдено на тех же частотах (%s/%s), что и ваше настоящее устройство (%s)!", "", 0},
   {"Data stream from vehicle lost (%u)!", "设备数据流中断！(%u)", "", "", "", "Поток данных от вашего устроуства потерян (%u)!", "", 0},
   {"Data stream from vehicle recovered (%u)", "设备数据流恢复！(%u)", "", "", "", "Поток данных от вашего устройства востановлен (%u)", "", 0},
   {"Fatal error: Invalid model! (code: %x)", "致命错误：无效的模型！(code: %x)", "", "", "", "Критическая ошибка: Неправильная модель! (code: %x)", "", 0},
@@ -165,7 +165,7 @@ type_localized_strings s_LocalizedStringsTable[] =
   {"Recording Settings", "录制设置", "", "", "", "Параметры записи", "", 0},
   {"Management", "管理", "", "", "", "", "", 0},
   {"Manage Plugins", "插件管理", "", "", "", "Управление Плагинами", "", 0},
-  {"Update Software", "更新软件", "", "", "", "Обновление програмного обеспечения", "", 0},
+  {"Update Software", "固件更新", "", "", "", "Обновление програмного обеспечения", "", 0},
   {"Restart Controller", "重启地面端", "", "", "", "Перезагрузка Контроллера", "", 0},
 
   //---------------------------------------------------------------------
