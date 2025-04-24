@@ -7,14 +7,14 @@
 
 ### NOTE
 1. If there is a keyboard plugged in, the event id will be changed. 
-2. Below is the illustration of the touch screen become virtual buttons:
+2. Below is the illustration of the touch screen become virtual buttons:<pre>
    +-----+-----+----+
    | ESC | NIL | UP |
    +-----+-----+----+
    | QA1 | QA2 | OK |
    +-----+-----+----+
    | QA3 | NIL | DN |
-   +-----+-----+----+
+   +-----+-----+----+</pre>
 3. Basically the code converts the touch event and trigger it into GPIO signals
    for the Pi to gets the button pressed as if GPIO trigger. I tried to use
    virtual keyboard signals but it sent to different layer. So, temporay put
