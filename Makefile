@@ -345,7 +345,7 @@ clean:
           $(FOLDER_STATION)/ruby_controller $(FOLDER_STATION)/ruby_rt_station $(FOLDER_STATION)/ruby_tx_rc $(FOLDER_STATION)/ruby_rx_telemetry \
           $(FOLDER_START)/ruby_start $(FOLDER_I2C)/ruby_i2c $(FOLDER_RUTILS)/ruby_logger $(FOLDER_RUTILS)/ruby_initdhcp $(FOLDER_RUTILS)/ruby_sik_config $(FOLDER_RUTILS)/ruby_alive $(FOLDER_RUTILS)/ruby_video_proc $(FOLDER_RUTILS)/ruby_update $(FOLDER_RUTILS)/ruby_update_worker \
           $(FOLDER_BASE)/*.o $(FOLDER_COMMON)/*.o $(FOLDER_RADIO)/*.o $(FOLDER_START)/*.o $(FOLDER_RUTILS)/*.o $(FOLDER_UTILS)/*.o $(FOLDER_VEHICLE)/*.o $(FOLDER_STATION)/*.o \
-          $(FOLDER_CENTRAL)/*.o $(FOLDER_CENTRAL_MENU)/*.o $(FOLDER_CENTRAL_OSD)/*.o $(FOLDER_CENTRAL_RENDERER)/*.o \
+          $(FOLDER_CENTRAL)/*.o $(FOLDER_CENTRAL_MENU)/*.o $(FOLDER_CENTRAL_OSD)/*.o $(FOLDER_CENTRAL_RENDERER)/*.o $(FOLDER_CENTRAL_OLED)/*.o\
           $(FOLDER_PLUGINS_OSD)/*.o code/public/utils/*.o code/r_player/*.o $(FOLDER_TESTS)/*.o \
           code/r_i2c/*.o
 
@@ -355,7 +355,7 @@ cleanstation:
           test_log $(FOLDER_TESTS)/test_log ruby_plugin* \
           $(FOLDER_STATION)/ruby_controller $(FOLDER_STATION)/ruby_rt_station $(FOLDER_STATION)/ruby_tx_rc $(FOLDER_STATION)/ruby_rx_telemetry \
           $(FOLDER_START)/ruby_start $(FOLDER_I2C)/ruby_i2c $(FOLDER_RUTILS)/ruby_logger $(FOLDER_RUTILS)/ruby_initdhcp $(FOLDER_RUTILS)/ruby_sik_config $(FOLDER_RUTILS)/ruby_alive $(FOLDER_RUTILS)/ruby_video_proc $(FOLDER_RUTILS)/ruby_update $(FOLDER_RUTILS)/ruby_update_worker \
-          $(FOLDER_CENTRAL)/*.o $(FOLDER_CENTRAL_MENU)/*.o $(FOLDER_CENTRAL_OSD)/*.o $(FOLDER_CENTRAL_RENDERER)/*.o \
+          $(FOLDER_CENTRAL)/*.o $(FOLDER_CENTRAL_MENU)/*.o $(FOLDER_CENTRAL_OSD)/*.o $(FOLDER_CENTRAL_RENDERER)/*.o $(FOLDER_CENTRAL_OLED)/*.o\
           $(FOLDER_BASE)/*.o $(FOLDER_COMMON)/*.o $(FOLDER_RADIO)/*.o $(FOLDER_START)/*.o $(FOLDER_RUTILS)/*.o $(FOLDER_UTILS)/*.o $(FOLDER_STATION)/*.o \
           $(FOLDER_TESTS)/*.o $(FOLDER_PLUGINS_OSD)/*.o \
           code/r_i2c/*.o code/r_utils/*.o code/r_player/*.o
