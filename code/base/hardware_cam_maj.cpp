@@ -738,11 +738,10 @@ void hardware_camera_maj_set_calibration_file(int iCameraType, int iCalibrationF
    char szFileName[MAX_FILE_PATH_SIZE];
    char szComm[256];
 
+   hw_execute_bash_command("rm -rf /etc/sensors/c_*", NULL);
+
    if ( (0 == iCalibrationFileType) || (0 == szCalibrationFile[0]) )
    {
-      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %sc_*", FOLDER_RUBY_TEMP);
-      hw_execute_bash_command(szComm, NULL);
-
       hardware_camera_set_default_oipc_calibration(iCameraType);
    }
    else

@@ -818,6 +818,11 @@ int _step_find_console()
    sprintf(szComm, "chmod 777 %s*", FOLDER_BINARIES);
    hw_execute_bash_command(szComm, NULL);
 
+   sprintf(szComm, "mkdir -p %s", FOLDER_CALIBRATION_FILES);
+   hw_execute_bash_command(szComm, NULL);
+   sprintf(szComm, "chmod 777 %s", FOLDER_CALIBRATION_FILES);
+   hw_execute_bash_command(szComm, NULL);
+
    g_bIsFirstBoot = false;
    strcpy(szFile, FOLDER_CONFIG);
    strcat(szFile, FILE_CONFIG_FIRST_BOOT);
