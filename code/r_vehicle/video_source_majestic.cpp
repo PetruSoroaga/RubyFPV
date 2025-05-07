@@ -829,6 +829,14 @@ void _video_source_majestic_update_params()
       return;
    }
 
+   if ( uReason == MODEL_CHANGED_CAMERA_CALIBRATION_FILE )
+   {
+      log_line("[VideoSourceMaj] Processing set camera calibration file notification. File: [%s]", g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName);
+      hardware_camera_maj_set_calibration_file(g_pCurrentModel->getActiveCameraType(), g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraBinProfile, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName);
+      video_source_majestic_clear_input_buffers();
+      return;
+   }
+
    log_line("[VideoSourceMaj] Process signal to apply all majestic settings.");
    hardware_camera_maj_add_log("Will apply all new settings...", true);
 
@@ -941,7 +949,6 @@ bool video_source_majestic_periodic_checks()
       s_uLastRTPSeqNumberInUDPFramesSkipCounter[98] = 0;
       s_uLastRTPSeqNumberInUDPFramesSkipCounter[100] = 0;
    }
-   hardware_camera_maj_check_apply_cached_image_changes(g_TimeNow);
 
    if ( s_bRequestedVideoMajesticCaptureUpdate )
       _video_source_majestic_update_params();

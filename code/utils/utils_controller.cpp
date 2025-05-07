@@ -33,6 +33,7 @@
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/hardware.h"
+#include "../base/hardware_files.h"
 #include "../base/hardware_radio.h"
 #include "../base/hw_procs.h"
 #include "../base/tx_powers.h"
@@ -589,7 +590,7 @@ void compute_controller_radio_tx_powers(Model* pModel, shared_mem_radio_stats* p
       int iVehicleLinkMwPower = get_vehicle_radio_link_current_tx_power_mw(pModel, iLink);
       log_line("Vehicle radio link %d current tx power: %d mw", iLink+1, iVehicleLinkMwPower);
       // Set uplink power twice as downlink so it has 1.4 times the range
-      iVehicleLinkMwPower *= 2;
+      iVehicleLinkMwPower *= 4;
       for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
       {
          if ( pSMRS->radio_interfaces[i].assignedVehicleRadioLinkId != iLink )

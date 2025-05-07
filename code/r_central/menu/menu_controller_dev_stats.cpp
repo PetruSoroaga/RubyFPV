@@ -208,7 +208,7 @@ void MenuControllerDevStatsConfig::onSelectItem()
    Preferences* pP = get_Preferences();
   
    Menu::onSelectItem();
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    if ( NULL == pP)

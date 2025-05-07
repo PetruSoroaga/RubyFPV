@@ -292,7 +292,7 @@ void _add_hardware_telemetry_info( t_packet_header_ruby_telemetry_extended_v4* p
 
    s_time_tx_telemetry_cpu = g_TimeNow;
 
-   pPHRTE->temperature = hardware_get_cpu_temp();
+   pPHRTE->temperatureC = hardware_get_cpu_temp();
    pPHRTE->throttled = hardware_get_flags();
    pPHRTE->cpu_mhz = (u16) hardware_get_cpu_speed();
 }
@@ -980,6 +980,8 @@ void check_send_telemetry_to_controller()
       }
       #endif
 
+      sPHRTE.uExtraRubyFlags = 0;
+      
       t_packet_header_ruby_telemetry_extended_extra_info PHTExtraInfo;
 
       memset((u8*)&PHTExtraInfo, 0, sizeof(t_packet_header_ruby_telemetry_extended_extra_info));
@@ -1136,6 +1138,8 @@ void check_send_telemetry_to_controller()
       if ( (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MAVLINK) ||
            (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_LTM) )
          telemetry_mavlink_send_to_controller();
+      if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
+         telemetry_msp_send_to_controller();
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
    }

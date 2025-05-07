@@ -9,8 +9,6 @@ class MenuController: public Menu
       MenuController();
       virtual void onShow(); 
       virtual void Render();
-      virtual void valuesToUI();
-      virtual bool periodicLoop();
       virtual void onReturnFromChild(int iChildMenuId, int returnValue);  
       virtual void onSelectItem();
 
@@ -26,8 +24,5 @@ class MenuController: public Menu
       int m_IndexNetwork, m_IndexEncryption, m_IndexRadio;
       int m_IndexVideo, m_IndexTelemetry, m_IndexRecording;
       bool m_bShownHDMIChangeNotif;
-      int m_iMustStartUpdate;
       int m_IndexDeveloper;
-      bool m_bWaitingForUserFinishUpdateConfirmation;
-      void updateControllerSoftware();
 };

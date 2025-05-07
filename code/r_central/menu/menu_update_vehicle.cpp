@@ -86,6 +86,10 @@ int MenuUpdateVehiclePopup::onBack()
 
 void MenuUpdateVehiclePopup::onSelectItem()
 {
+   Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
+
    if ( 1 == m_SelectedIndex )
    {
       menu_discard_all();

@@ -685,7 +685,7 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
       return;
    }
 
-   char szCommand[256];
+   char szCommand[512];
    szCommand[0] = 0;
    if ( (NULL != szPrefixes) && (0 != szPrefixes[0]) )
    {
@@ -703,7 +703,7 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
    }
 
    if ( ! iWait )
-      strcat(szCommand, "&");
+      strcat(szCommand, " &");
 
    FILE* fp = popen( szCommand, "r" );
    if ( NULL == fp )
@@ -711,18 +711,48 @@ void hw_execute_ruby_process_wait(const char* szPrefixes, const char* szProcess,
       log_error_and_alarm("Failed to execute Ruby process: [%s]", szCommand);
       return;
    }
-   if ( NULL != szOutput )
+
+   if ( ! iWait )
    {
-      // Ruby processes output very little info (version only)
-      char szBuff[256];
-      if ( fgets(szBuff, 254, fp) != NULL)
-      {
-         szBuff[254] = 0;
-         strcpy(szOutput, szBuff);
-      }
-      else
-         log_line("Empty response from Ruby process.");
+      hardware_sleep_ms(10);
+      if ( ferror(fp) || feof(fp) )
+         log_line("Failed to check for file end.");
    }
+   else
+   {
+      char szOutputBuffer[4096];
+      u32 uTimeStart = get_current_timestamp_ms();
+      u32 uTimeoutMs = 2000;
+
+      if ( NULL != szOutput )
+         szOutput[0] = 0;
+      int iCountRead = 0;
+      while ( 1 )
+      {
+         if ( ferror(fp) || feof(fp) )
+            break;
+         int iRead = fread(szOutputBuffer, 1, 4092, fp);
+         if ( iRead < 0 )
+            log_line("Failed to read process output, error: %d, %d, %s", iRead, errno, strerror(errno));
+         if ( iRead > 0 )
+         {
+            iCountRead += iRead;
+            if ( NULL != szOutput )
+            {
+               szOutputBuffer[iRead] = 0;
+               memcpy(szOutput, szOutputBuffer, 127);
+               szOutput[127] = 0;
+            }
+         }
+         if ( get_current_timestamp_ms() >= uTimeStart + uTimeoutMs )
+         {
+            log_line("Abandoning reading start process output.");
+            break;
+         }
+      }
+      log_line("Read process output for process (%s): %d bytes in %u ms", szProcess, iCountRead, get_current_timestamp_ms() - uTimeStart);
+   }
+   
    if ( -1 == pclose(fp) )
       log_softerror_and_alarm("Failed to launch and confirm Ruby process: [%s]", szCommand);
    else

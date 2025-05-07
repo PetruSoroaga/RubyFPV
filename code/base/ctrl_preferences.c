@@ -59,7 +59,7 @@ void reset_Preferences()
    s_Preferences.iAddOSDOnScreenshots = 1;
    s_Preferences.iShowLogWindow = 0;
    s_Preferences.iMenuDismissesAlarm = 0;
-   s_Preferences.iVideoDestination = prefVideoDestination_Disk;
+   s_Preferences.iVideoDestination = prefVideoDestination_Mem;
    s_Preferences.iStartVideoRecOnArm = 0;
    s_Preferences.iStopVideoRecOnDisarm = 0;
    s_Preferences.iShowControllerCPUInfo = 0;
@@ -108,7 +108,8 @@ void reset_Preferences()
 
    s_Preferences.iShowProcessesMonitor = 0;
    s_Preferences.iShowCPULoad = 0;
-   s_Preferences.uEnabledAlarms = 0xFFFFFFFF & (~ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD) & (~ALARM_ID_CPU_RX_LOOP_OVERLOAD);
+   s_Preferences.uEnabledAlarms = 0xFFFFFFFF;
+   s_Preferences.uEnabledAlarms &= ~ (ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD | ALARM_ID_CONTROLLER_CPU_RX_LOOP_OVERLOAD | ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING);
    s_Preferences.iShowOnlyPresentTxPowerCards = 1;
    s_Preferences.iShowTxBoosters = 0;
    s_Preferences.iMenuStyle = 0;
@@ -128,6 +129,10 @@ void reset_Preferences()
    s_Preferences.iLanguage = 1;
    s_Preferences.iOSDFontBold = 0;
    s_Preferences.iMenuFontBold = 0;
+
+   s_Preferences.iMSPOSDSize = 100;
+   s_Preferences.iMSPOSDDeltaX = 0;
+   s_Preferences.iMSPOSDDeltaY = 0;
 
    #if defined (HW_PLATFORM_RADXA)
    s_Preferences.iOSDFont = 1;
@@ -207,6 +212,7 @@ int save_Preferences()
    fprintf(fd, "\n");
    fprintf(fd, "%d\n", s_Preferences.iUnitsHeight);
    fprintf(fd, "%d %d\n", s_Preferences.iOSDFontBold, s_Preferences.iMenuFontBold);
+   fprintf(fd, "%d %d %d\n", s_Preferences.iMSPOSDSize, s_Preferences.iMSPOSDDeltaX, s_Preferences.iMSPOSDDeltaY);
    fclose(fd);
    log_line("Saved preferences to file: %s", szFile);
    return 1;
@@ -273,8 +279,8 @@ int load_Preferences()
    if ( (!failed) && 3 != fscanf(fd, "%d %d %d", &s_Preferences.iVideoDestination, &s_Preferences.iStartVideoRecOnArm, &s_Preferences.iStopVideoRecOnDisarm) )
       failed = 1;
 
-   if ( s_Preferences.iVideoDestination != 0 && s_Preferences.iVideoDestination != 1 )
-      s_Preferences.iVideoDestination = 0;
+   if ( (s_Preferences.iVideoDestination != prefVideoDestination_Disk) && (s_Preferences.iVideoDestination != prefVideoDestination_Mem) )
+      s_Preferences.iVideoDestination = prefVideoDestination_Mem;
 
    if ( (!failed) && 1 != fscanf(fd, "%d", &s_Preferences.iShowControllerCPUInfo) )
       failed = 1;
@@ -419,6 +425,13 @@ int load_Preferences()
       s_Preferences.iMenuFontBold = 0;
    }
    
+   if ( bOk && (3 != fscanf(fd, "%d %d %d", &s_Preferences.iMSPOSDSize, &s_Preferences.iMSPOSDDeltaX, &s_Preferences.iMSPOSDDeltaY)) )
+   {
+      s_Preferences.iMSPOSDSize = 100;
+      s_Preferences.iMSPOSDDeltaX = 0;
+      s_Preferences.iMSPOSDDeltaY = 0;
+   }
+
    // ----------------------------------------------------
    // End reading file;
    // Validate settings

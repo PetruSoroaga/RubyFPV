@@ -600,18 +600,15 @@ void MenuVehicleOSDStats::Render()
 
 void MenuVehicleOSDStats::onSelectItem()
 {
-   log_line("Selected menu item %d", m_SelectedIndex);
-
    Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
 
    if ( handle_commands_is_command_in_progress() )
    {
       handle_commands_show_popup_progress();
       return;
    }
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
-      return;
 
    ControllerSettings* pCS = get_ControllerSettings();
    Preferences* pP = get_Preferences();

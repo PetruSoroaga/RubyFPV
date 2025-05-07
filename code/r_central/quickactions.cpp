@@ -422,3 +422,46 @@ void executeQuickActionSwitchFavoriteVehicle()
    log_line("Finished QA favorite action to switch current vehicle from VID %u to %u", uOldVehicleId, uVehicleId);
    log_line("--------------------------------------------------------------------------------------------");
 }
+
+void executeQuickActionSwitchPITMode()
+{
+   if ( g_pCurrentModel->is_spectator )
+   {
+      warnings_add(0, "Can't switch PIT mode while in spectator mode.");
+      return;
+   }
+   if ( ! quickActionCheckVehicle("switch PIT mode") )
+      return;
+   if ( get_current_timestamp_ms() < s_uTimeLastQuickActionPress + 500 )
+      return;
+
+   u32 uPITFlags = g_pCurrentModel->radioInterfacesParams.uFlagsRadioInterfaces & 0xFF;
+
+   if ( ! (uPITFlags && RADIO_INTERFACES_FLAGS_PIT_MODE_ENABLE) )
+   {
+      warnings_add(0, "Can't switch PIT mode, PIT mode is disabled. Enable it from menus.");
+      return;
+   }
+
+   bool bIsInPITMode = false;
+   if ( uPITFlags & RADIO_INTERFACES_FLAGS_PIT_MODE_ENABLE_MANUAL )
+      bIsInPITMode = true;
+
+   bIsInPITMode = ! bIsInPITMode;
+
+   if ( bIsInPITMode )
+       uPITFlags |= RADIO_INTERFACES_FLAGS_PIT_MODE_ENABLE_MANUAL;
+   else
+       uPITFlags &= ~RADIO_INTERFACES_FLAGS_PIT_MODE_ENABLE_MANUAL;
+
+   u32 uCommandParam = uPITFlags;
+   uCommandParam |= (g_pCurrentModel->hwCapabilities.uHWFlags & 0xFF00);
+   if ( g_pCurrentModel->radioInterfacesParams.iAutoVehicleTxPower )
+      uCommandParam |= ((u32)(0x01))<<16;
+   if ( g_pCurrentModel->radioInterfacesParams.iAutoControllerTxPower )
+      uCommandParam |= ((u32)(0x01))<<17;
+
+   handle_commands_abandon_command();
+   //handle_commands_send_single_oneway_command_to_vehicle(g_pCurrentModel->uVehicleId, 2, COMMAND_ID_SET_PIT_AUTO_TX_POWERS_FLAGS, uCommandParam, NULL, 0, 0);
+   handle_commands_send_to_vehicle(COMMAND_ID_SET_PIT_AUTO_TX_POWERS_FLAGS, uCommandParam, NULL, 0);
+}

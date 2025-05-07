@@ -582,7 +582,7 @@ int _radio_rx_parse_received_wifi_radio_data(int iInterfaceIndex, int iMaxReads)
    for( int iCountReads=0; iCountReads<iMaxReads; iCountReads++ )
    {
       iBufferLength = 0;
-      pPacketBuffer = radio_process_wlan_data_in(iInterfaceIndex, &iBufferLength);
+      pPacketBuffer = radio_process_wlan_data_in(iInterfaceIndex, &iBufferLength, s_uRadioRxTimeNow);
       if ( NULL == pPacketBuffer )
          break;
 

@@ -487,6 +487,38 @@ int _copy_update_drivers()
    return 0;
 }
 
+bool _download_update(const char* szDownloadURL)
+{
+   char szDownloadOutputFile[MAX_FILE_PATH_SIZE];
+   strcpy(szDownloadOutputFile, FOLDER_RUBY_TEMP);
+   strcat(szDownloadOutputFile, "ruby_update_net.zip");
+
+   char szComm[512];
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s", szDownloadOutputFile);
+   hw_execute_bash_command(szComm, NULL);
+
+   log_line("Download URL: [%s]", szDownloadURL);
+   log_line("Download file to: (%s)", szDownloadOutputFile);
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "/usr/bin/wget --no-check-certificate -q %s -O %s", szDownloadURL, szDownloadOutputFile);
+   log_line("Downloading update command: [%s]", szComm);
+   //system(szComm);
+   hw_execute_bash_command_raw_timeout(szComm, NULL, 50000);
+   log_line("Finished download.");
+
+   long lSize = hardware_file_get_file_size(szDownloadOutputFile);
+   log_line("Downloaded file size: %d", (int) lSize);
+   if ( lSize < 100000 )
+      return false;
+
+   strncpy(g_szUpdateZipFileFullPath, szDownloadOutputFile, MAX_FILE_PATH_SIZE-1);
+   strncpy(g_szUpdateZipFileName, strstr(szDownloadOutputFile, "ruby_update"), MAX_FILE_PATH_SIZE-1);
+
+   log_line("Will use zip archive full path: [%s]", g_szUpdateZipFileFullPath);
+   log_line("Will use zip archive filename: [%s]", g_szUpdateZipFileName);
+
+   return true;
+}
+
 bool _find_update_zip_file()
 {
    char szComm[MAX_FILE_PATH_SIZE];
@@ -574,8 +606,9 @@ void _step_copy_and_extract_zip()
       strcpy(pExt, ".zip");
    }
    snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "unzip %s%s -d %s", FOLDER_UPDATES, g_szUpdateZipFileName, g_szUpdateUnpackFolder);
-   hw_execute_bash_command(szComm, NULL);
+   hw_execute_bash_command_raw_timeout(szComm, NULL, 30000);
 
+   log_line("Done extracting update archive to folder: (%s)", g_szUpdateUnpackFolder);
    // End - Extract archive to a temp folder
    //------------------------------------------------------
 }
@@ -616,6 +649,9 @@ int main(int argc, char *argv[])
    
    log_init("RubyUpdateWorker");
 
+   if ( argc > 1 )
+      log_line("Update parameter: (%s)", argv[argc-1]);
+
    hardware_detectBoardAndSystemType();
 
    hardware_sleep_ms(500);
@@ -629,17 +665,28 @@ int main(int argc, char *argv[])
    g_bIsController = (bool) hardware_is_station();
    log_line("Executing update for %s...", g_bIsController?"controller":"vehicle");
 
-   if ( ! _find_update_zip_file() )
+   if ( (argc > 1) && (argv[argc-1][0] != 0) )
    {
-      if ( g_bIsController )
-         log_line("There is no update update archive on the USB stick.");
-      else
-         log_line("There is no update update archive on the Ruby main folder.");
-
-      _write_return_code(-1, "No update found");
-      return -1;
+      if ( ! _download_update(argv[argc-1]) )
+      {
+         log_softerror_and_alarm("Failed to download update from internet. Update url: (%s)", argv[argc-1]);
+         _write_return_code(-11, "Failed to download the update.");
+         return -1;       
+      }
    }
+   else
+   {
+      if ( ! _find_update_zip_file() )
+      {
+         if ( g_bIsController )
+            log_line("There is no update update archive on the USB stick.");
+         else
+            log_line("There is no update update archive on the Ruby main folder.");
 
+         _write_return_code(-1, "No update found");
+         return -1;
+      }
+   }
    _write_return_code(0, "Unpacking update");
 
    _step_copy_and_extract_zip();

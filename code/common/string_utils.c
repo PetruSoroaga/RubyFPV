@@ -280,6 +280,7 @@ char* str_get_pipe_flags(int iFlags)
 char* str_get_packet_type(int iPacketType)
 {
    static char s_szPacketType[128];
+   snprintf(s_szPacketType, sizeof(s_szPacketType)/sizeof(s_szPacketType[0]), "Unknown p-type %d", iPacketType);
 
    switch(iPacketType)
    {
@@ -369,7 +370,7 @@ char* str_get_packet_type(int iPacketType)
 
       case PACKET_TYPE_DEBUG_VEHICLE_RT_INFO:      strcpy(s_szPacketType, "PACKET_TYPE_DEBUG_VEHICLE_RT_INFO"); break;
       case PACKET_TYPE_OTA_UPDATE_STATUS:          strcpy(s_szPacketType, "PACKET_TYPE_OTA_UPDATE_STATUS"); break;
-      default: sprintf(s_szPacketType, "Unknown %d", iPacketType); break;
+      case PACKET_TYPE_LOCAL_CONTROL_VEHICLE_CALIBRATION_FILE: strcpy(s_szPacketType, "PACKET_TYPE_LOCAL_CONTROL_VEHICLE_CALIBRATION_FILE"); break;
    }
    return s_szPacketType;
 }

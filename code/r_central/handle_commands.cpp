@@ -858,6 +858,28 @@ bool handle_last_command_result()
          break;
       }
 
+      case COMMAND_ID_UPLOAD_CALIBRATION_FILE:
+      {
+         send_control_message_to_router(PACEKT_TYPE_LOCAL_CONTROLLER_ADAPTIVE_VIDEO_PAUSE, 5000);
+         t_packet_header_command_upload_calib_file* pParams = (t_packet_header_command_upload_calib_file*)s_CommandBuffer;
+         g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraBinProfile = pParams->calibration_file_type;
+         if ( 0 == pParams->calibration_file_type )
+         {
+            g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName[0] = 0;
+            saveControllerModel(g_pCurrentModel);
+            send_model_changed_message_to_router(MODEL_CHANGED_CAMERA_CALIBRATION_FILE, 0);
+            menu_refresh_all_menus();
+         }
+         else if ( pParams->is_last_segment )
+         {
+            strncpy(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName, pParams->szFileName, MAX_CAMERA_BIN_PROFILE_NAME);
+            saveControllerModel(g_pCurrentModel);
+            send_model_changed_message_to_router(MODEL_CHANGED_CAMERA_CALIBRATION_FILE, 0);
+            menu_refresh_all_menus();
+         }
+         break;
+      }
+
       case COMMAND_ID_SET_RELAY_PARAMETERS:
          {
             type_relay_parameters* pParams = (type_relay_parameters*)s_CommandBuffer;
@@ -1003,6 +1025,27 @@ bool handle_last_command_result()
             warnings_add(g_pCurrentModel->uVehicleId, szName, g_idIconCPU);
             if ( onEventPairingTookUIActions() )
                onEventFinishedPairUIAction();
+         }
+         break;
+
+      case COMMAND_ID_SET_PIT_AUTO_TX_POWERS_FLAGS:
+         {
+           g_pCurrentModel->radioInterfacesParams.uFlagsRadioInterfaces = (s_CommandParam & 0xFF);
+           g_pCurrentModel->hwCapabilities.uHWFlags &= ~(0x0000FF00);
+           g_pCurrentModel->hwCapabilities.uHWFlags |= (s_CommandParam & 0xFF00);
+
+           if ( s_CommandParam & (((u32)(0x01)) << 16) )
+              g_pCurrentModel->radioInterfacesParams.iAutoVehicleTxPower = 1;
+           else
+              g_pCurrentModel->radioInterfacesParams.iAutoVehicleTxPower = 0;
+
+           if ( s_CommandParam & (((u32)(0x01)) << 17) )
+              g_pCurrentModel->radioInterfacesParams.iAutoControllerTxPower = 1;
+           else
+              g_pCurrentModel->radioInterfacesParams.iAutoControllerTxPower = 0;
+           
+           saveControllerModel(g_pCurrentModel);
+           send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
          }
          break;
 
@@ -1890,6 +1933,7 @@ bool handle_last_command_result()
          saveControllerModel(g_pCurrentModel);
          reset_vehicle_telemetry_runtime_info(get_vehicle_runtime_info_for_vehicle_id(g_pCurrentModel->uVehicleId));
          send_model_changed_message_to_router(MODEL_CHANGED_GENERIC, 0);
+         menu_refresh_all_menus();
          break;
 
       case COMMAND_ID_SET_TX_POWERS:
@@ -2525,6 +2569,11 @@ bool handle_commands_send_to_vehicle(u8 commandType, u32 param, u8* pBuffer, int
 
    s_bHasCommandInProgress = true;
    return true;
+}
+
+u32 handle_commands_get_current_command_counter()
+{
+   return s_CommandCounter;
 }
 
 u32 handle_commands_increment_command_counter()

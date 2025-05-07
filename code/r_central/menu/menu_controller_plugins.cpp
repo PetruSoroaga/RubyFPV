@@ -32,6 +32,7 @@
 
 #include "../../base/plugins_settings.h"
 #include "../../base/core_plugins_settings.h"
+#include "../../base/hardware_files.h"
 
 #include "menu.h"
 #include "menu_controller_plugins.h"
@@ -220,8 +221,7 @@ void MenuControllerPlugins::onReturnFromChild(int iChildMenuId, int returnValue)
 void MenuControllerPlugins::onSelectItem()
 {
    Menu::onSelectItem();
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    if ( handle_commands_is_command_in_progress() )

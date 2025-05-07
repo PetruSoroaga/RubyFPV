@@ -144,6 +144,9 @@ void MenuSpectator::onReturnFromChild(int iChildMenuId, int returnValue)
 
 void MenuSpectator::onSelectItem()
 {
+   Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
    if ( m_SelectedIndex == m_ItemsCount-1 )
    {
       MenuSearch* pMenuSearchSpectator = new MenuSearch();

@@ -52,6 +52,7 @@ typedef enum
    quickActionRotaryFunction,
    quickActionOSDFreeze,
    quickActionSwitchFavorite,
+   quickActionPITMode,
    quickActionLast
 } quickAction;
 
@@ -59,8 +60,8 @@ typedef enum
 typedef enum
 {
    prefVideoDestination_Disk = 0,
-   prefVideoDestination_USB,
-   prefVideoDestination_Mem
+   prefVideoDestination_Mem,
+   prefVideoDestination_USB
 } prefVideoDestination;
 
 
@@ -137,6 +138,9 @@ typedef struct
    int iUnitsHeight;
    int iOSDFontBold;
    int iMenuFontBold;
+   int iMSPOSDSize; // 0...150%
+   int iMSPOSDDeltaX; // delta chars
+   int iMSPOSDDeltaY; // delta chars
 } Preferences;
 
 int save_Preferences();

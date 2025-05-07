@@ -54,7 +54,7 @@ void do_first_boot_pre_initialization()
    log_line("---------------------------------------");
    log_line("Do first time boot preinitialization...");
 
-   #if defined HW_PLATFORM_RASPBERRY
+   #if defined (HW_PLATFORM_RASPBERRY)
    printf("\nRuby: Doing first time ever initialization on Raspberry. Please wait...\n");
    fflush(stdout);
 
@@ -65,10 +65,14 @@ void do_first_boot_pre_initialization()
    fflush(stdout);
    #endif
 
-   #if defined HW_PLATFORM_RADXA
+   #if defined (HW_PLATFORM_RADXA)
 
    printf("\nRuby: Doing first time ever initialization on Radxa. Please wait...\n");
    fflush(stdout);
+   
+   hw_execute_bash_command("date -s 'next year'", NULL);
+   hw_execute_bash_command("date -s 'next year'", NULL);
+
    hardware_install_drivers(1);
    if ( ! hardware_is_running_on_runcam_vrx() )
       hw_execute_bash_command_raw("echo 'performance' | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", NULL);
@@ -87,7 +91,6 @@ void do_first_boot_pre_initialization()
    
    hw_execute_bash_command("sync", NULL);
    
-   #if defined (HW_PLATFORM_RADXA)
    if ( hardware_is_running_on_runcam_vrx() )
    {
       // Disable joystick left action as a QA for RunCam VRx
@@ -96,7 +99,7 @@ void do_first_boot_pre_initialization()
       pP->iActionQuickButton2 = quickActionNone;
       save_Preferences();
    }
-   #endif
+
    printf("\nRuby: Done doing first time ever initialization on Radxa.\n");
    fflush(stdout);
    hw_execute_bash_command("echo \"\nRuby: Done doing first time ever initialization on Radxa.\n\" > /tmp/ruby/log_first_radxa.log", NULL);
@@ -106,6 +109,7 @@ void do_first_boot_pre_initialization()
    #if defined (HW_PLATFORM_OPENIPC_CAMERA)
    hardware_install_drivers(1);
    hardware_camera_check_set_oipc_sensor();
+   hardware_camera_set_default_oipc_calibration(hardware_getCameraType());
    hardware_set_default_sigmastar_cpu_freq();
    #endif
 

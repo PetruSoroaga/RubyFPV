@@ -147,7 +147,7 @@ float _osd_get_link_bars_height(float fScale)
 
 static bool s_bShowRadioBarsRedX = false;
 
-float _osd_show_link_bars(float xPos, float yPos, u32 uLastRxTime, float fQuality, float fScale, bool bDraw)
+float _osd_show_link_bars(float xPos, float yPos, u32 uLastRxTime, float fQuality, float fScale, bool bIsUplink, bool bDraw)
 {
    float iconHeight = _osd_get_link_bars_height(fScale);
    float iconWidth = 1.5*iconHeight/g_pRenderEngine->getAspectRatio();
@@ -155,8 +155,29 @@ float _osd_show_link_bars(float xPos, float yPos, u32 uLastRxTime, float fQualit
    if ( ! bDraw )
       return iconWidth;
 
+   Model* pActiveModel = osd_get_current_data_source_vehicle_model();
+   u32 uActiveVehicleId = osd_get_current_data_source_vehicle_id();
+   t_structure_vehicle_info* pVRTInfo = get_vehicle_runtime_info_for_vehicle_id(uActiveVehicleId);
+   
+   if ( (NULL == pActiveModel) || (0 == uActiveVehicleId) || (NULL == pVRTInfo) )
+      return iconWidth;
+
+   bool bLinkDisabled = false;
+   if ( bIsUplink && (NULL != pActiveModel) && (0 != uActiveVehicleId) && (pActiveModel->radioLinksParams.uGlobalRadioLinksFlags & MODEL_RADIOLINKS_FLAGS_DOWNLINK_ONLY) )
+      bLinkDisabled = true;
+
+   bool bPITMode = false;
+   if ( ! bIsUplink )
+   if ( pVRTInfo->bGotRubyTelemetryInfo && (pVRTInfo->headerRubyTelemetryExtended.uExtraRubyFlags & FLAG_RUBY_TELEMETRY_EXTRA_FLAGS_IS_IN_TX_PIT_MODE) )
+      bPITMode = true;
+   if ( ! bIsUplink )
+   if ( pVRTInfo->bGotRubyTelemetryInfo && (pVRTInfo->headerRubyTelemetryExtended.uExtraRubyFlags & FLAG_RUBY_TELEMETRY_EXTRA_FLAGS_IS_IN_TX_PIT_MODE_HOT) )
+      bPITMode = true;
+
    bool bShowRed = false;
 
+   if ( bLinkDisabled )
+      bShowRed = true;
    if ( (uLastRxTime != 0) && (uLastRxTime < g_TimeNow-2000) )
       bShowRed = true;
    if ( fQuality < OSD_QUALITY_LEVEL_CRITICAL/100.0 )
@@ -170,7 +191,8 @@ float _osd_show_link_bars(float xPos, float yPos, u32 uLastRxTime, float fQualit
    {
       float h = iconHeight;
       h -= (iconHeight/4.0)*i;
-
+      if ( bLinkDisabled )
+         h = iconHeight/5.0;
       double pc[4];
       memcpy(pc, get_Color_OSDText(), 4*sizeof(double));
 
@@ -202,8 +224,16 @@ float _osd_show_link_bars(float xPos, float yPos, u32 uLastRxTime, float fQualit
       xBar -= iconWidth/4.0;
    }
 
-   if ( s_bShowRadioBarsRedX )
+   if ( bPITMode )
+   {
+      g_pRenderEngine->setColors(get_Color_IconError());
+      g_pRenderEngine->drawText(xBar,yPos, g_idFontOSD, "PIT");    
+   }
+   else if ( bLinkDisabled )
+      g_pRenderEngine->drawText(xBar,yPos, g_idFontOSD, "DIS");
+   else if ( s_bShowRadioBarsRedX )
       g_pRenderEngine->drawText(xBar,yPos, g_idFontOSD, "X");
+
 
    osd_set_colors();
    if ( fQuality < -0.1 )
@@ -242,6 +272,8 @@ float _osd_show_radio_bars_info(float xPos, float yPos, u32 uLastRxTime, int iMa
    if ( (uLastRxTime != 0) && (uLastRxTime < g_TimeNow-2000) )
    {
       bShowRed = true;
+      dbm = -150;
+      iSNR = -100;
       if ( s_uTimeStartFlashLinkBars < uLastRxTime )
          s_uTimeStartFlashLinkBars = g_TimeNow;
    }
@@ -274,7 +306,7 @@ float _osd_show_radio_bars_info(float xPos, float yPos, u32 uLastRxTime, int iMa
    {
        float fSize = _osd_get_link_bars_width(1.0);
        if ( bDraw )
-          _osd_show_link_bars(xPos+fSize,yPos, uLastRxTime, fMaxRxQuality, 1.0, bDraw);
+          _osd_show_link_bars(xPos+fSize,yPos, uLastRxTime, fMaxRxQuality, 1.0, bUplink, bDraw);
        xPos += fSize;
        fTotalWidth += fSize;
    }
@@ -358,6 +390,16 @@ float _osd_show_radio_bars_info(float xPos, float yPos, u32 uLastRxTime, int iMa
 
       if ( bDraw )
       {
+         if ( (dbm <= -120) && (iSNR <= 0) )
+         {
+            g_pRenderEngine->setColors(get_Color_IconError());
+            g_pRenderEngine->setStroke(0,0,0,0.5);
+            g_pRenderEngine->setStrokeSize(OSD_STRIKE_WIDTH);
+            osd_set_colors_text(get_Color_IconError());
+         }
+         else
+            osd_set_colors();
+
          g_pRenderEngine->drawText(xPos + g_pRenderEngine->getPixelWidth()*3.0, yPos, g_idFontOSDSmall, szLine1);
          g_pRenderEngine->drawText(xPos + g_pRenderEngine->getPixelWidth()*3.0, yPos+height_text_small, g_idFontOSDSmall, szLine2);
       }
@@ -777,10 +819,13 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
          if ( g_SM_RadioStats.radio_interfaces[i].timeLastRxPacket > uLastRxTime )
             uLastRxTime = g_SM_RadioStats.radio_interfaces[i].timeLastRxPacket;
 
-         if ( g_fOSDDbm[i] > dbm )
-            dbm = g_fOSDDbm[i];
-         if ( g_fOSDSNR[i] > iSNR )
-            iSNR = g_fOSDSNR[i];
+         if ( g_uOSDDbmLastCaptureTime[i] > g_TimeNow-2000 )
+         {
+            if ( g_fOSDDbm[i] > dbm )
+               dbm = g_fOSDDbm[i];
+            if ( g_fOSDSNR[i] > iSNR )
+               iSNR = g_fOSDSNR[i];
+         }
       }
 
       if ( 0 == iRecvDataRateVideo )
@@ -880,8 +925,15 @@ float _osd_show_local_radio_link_new(float xPos, float yPos, int iLocalRadioLink
             else if ( fSize > fTotalWidthLink )
                fTotalWidthLink = fSize;
 
+            int iDBM = -200;
+            int iSNR = -200;
+            if ( g_uOSDDbmLastCaptureTime[i] > g_TimeNow-2000 )
+            {
+               iDBM = g_fOSDDbm[i];
+               iSNR = g_fOSDSNR[i];
+            }
             if ( bRender )
-               _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, g_fOSDDbm[i], g_fOSDSNR[i], iRecvDataRateVideo, bShowBars, bShowNumbers, false, bHorizontal, uRadioLinkNumbersFlags, true, true);
+               _osd_show_radio_bars_info(xPos, yPos+dySignalBars, uLastRxTime, nRxQuality, iDBM, iSNR, iRecvDataRateVideo, bShowBars, bShowNumbers, false, bHorizontal, uRadioLinkNumbersFlags, true, true);
             
             if ( bIsTxCard && (1<iCountInterfacesForCurrentLink) )
             if ( bRender )

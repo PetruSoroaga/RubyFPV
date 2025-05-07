@@ -278,6 +278,8 @@ void MenuVehicleExpert::onReturnFromChild(int iChildMenuId, int returnValue)
 void MenuVehicleExpert::onSelectItem()
 {
    Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
 
    if ( handle_commands_is_command_in_progress() )
    {
@@ -289,11 +291,6 @@ void MenuVehicleExpert::onSelectItem()
    if ( ! menu_check_current_model_ok_for_edit() )
    {
       log_line("MenuCPU: Can't edit model.");
-      return;
-   }
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
-   {
-      log_line("MenuCPU: Item is still editing");
       return;
    }
 

@@ -299,7 +299,7 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
    }
 
 
-   if ( uAlarms & ALARM_ID_CPU_RX_LOOP_OVERLOAD )
+   if ( uAlarms & ALARM_ID_VEHICLE_CPU_RX_LOOP_OVERLOAD )
    {
       uIconId = g_idIconRadio;
       sprintf(szAlarmText, "%s Radio Rx process had a spike of %d ms (read: %u micros, queue: %u micros)", szAlarmPrefix, uFlags1, (uFlags2 & 0xFFFF), (uFlags2>>16));
@@ -358,12 +358,6 @@ void alarms_add_from_vehicle(u32 uVehicleId, u32 uAlarms, u32 uFlags1, u32 uFlag
       else
          sprintf(szAlarmText2, "%s There was a unknown malfunctioning of the capture program", szAlarmPrefix);
    
-   }
-
-   if ( uAlarms & ALARM_ID_VEHICLE_VIDEO_TX_BITRATE_TOO_LOW )
-   {
-       sprintf(szAlarmText, "%s The Tx radio bitrate is too low (less than %.1f Mbps)", szAlarmPrefix, 2.0);  
-       strcpy(szAlarmText2, "Try to increase your video bitrate.");     
    }
 
    if ( uAlarms & ALARM_ID_VEHICLE_LOW_STORAGE_SPACE )
@@ -580,7 +574,7 @@ void alarms_add_from_local(u32 uAlarms, u32 uFlags1, u32 uFlags2)
          strcpy(szAlarmText2, "Update the SiK radio firmware to version 2.2");
    }
 
-   if ( uAlarms & ALARM_ID_CPU_RX_LOOP_OVERLOAD )
+   if ( uAlarms & ALARM_ID_CONTROLLER_CPU_RX_LOOP_OVERLOAD )
    {
       uIconId = g_idIconRadio;
       sprintf(szAlarmText, "Controller radio Rx process had a spike of %d ms (read: %u micros, queue: %u micros)", uFlags1, (uFlags2 & 0xFFFF), (uFlags2>>16));

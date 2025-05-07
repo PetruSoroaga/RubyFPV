@@ -31,9 +31,11 @@
 #define COMMAND_ID_SET_RADIO_LINK_FLAGS_CONFIRMATION 8
 // param is radio link id
 
-#define COMMAND_ID_SET_AUTO_TX_POWERS 9
-// param: byte 0: auto adjust vehicle power
-// param: byte 1: auto adjust controller power
+#define COMMAND_ID_SET_PIT_AUTO_TX_POWERS_FLAGS 9
+// param: byte 0: PIT flags
+// param: byte 1: threshold temp
+// param: byte 2.0: auto adjust vehicle power
+// param: byte 2.1: auto adjust controller power
 
 #define COMMAND_ID_SET_RADIO_INTERFACE_CAPABILITIES 10
 // param: byte 0: radio interface index
@@ -153,6 +155,9 @@ typedef struct
 //  byte 0: bit 0...3 telemetry type, bit 4...7 serial port
 //  byte 1-3: serial speed
 
+#define COMMAND_ID_SET_TX_PIT_MODE 56
+// param: byte 0: pit mode flags, byte 1: 0/1 set pit mode off/on (if pit flag for manual set is true)
+
 #define COMMAND_ID_SET_TELEMETRY_PARAMETERS 60
 #define COMMAND_ID_SET_RC_CAMERA_PARAMS 61 // param is a u32 with camera control params
 
@@ -251,6 +256,19 @@ typedef struct
    bool is_last_block;
    int block_length; // total_size and block_length are zero to cancel an upload
 } __attribute__((packed)) command_packet_sw_package;
+
+#define COMMAND_ID_UPLOAD_CALIBRATION_FILE 210
+typedef struct
+{
+   int calibration_file_type; // 0: default, 1: user file, 2 - runcam, 3 - fpv1 (335/415), 4 - milos1 (335/415)
+   char szFileName[64];
+   int iUploadFileIndex;
+   u32 total_file_size; // total_size and block_length are zero to cancel an upload
+   u32 segment_index; // MAX_U32 to cancel an upload
+   u32 segment_offset; // bytes offset from start of file
+   int segment_length; // total_size and block_length are zero to cancel an upload
+   bool is_last_segment;
+} __attribute__((packed)) t_packet_header_command_upload_calib_file;
 
 
 #define COMMAND_ID_DOWNLOAD_FILE 211 // has as param the ID of the file to download (high bit: request just status); has a response info about the file: t_packet_header_download_file_info

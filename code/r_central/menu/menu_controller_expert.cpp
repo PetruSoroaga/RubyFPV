@@ -473,8 +473,7 @@ void MenuControllerExpert::onReturnFromChild(int iChildMenuId, int returnValue)
 void MenuControllerExpert::onSelectItem()
 {
    Menu::onSelectItem();
-   
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    ControllerSettings* pcs = get_ControllerSettings();

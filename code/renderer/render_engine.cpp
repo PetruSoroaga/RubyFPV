@@ -122,7 +122,7 @@ RenderEngine::RenderEngine()
    m_ColorFill[0] = m_ColorFill[1] = m_ColorFill[2] = m_ColorFill[3] = 0;
    m_ColorStroke[0] = m_ColorStroke[1] = m_ColorStroke[2] = m_ColorStroke[3] = 0;
    m_ColorTextBoundingBoxBgFill[0] = m_ColorTextBoundingBoxBgFill[1] = m_ColorTextBoundingBoxBgFill[2] = m_ColorTextBoundingBoxBgFill[3] = 0;
-   m_fStrokeSize = 0.0;
+   m_fStrokeSizePx = 0.0;
 
    m_CurrentRawFontId = 0;
    m_iCountRawFonts = 0;
@@ -343,11 +343,11 @@ void RenderEngine::setStroke(const double* color, float fStrokeSize)
       fAlpha = 0.0;
 
    m_ColorStroke[3] = fAlpha * 255;
-   m_fStrokeSize = fStrokeSize;
+   m_fStrokeSizePx = fStrokeSize;
 
    // Is it in pixel size? convert to pixels;
-   if ( fStrokeSize < 0.8 )
-      m_fStrokeSize = fStrokeSize / m_fPixelWidth;
+   if ( fStrokeSize < 0.5 )
+      m_fStrokeSizePx = fStrokeSize / m_fPixelWidth;
 }
 
 void RenderEngine::setStroke(float r, float g, float b, float a)
@@ -367,16 +367,16 @@ void RenderEngine::setStroke(float r, float g, float b, float a)
 
 float RenderEngine::getStrokeSize()
 {
-   return m_fStrokeSize;
+   return m_fStrokeSizePx;
 }
 
 void RenderEngine::setStrokeSize(float fStrokeSize)
 {
-   m_fStrokeSize = fStrokeSize;
+   m_fStrokeSizePx = fStrokeSize;
 
    // Is it not in pixel size? convert to pixels;
-   if ( fStrokeSize < 0.8 )
-      m_fStrokeSize = fStrokeSize / m_fPixelWidth;
+   if ( fStrokeSize < 0.5 )
+      m_fStrokeSizePx = fStrokeSize / m_fPixelWidth;
 }
 
 void RenderEngine::setFontColor(u32 fontId, double* color)
@@ -813,26 +813,26 @@ void RenderEngine::_drawSimpleTextBoundingBox(RenderEngineRawFont* pFont, const 
 
    u8 tmp_ColorFill[4];
    u8 tmp_ColorStroke[4];
-   float tmp_fStrokeSize = m_fStrokeSize;
+   float tmp_fStrokeSize = m_fStrokeSizePx;
 
    memcpy(tmp_ColorFill, m_ColorFill, 4*sizeof(u8));
    memcpy(tmp_ColorStroke, m_ColorStroke, 4*sizeof(u8));
    memcpy(m_ColorFill, m_ColorTextBoundingBoxBgFill, 4*sizeof(u8));
    m_ColorStroke[0] = 0; m_ColorStroke[1] = 0; m_ColorStroke[2] = 0; m_ColorStroke[3] = 0;
-   m_fStrokeSize = 0.0;
+   m_fStrokeSizePx = 0.0;
    if ( m_bDrawStrikeOnTextBackgroundBoundingBoxes )
    {
       m_ColorStroke[0] = m_ColorTextBackgroundBoundingBoxStrike[0];
       m_ColorStroke[1] = m_ColorTextBackgroundBoundingBoxStrike[1];
       m_ColorStroke[2] = m_ColorTextBackgroundBoundingBoxStrike[2];
       m_ColorStroke[3] = m_ColorTextBackgroundBoundingBoxStrike[3];
-      m_fStrokeSize = 1.0;
+      m_fStrokeSizePx = 1.0;
    }
    drawRoundRect(xBoundingStart - m_fBoundingBoxPadding/getAspectRatio(), yBoundingStart - m_fBoundingBoxPadding, (xBoundingEnd - xBoundingStart) + 2.0*m_fBoundingBoxPadding/getAspectRatio(), (yBoundingEnd - yBoundingStart) + 2.0*m_fBoundingBoxPadding, 5.0 );
 
    memcpy(m_ColorFill, tmp_ColorFill, 4*sizeof(u8));
    memcpy(m_ColorStroke, tmp_ColorStroke, 4*sizeof(u8));
-   m_fStrokeSize = tmp_fStrokeSize;
+   m_fStrokeSizePx = tmp_fStrokeSize;
 }
 
 void RenderEngine::drawText(float xPos, float yPos, u32 fontId, const char* szText)

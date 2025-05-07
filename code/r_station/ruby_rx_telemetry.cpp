@@ -222,9 +222,10 @@ void process_data_telemetry_raw_download(u8* pBuffer, int length)
       #endif
    }
 
-   if ( g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SEND_FULL_PACKETS_TO_CONTROLLER )
+   if ( (g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SEND_FULL_TELEMETRY_TO_CONTROLLER) ||
+        (g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SEND_FULL_TELEMETRY_TO_CONTROLLER_PLUGINS) )
    {
-      // Send the raw telemetry to central too, for OSD plugins consumption
+      // Send the raw telemetry to central too, if requested or for OSD plugins consumption
       pPH->packet_flags &= (~PACKET_FLAGS_MASK_MODULE);
       pPH->packet_flags |= PACKET_COMPONENT_LOCAL_CONTROL;
       ruby_ipc_channel_send_message(s_fIPCToRouter, pBuffer, length);

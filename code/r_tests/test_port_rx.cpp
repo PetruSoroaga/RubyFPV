@@ -174,7 +174,7 @@ int process_packet_errors( int iInterfaceIndex, u8* pBuffer, int iBufferLength)
 void process_packet(int iInterfaceIndex )
 {
    int nLength = 0;
-   u8* pBuffer = radio_process_wlan_data_in(iInterfaceIndex, &nLength); 
+   u8* pBuffer = radio_process_wlan_data_in(iInterfaceIndex, &nLength, g_TimeNow); 
    if ( NULL == pBuffer )
    {
       log_line("NULL receive buffer. Ignoring...");

@@ -55,7 +55,7 @@ void process_packet(int iInterfaceIndex)
    fflush(stdout);
          
    int nLength = 0;
-   u8* pBuffer = radio_process_wlan_data_in(iInterfaceIndex, &nLength); 
+   u8* pBuffer = radio_process_wlan_data_in(iInterfaceIndex, &nLength, g_TimeNow); 
    if ( NULL == pBuffer )
    {
       printf("NULL receive buffer. Ignoring...\n");

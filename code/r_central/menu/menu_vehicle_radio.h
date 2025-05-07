@@ -26,6 +26,7 @@ class MenuVehicleRadioConfig: public Menu
       int m_IndexEncryption;
       int m_IndexTxPowers[MAX_RADIO_INTERFACES];
       int m_IndexDataRates[MAX_RADIO_INTERFACES];
+      int m_IndexPitMode;
       int m_IndexRadioConfig;
       int m_IndexOptimizeLinks;
       int m_IndexFreq[MAX_RADIO_INTERFACES];

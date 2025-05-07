@@ -128,8 +128,7 @@ void MenuVehicleOSDPlugins::onItemValueChanged(int itemIndex)
 void MenuVehicleOSDPlugins::onSelectItem()
 {
    Menu::onSelectItem();
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    if ( handle_commands_is_command_in_progress() )

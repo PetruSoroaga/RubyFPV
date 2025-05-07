@@ -614,11 +614,11 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
             //log_line("MSG_HIGH_LAT");
             int iTemp = mavlink_msg_high_latency_get_temperature(&msgMav);
             if ( iTemp < 100 && iTemp > -100 )
-               pdpfct->temperature = 100 + (int) iTemp;
+               pdpfct->temperatureC = 100 + (int) iTemp;
 
             iTemp = mavlink_msg_high_latency_get_temperature_air(&msgMav);
             if ( iTemp < 100 && iTemp > -100 )
-               pdpfct->temperature = 100 + (int) iTemp;
+               pdpfct->temperatureC = 100 + (int) iTemp;
          }
          break;
 
@@ -627,7 +627,7 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
             //log_line("MSG_HIGH_LAT2");
             int iTemp = mavlink_msg_high_latency2_get_temperature_air(&msgMav);
             if ( iTemp < 100 && iTemp > -100 )
-               pdpfct->temperature = 100 + (int) iTemp;
+               pdpfct->temperatureC = 100 + (int) iTemp;
 
             u16 uDir = 2 * mavlink_msg_high_latency2_get_wind_heading(&msgMav);
             uDir++;
@@ -647,7 +647,7 @@ void _process_mav_message(t_packet_header_fc_telemetry* pdpfct, t_packet_header_
             int iTemp = mavlink_msg_scaled_pressure_get_temperature(&msgMav);
             iTemp = iTemp/100;
             if ( iTemp < 100 && iTemp > -100 )
-               pdpfct->temperature = 100 + (int) iTemp;
+               pdpfct->temperatureC = 100 + (int) iTemp;
          }
 
       /*

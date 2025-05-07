@@ -30,12 +30,15 @@
     SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include <pthread.h>
 #include "packets_utils.h"
 #include "../base/base.h"
 #include "../base/config.h"
 #include "../base/flags.h"
 #include "../base/encr.h"
 #include "../base/commands.h"
+#include "../base/hw_procs.h"
+#include "../base/tx_powers.h"
 #include "../common/radio_stats.h"
 #include "../common/string_utils.h"
 #include "ruby_rt_vehicle.h"
@@ -56,6 +59,7 @@ u32 s_StreamsTxPacketIndex[MAX_RADIO_STREAMS];
 int s_VideoAdaptiveTxDatarateBPS = 0; // Positive: bps, negative (-1 or less): MCS rate
 int s_LastTxDataRatesVideo[MAX_RADIO_INTERFACES];
 int s_LastTxDataRatesData[MAX_RADIO_INTERFACES];
+int s_iLastRawTxPowerPerRadioInterface[MAX_RADIO_INTERFACES];
 
 u32 s_VehicleLogSegmentIndex = 0;
 
@@ -85,6 +89,7 @@ void packet_utils_init()
    {
       s_LastTxDataRatesVideo[i] = 0;
       s_LastTxDataRatesData[i] = 0;
+      s_iLastRawTxPowerPerRadioInterface[i] = 0;
    }
 }
 
@@ -139,6 +144,120 @@ int get_last_tx_minimum_video_radio_datarate_bps()
       return DEFAULT_RADIO_DATARATE_VIDEO;
    return nMinRate;
 }
+
+static pthread_t s_pThreadSetTxPower;
+static bool s_bThreadSetTxPowerRunning = false;
+static int s_iThreadSetTxPowerInterfaceIndex = -1;
+static int s_iThreadSetTxPowerRawValue = 0;
+
+void* _thread_set_tx_power_async(void *argument)
+{
+   sched_yield();
+   s_bThreadSetTxPowerRunning = true;
+   log_line("[ThreadTxPower] Set radio interface %d raw tx power to %d", s_iThreadSetTxPowerInterfaceIndex, s_iThreadSetTxPowerRawValue);
+   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(s_iThreadSetTxPowerInterfaceIndex);
+   if ( ! pRadioHWInfo->isConfigurable )
+      return NULL;
+   if ( hardware_radio_driver_is_rtl8812au_card(pRadioHWInfo->iRadioDriver) )
+      hardware_radio_set_txpower_raw_rtl8812au(s_iThreadSetTxPowerInterfaceIndex, s_iThreadSetTxPowerRawValue);
+   if ( hardware_radio_driver_is_rtl8812eu_card(pRadioHWInfo->iRadioDriver) )
+      hardware_radio_set_txpower_raw_rtl8812eu(s_iThreadSetTxPowerInterfaceIndex, s_iThreadSetTxPowerRawValue);
+   if ( hardware_radio_driver_is_rtl8733bu_card(pRadioHWInfo->iRadioDriver) )
+      hardware_radio_set_txpower_raw_rtl8733bu(s_iThreadSetTxPowerInterfaceIndex, s_iThreadSetTxPowerRawValue);
+   if ( hardware_radio_driver_is_atheros_card(pRadioHWInfo->iRadioDriver) )
+      hardware_radio_set_txpower_raw_atheros(s_iThreadSetTxPowerInterfaceIndex, s_iThreadSetTxPowerRawValue);
+
+   log_line("[ThreadTxPower] Done setting radio interface %d raw tx power to %d", s_iThreadSetTxPowerInterfaceIndex, s_iThreadSetTxPowerRawValue);
+   s_bThreadSetTxPowerRunning = false;
+   return NULL;
+}
+
+void _compute_packet_tx_power_on_ieee(int iVehicleRadioLinkId, int iRadioInterfaceIndex)
+{
+   bool bIsInTxPITMode = false;
+   g_pCurrentModel->uModelRuntimeStatusFlags &= ~(MODEL_RUNTIME_STATUS_FLAG_IN_PIT_MODE | MODEL_RUNTIME_STATUS_FLAG_IN_PIT_MODE_TEMPERATURE);
+   
+   // Manual PIT mode?
+   if ( g_pCurrentModel->radioInterfacesParams.uFlagsRadioInterfaces & RADIO_INTERFACES_FLAGS_PIT_MODE_ENABLE )
+   if ( g_pCurrentModel->radioInterfacesParams.uFlagsRadioInterfaces & RADIO_INTERFACES_FLAGS_PIT_MODE_ENABLE_MANUAL )
+   {
+      g_pCurrentModel->uModelRuntimeStatusFlags |= MODEL_RUNTIME_STATUS_FLAG_IN_PIT_MODE;
+      bIsInTxPITMode = true;
+   }
+
+   // Arm/disarm PIT mode?
+   if ( g_pCurrentModel->radioInterfacesParams.uFlagsRadioInterfaces & RADIO_INTERFACES_FLAGS_PIT_MODE_ENABLE_ARMDISARM )
+   if ( ! g_bVehicleArmed )
+   {
+      g_pCurrentModel->uModelRuntimeStatusFlags |= MODEL_RUNTIME_STATUS_FLAG_IN_PIT_MODE;
+      bIsInTxPITMode = true;
+   }
+
+   // Temperature PIT mode?
+   if ( g_pCurrentModel->radioInterfacesParams.uFlagsRadioInterfaces & RADIO_INTERFACES_FLAGS_PIT_MODE_ENABLE_TEMP )
+   {
+      static bool s_bTemperatureTriggeredCutoff = false;
+
+      int iTempThresholdC = (g_pCurrentModel->hwCapabilities.uHWFlags & 0xFF00) >> 8;
+
+      if ( ! s_bTemperatureTriggeredCutoff )
+      if ( g_iVehicleSOCTemperatureC >= iTempThresholdC )
+         s_bTemperatureTriggeredCutoff = true;
+
+      if ( s_bTemperatureTriggeredCutoff )
+      if ( g_iVehicleSOCTemperatureC < iTempThresholdC - 1 )
+         s_bTemperatureTriggeredCutoff = false;
+
+      if ( s_bTemperatureTriggeredCutoff )
+      {
+         g_pCurrentModel->uModelRuntimeStatusFlags |= MODEL_RUNTIME_STATUS_FLAG_IN_PIT_MODE_TEMPERATURE;
+         bIsInTxPITMode = true;
+      }
+   }
+
+   if ( (iRadioInterfaceIndex < 0) || (iRadioInterfaceIndex >= g_pCurrentModel->radioInterfacesParams.interfaces_count) )
+      return;
+
+
+   int iRadioInterfacelModel = g_pCurrentModel->radioInterfacesParams.interface_card_model[iRadioInterfaceIndex];
+   if ( iRadioInterfacelModel < 0 )
+      iRadioInterfacelModel = -iRadioInterfacelModel;
+   //int iRadioInterfacePowerMaxRaw = tx_powers_get_max_usable_power_raw_for_card(g_pCurrentModel->hwCapabilities.uBoardType, iRadioInterfacelModel);
+   //int iRadioInterfacePowerMaxMw = tx_powers_get_max_usable_power_mw_for_card(g_pCurrentModel->hwCapabilities.uBoardType, iRadioInterfacelModel);
+   //int iRadioInterfaceTxPowerMw = tx_powers_convert_raw_to_mw(g_pCurrentModel->hwCapabilities.uBoardType, iRadioInterfacelModel, iRadioInterfaceRawTxPower);
+
+   int iRadioInterfaceRawTxPowerToUse = g_pCurrentModel->radioInterfacesParams.interface_raw_power[iRadioInterfaceIndex];
+   if ( bIsInTxPITMode )
+      iRadioInterfaceRawTxPowerToUse = tx_powers_convert_mw_to_raw(g_pCurrentModel->hwCapabilities.uBoardType, iRadioInterfacelModel, 5);
+
+   if ( iRadioInterfaceRawTxPowerToUse == s_iLastRawTxPowerPerRadioInterface[iRadioInterfaceIndex] )
+      return;
+
+   radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(iRadioInterfaceIndex);
+   if ( ! pRadioHWInfo->isConfigurable )
+      return;
+
+   if ( s_bThreadSetTxPowerRunning )
+      return;
+
+   s_iLastRawTxPowerPerRadioInterface[iRadioInterfaceIndex] = iRadioInterfaceRawTxPowerToUse;
+
+
+   s_bThreadSetTxPowerRunning = true;
+   s_iThreadSetTxPowerInterfaceIndex = iRadioInterfaceIndex;
+   s_iThreadSetTxPowerRawValue = iRadioInterfaceRawTxPowerToUse;
+
+   pthread_attr_t attr;
+   hw_init_worker_thread_attrs(&attr);
+   if ( 0 != pthread_create(&s_pThreadSetTxPower, &attr, &_thread_set_tx_power_async, NULL) )
+   {
+      pthread_attr_destroy(&attr);
+      s_bThreadSetTxPowerRunning = false;
+      return;
+   }
+   pthread_attr_destroy(&attr);
+}
+
 
 int _compute_packet_datarate(u8* pPacketData, int iVehicleRadioLinkId, int iRadioInterface)
 {
@@ -210,11 +329,11 @@ int _compute_packet_datarate(u8* pPacketData, int iVehicleRadioLinkId, int iRadi
          break;
 
       case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO:
+      case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_AUTO:
          nRateTx = nRateTxVideo;
          break;
 
       case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST:
-      case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_AUTO:
       default:
          if ( g_pCurrentModel->radioLinksParams.link_datarate_video_bps[iVehicleRadioLinkId] > 0 )
             nRateTx = DEFAULT_RADIO_DATARATE_LOWEST;
@@ -224,6 +343,8 @@ int _compute_packet_datarate(u8* pPacketData, int iVehicleRadioLinkId, int iRadi
    }
 
 
+   // Don't use lowest unless modulation scheme is not QAM (changes to QAM are slow)
+   if ( (nRateTx >= -3) && (nRateTx <= 18000000) )
    if ( (pPH->packet_type == PACKET_TYPE_NEGOCIATE_RADIO_LINKS) ||
         (pPH->packet_type == PACKET_TYPE_COMMAND_RESPONSE) ||
         (pPH->packet_type == PACKET_TYPE_COMMAND) ||
@@ -345,6 +466,8 @@ bool _send_packet_to_wifi_radio_interface(int iLocalRadioLinkId, int iRadioInter
       bIsAudioPacket = true;
    if ( uStreamId >= STREAM_ID_VIDEO_1 )
       bIsVideoPacket = true;
+
+   _compute_packet_tx_power_on_ieee(iVehicleRadioLinkId, iRadioInterfaceIndex);
    
    int nRateTx = _compute_packet_datarate(pPacketData, iVehicleRadioLinkId, iRadioInterfaceIndex);
    static int s_nLastPacketsRateTxVideo = 0;

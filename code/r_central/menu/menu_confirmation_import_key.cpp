@@ -83,7 +83,7 @@ void MenuConfirmationImportKey::onSelectItem()
 
    if ( 1 != hardware_try_mount_usb() )
    {
-      addMessage("No USB memory stick detected. Please insert a USB stick");
+      addMessage("No USB memory stick detected. Please insert a USB stick.");
       return;
    }
 

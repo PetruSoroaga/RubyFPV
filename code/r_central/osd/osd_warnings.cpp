@@ -49,10 +49,33 @@
 
 extern bool s_bDebugOSDShowAll;
 
+static bool bHasPITModeWarning = false;
+
 void osd_warnings_reset()
 {
    g_bHasVideoDataOverloadAlarm = false;
    g_bHasVideoTxOverloadAlarm = false;
+   bHasPITModeWarning = false;
+}
+
+void _osd_warnings_check_pit_mode(Model* pActiveModel)
+{
+   if ( (NULL == pActiveModel) || ( ! g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].bGotRubyTelemetryInfo ) )
+   {
+      bHasPITModeWarning = false;
+      return;
+   }
+   if ( g_VehiclesRuntimeInfo[g_iCurrentActiveVehicleRuntimeInfoIndex].headerRubyTelemetryExtended.uExtraRubyFlags & FLAG_RUBY_TELEMETRY_EXTRA_FLAGS_IS_IN_TX_PIT_MODE )
+      bHasPITModeWarning = true;
+
+   if ( ! bHasPITModeWarning )
+      return;
+   /*
+   float height_text = g_pRenderEngine->textHeight(g_idFontOSDWarnings);
+   float height_text_big = g_pRenderEngine->textHeight(g_idFontOSDBig);
+   osd_set_colors();
+   g_pRenderEngine->drawText(0.4, 0.4, g_idFontOSDBig, "PIT MODE");
+   */
 }
 
 void osd_warnings_render()
@@ -68,8 +91,10 @@ void osd_warnings_render()
    }
 
    shared_mem_video_stream_stats* pVDS = get_shared_mem_video_stream_stats_for_vehicle(&g_SM_VideoDecodeStats, uActiveVehicleId);
-   if ( (NULL == pVDS) || (NULL == pActiveModel) )
+   if ( (NULL == pVDS) || (NULL == pActiveModel) || (g_iCurrentActiveVehicleRuntimeInfoIndex < 0) )
       return; 
+
+   _osd_warnings_check_pit_mode(pActiveModel);
 
    //if ( pActiveModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
    //if ( ! g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry )

@@ -81,6 +81,10 @@ void MenuConfirmationDeleteLogs::onSelectItem()
 {
    log_line("MenuConfirmationDeleteLogs: selected item: %d", m_SelectedIndex);
 
+   Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
+
    if ( 0 == m_SelectedIndex )
    {
       menu_stack_pop(0);

@@ -328,6 +328,10 @@ void MenuRoot::Render()
 
 void MenuRoot::onSelectItem()
 {
+   Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
+
    if ( m_iIndexSimpleSetup == m_SelectedIndex )
    {
       if ( (NULL == g_pCurrentModel) || (0 == g_uActiveControllerModelVID) ||

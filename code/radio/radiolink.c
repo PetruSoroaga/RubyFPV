@@ -912,7 +912,7 @@ void radio_close_interface_for_write(int interfaceIndex)
 }
 
 
-u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
+u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength, u32 uTimeNow)
 {
    radio_hw_info_t* pRadioHWInfo = hardware_get_radio_info(interfaceNumber);
 
@@ -1098,7 +1098,12 @@ u8* radio_process_wlan_data_in(int interfaceNumber, int* outPacketLength)
       {
          if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[i] < 500 )
             pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLastChange[i] = iAntennaDBM[i] - pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[i];
+         else
+            pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLastChange[i] = 0;
+
          pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[i] = iAntennaDBM[i];
+         pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.uLastTimeCapture[i] = uTimeNow;
+
          if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmAvg[i] > 500 )
             pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmAvg[i] = iAntennaDBM[i];
          else

@@ -7,6 +7,7 @@
 #include "../public/render_engine_ui.h"
 #include "../public/telemetry_info.h"
 #include "../public/settings_info.h"
+#include "../public/utils/core_plugins_utils.h"
 
 #include "ruby_plugins_common.cpp"
 
@@ -171,7 +172,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
 
    float range = 45;
    float space_text = 0.006;
-   float ratio = height_ladder / range;
+   float fRatioH = height_ladder / range;
     
    int roll = -(pTelemetryInfo->roll);
    int pitch = pTelemetryInfo->pitch;
@@ -182,91 +183,90 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
       pitch = 0;
    }
 
-   int angle = pitch - range/2;
-   int max = pitch + range/2;
+   int iAnglePitch = pitch - range/2;
+   int iAnglePitchMax = pitch + range/2;
 
    sprintf(szBuff, "%d", roll);
 
    g_pEngine->setColors(g_pEngine->getColorOSDOutline());
    g_pEngine->setStrokeSize(pCurrentSettings->fOutlineThicknessPx);
    show_value_centered(g_pEngine, xCenter,yCenter+planeWidth*0.7, szBuff, fontId);
+   //g_pEngine->drawLine(0.2, 0.2, 0.7,0.7);
    g_pEngine->setColors(g_pEngine->getColorOSDInstruments());
    g_pEngine->setStrokeSize(0.0);
    show_value_centered(g_pEngine, xCenter,yCenter+planeWidth*0.7, szBuff, fontId);
+   //g_pEngine->drawLine(0.2, 0.7, 0.7,0.2);
 
-   if ( NULL != pCurrentSettings && pCurrentSettings->nSettingsValues[0] == 0 )
+   while (iAnglePitch <= iAnglePitchMax)
    {
-      angle = 0;
-      max = 0;
-   }
-   while (angle <= max)
-   {
-      float y = yCenter - (angle - pitch) * ratio;
-      if (angle == 0)
+      float y = yCenter - (float)(iAnglePitch - pitch) * fRatioH;
+      if (iAnglePitch == 0)
       {
         float xl, xr;
         float xt, yt;
-        if ( NULL != pCurrentSettings && pCurrentSettings->nSettingsValues[0] != 0 )
-        {
-           sprintf(szBuff, "0");
-           g_pEngine->setColors(g_pEngine->getColorOSDOutline());
-           g_pEngine->setStrokeSize(pCurrentSettings->fOutlineThicknessPx);
-           xl = xCenter - width_ladder*0.5 - space_text;
-           xr = xCenter + width_ladder*0.5 + space_text;
-           rotate_point(g_pEngine, xl,y,xCenter, yCenter, roll, &xt, &yt);
-           g_pEngine->drawTextLeft(xt, yt - height_text*0.5, fontId, const_cast<char*>(szBuff));
-           rotate_point(g_pEngine, xr,y,xCenter, yCenter, roll, &xt, &yt);
-           g_pEngine->drawText(xt, yt - height_text*0.5, fontId, const_cast<char*>(szBuff));
 
-           g_pEngine->setColors(g_pEngine->getColorOSDInstruments());
-           g_pEngine->setStrokeSize(0.0);
-           rotate_point(g_pEngine, xl,y,xCenter, yCenter, roll, &xt, &yt);
-           g_pEngine->drawTextLeft(xt, yt - height_text*0.5, fontId, const_cast<char*>(szBuff));
-           rotate_point(g_pEngine, xr,y,xCenter, yCenter, roll, &xt, &yt);
-           g_pEngine->drawText(xt, yt - height_text*0.5, fontId, const_cast<char*>(szBuff));
-        }
+        sprintf(szBuff, "0");
+        g_pEngine->setColors(g_pEngine->getColorOSDOutline());
+        g_pEngine->setStrokeSize(pCurrentSettings->fOutlineThicknessPx);
+        xl = xCenter - width_ladder*0.5 - space_text;
+        xr = xCenter + width_ladder*0.5 + space_text;
+        rotate_point(g_pEngine, xl,y,xCenter, yCenter, roll, &xt, &yt);
+        g_pEngine->drawTextLeft(xt, yt - height_text*0.5, fontId, const_cast<char*>(szBuff));
+        rotate_point(g_pEngine, xr,y,xCenter, yCenter, roll, &xt, &yt);
+        g_pEngine->drawText(xt, yt - height_text*0.5, fontId, const_cast<char*>(szBuff));
+
+        g_pEngine->setColors(g_pEngine->getColorOSDInstruments());
+        g_pEngine->setStrokeSize(0.0);
+        rotate_point(g_pEngine, xl,y,xCenter, yCenter, roll, &xt, &yt);
+        g_pEngine->drawTextLeft(xt, yt - height_text*0.5, fontId, const_cast<char*>(szBuff));
+        rotate_point(g_pEngine, xr,y,xCenter, yCenter, roll, &xt, &yt);
+        g_pEngine->drawText(xt, yt - height_text*0.5, fontId, const_cast<char*>(szBuff));
+
         xl = xCenter - width_ladder*0.5;
         xr = xCenter + width_ladder*0.5;
         float xtl, ytl;
         float xtr, ytr;
 
-        rotate_point(g_pEngine, xl,y,xCenter, yCenter, roll, &xtl, &ytl);
-        rotate_point(g_pEngine, xr,y,xCenter, yCenter, roll, &xtr, &ytr);
-        g_pEngine->setColors(g_pEngine->getColorOSDOutline());
-        g_pEngine->setStrokeSize(pCurrentSettings->fOutlineThicknessPx);
-        g_pEngine->drawLine(xtl, ytl, xtr, ytr);
+        if ( (NULL != pCurrentSettings) && (pCurrentSettings->nSettingsValues[0] != 0) )
+        {
+           rotate_point(g_pEngine, xl,y,xCenter, yCenter, roll, &xtl, &ytl);
+           rotate_point(g_pEngine, xr,y,xCenter, yCenter, roll, &xtr, &ytr);
+           g_pEngine->setColors(g_pEngine->getColorOSDOutline());
+           g_pEngine->setStrokeSize(pCurrentSettings->fOutlineThicknessPx);
+           g_pEngine->drawLine(xtl, ytl, xtr, ytr);
 
-        g_pEngine->setColors(g_pEngine->getColorOSDInstruments());
-        g_pEngine->setStrokeSize(pCurrentSettings->fLineThicknessPx);
-        g_pEngine->drawLine(xtl, ytl, xtr, ytr);
-        angle++;
+           g_pEngine->setColors(g_pEngine->getColorOSDInstruments());
+           g_pEngine->setStrokeSize(pCurrentSettings->fLineThicknessPx);
+           g_pEngine->drawLine(xtl, ytl, xtr, ytr);
+        }
+        iAnglePitch++;
         continue;
       }
 
-      if ( (angle%5) != 0 )
+      if ( (iAnglePitch % 5) != 0 )
       {
-         angle++;
+         iAnglePitch++;
          continue;
       }
 
-      if ( NULL != pCurrentSettings && pCurrentSettings->nSettingsValues[1] == 1 )
-      if ( (angle%10) != 0 )
+      if ( (NULL != pCurrentSettings) && (pCurrentSettings->nSettingsValues[1] == 1) )
+      if ( (iAnglePitch % 10) != 0 )
       {
-         angle++;
+         iAnglePitch++;
          continue;
       }
  
-      if ( NULL != pCurrentSettings && pCurrentSettings->nSettingsValues[1] == 2 )
-      if ( (angle%15) != 0 )
+      if ( (NULL != pCurrentSettings) && (pCurrentSettings->nSettingsValues[1] == 2) )
+      if ( (iAnglePitch % 15) != 0 )
       {
-         angle++;
+         iAnglePitch++;
          continue;
       }
 
-      if ( NULL != pCurrentSettings && pCurrentSettings->nSettingsValues[1] == 3 )
-      if ( (angle%20) != 0 )
+      if ( (NULL != pCurrentSettings) && (pCurrentSettings->nSettingsValues[1] == 3) )
+      if ( (iAnglePitch % 20) != 0 )
       {
-         angle++;
+         iAnglePitch++;
          continue;
       }
 
@@ -277,7 +277,7 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
       rotate_point(g_pEngine, xl,y,xCenter, yCenter, roll, &xtl, &ytl);
       rotate_point(g_pEngine, xr,y,xCenter, yCenter, roll, &xtr, &ytr);
 
-      sprintf(szBuff, "%d", angle);
+      sprintf(szBuff, "%d", iAnglePitch);
 
       g_pEngine->setColors(g_pEngine->getColorOSDOutline());
       g_pEngine->setStrokeSize(pCurrentSettings->fOutlineThicknessPx);
@@ -286,50 +286,50 @@ void render(vehicle_and_telemetry_info_t* pTelemetryInfo, plugin_settings_info_t
 
       g_pEngine->setColors(g_pEngine->getColorOSDInstruments());
       if ( pTelemetryInfo->ahi_warning_angle > 1 )
-      if ( fabs(angle) >= pTelemetryInfo->ahi_warning_angle )
+      if ( fabs(iAnglePitch) >= pTelemetryInfo->ahi_warning_angle )
          g_pEngine->setColors(g_pEngine->getColorOSDWarning());
       g_pEngine->setStrokeSize(0.0);
 
       g_pEngine->drawTextLeft(xtl, ytl-0.5*height_text, fontId, const_cast<char*>(szBuff));
       g_pEngine->drawText(xtr, ytr-0.5*height_text, fontId, const_cast<char*>(szBuff));
 
-      xl = xCenter - width_ladder * 0.4;
-      xr = xCenter + width_ladder * 0.4;
-      float xl2 = xCenter - width_ladder * 0.4 + width_ladder*0.2;
-      float xr2 = xCenter + width_ladder * 0.4 - width_ladder*0.2;
-      float xtl2, ytl2;
-      float xtr2, ytr2;
-      rotate_point(g_pEngine, xl,y,xCenter, yCenter, roll, &xtl, &ytl);
-      rotate_point(g_pEngine, xr,y,xCenter, yCenter, roll, &xtr, &ytr);
-
-      rotate_point(g_pEngine, xl2,y,xCenter, yCenter, roll, &xtl2, &ytl2);
-      rotate_point(g_pEngine, xr2,y,xCenter, yCenter, roll, &xtr2, &ytr2);
-
-      if (angle > 0)
+      if ( (NULL != pCurrentSettings) && (pCurrentSettings->nSettingsValues[0] != 0) )
       {
-         g_pEngine->setColors(g_pEngine->getColorOSDInstruments());
-         if ( pTelemetryInfo->ahi_warning_angle > 1 )
-         if ( fabs(angle) >= pTelemetryInfo->ahi_warning_angle )
-            g_pEngine->setColors(g_pEngine->getColorOSDWarning());
-         g_pEngine->setStrokeSize(pCurrentSettings->fLineThicknessPx);
+         xl = xCenter - width_ladder * 0.4;
+         xr = xCenter + width_ladder * 0.4;
+         float xl2 = xCenter - width_ladder * 0.4 + width_ladder*0.2;
+         float xr2 = xCenter + width_ladder * 0.4 - width_ladder*0.2;
+         float xtl2, ytl2;
+         float xtr2, ytr2;
+         rotate_point(g_pEngine, xl,y,xCenter, yCenter, roll, &xtl, &ytl);
+         rotate_point(g_pEngine, xr,y,xCenter, yCenter, roll, &xtr, &ytr);
 
-         g_pEngine->drawLine(xtl, ytl, xtl2, ytl2);
-         g_pEngine->drawLine(xtr2, ytr2, xtr, ytr);
-      }
-      if (angle < 0)
-      {
-         g_pEngine->setColors(g_pEngine->getColorOSDInstruments());
-         if ( pTelemetryInfo->ahi_warning_angle > 1 )
-         if ( fabs(angle) >= pTelemetryInfo->ahi_warning_angle )
-            g_pEngine->setColors(g_pEngine->getColorOSDWarning());
-         g_pEngine->setStrokeSize(pCurrentSettings->fLineThicknessPx);
-         g_pEngine->drawLine(xtl, ytl, xtl2, ytl2);
-         g_pEngine->drawLine(xtr2, ytr2, xtr, ytr);
-      }
-      angle++;
+         rotate_point(g_pEngine, xl2,y,xCenter, yCenter, roll, &xtl2, &ytl2);
+         rotate_point(g_pEngine, xr2,y,xCenter, yCenter, roll, &xtr2, &ytr2);
 
-      if ( NULL != pCurrentSettings && pCurrentSettings->nSettingsValues[0] == 0 )
-         break;
+         if (iAnglePitch > 0)
+         {
+            g_pEngine->setColors(g_pEngine->getColorOSDInstruments());
+            if ( pTelemetryInfo->ahi_warning_angle > 1 )
+            if ( fabs(iAnglePitch) >= pTelemetryInfo->ahi_warning_angle )
+               g_pEngine->setColors(g_pEngine->getColorOSDWarning());
+            g_pEngine->setStrokeSize(pCurrentSettings->fLineThicknessPx);
+
+            g_pEngine->drawLine(xtl, ytl, xtl2, ytl2);
+            g_pEngine->drawLine(xtr2, ytr2, xtr, ytr);
+         }
+         if (iAnglePitch < 0)
+         {
+            g_pEngine->setColors(g_pEngine->getColorOSDInstruments());
+            if ( pTelemetryInfo->ahi_warning_angle > 1 )
+            if ( fabs(iAnglePitch) >= pTelemetryInfo->ahi_warning_angle )
+               g_pEngine->setColors(g_pEngine->getColorOSDWarning());
+            g_pEngine->setStrokeSize(pCurrentSettings->fLineThicknessPx);
+            g_pEngine->drawLine(xtl, ytl, xtl2, ytl2);
+            g_pEngine->drawLine(xtr2, ytr2, xtr, ytr);
+         }
+      }
+      iAnglePitch++;
    }
 }
 

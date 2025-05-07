@@ -169,6 +169,8 @@ void MenuControllerRecording::Render()
 void MenuControllerRecording::onSelectItem()
 {
    Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
 
    Preferences* p = get_Preferences();
    if ( NULL == p )
@@ -184,14 +186,10 @@ void MenuControllerRecording::onSelectItem()
       p->iVideoDestination = m_pItemsSelect[1]->getSelectedIndex();
 
    if ( m_IndexRecordIndicator == m_SelectedIndex )
-   {
-      p->iShowBigRecordButton =  m_pItemsSelect[2]->getSelectedIndex();
-   }
+      p->iShowBigRecordButton = m_pItemsSelect[2]->getSelectedIndex();
 
    if ( m_IndexRecordLED == m_SelectedIndex )
-   {
-      p->iRecordingLedAction =  m_pItemsSelect[3]->getSelectedIndex();
-   }
+      p->iRecordingLedAction = m_pItemsSelect[3]->getSelectedIndex();
 
    if ( m_IndexRecordButton == m_SelectedIndex )
    {

@@ -289,7 +289,7 @@ void _try_receive_packets()
    do
    {
       nLength = 0;
-      pBuffer = radio_process_wlan_data_in(0, &nLength); 
+      pBuffer = radio_process_wlan_data_in(0, &nLength, g_TimeNow); 
       if ( NULL == pBuffer )
          break;
 

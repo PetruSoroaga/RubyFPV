@@ -64,7 +64,7 @@ void _osd_plugins_populate_public_telemetry_info()
    int iVehicleIndex = osd_get_current_data_source_vehicle_index();
    if ( ! g_VehiclesRuntimeInfo[iVehicleIndex].bGotRubyTelemetryInfo )
       return;
-   g_VehicleTelemetryInfo.pi_temperature = g_VehiclesRuntimeInfo[iVehicleIndex].headerRubyTelemetryExtended.temperature;
+   g_VehicleTelemetryInfo.pi_temperature = g_VehiclesRuntimeInfo[iVehicleIndex].headerRubyTelemetryExtended.temperatureC;
    g_VehicleTelemetryInfo.cpu_load = g_VehiclesRuntimeInfo[iVehicleIndex].headerRubyTelemetryExtended.cpu_load;
    g_VehicleTelemetryInfo.cpu_mhz = g_VehiclesRuntimeInfo[iVehicleIndex].headerRubyTelemetryExtended.cpu_mhz;
    g_VehicleTelemetryInfo.throttled = g_VehiclesRuntimeInfo[iVehicleIndex].headerRubyTelemetryExtended.throttled;

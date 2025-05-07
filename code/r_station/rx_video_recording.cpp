@@ -125,7 +125,7 @@ void* _thread_video_recording(void *argument)
    strcat(s_szFileRecordingOutput, FILE_TEMP_VIDEO_FILE);
 
    Preferences* p = get_Preferences();
-   if ( p->iVideoDestination == 1 )
+   if ( p->iVideoDestination == prefVideoDestination_Mem )
    {
       strcpy(s_szFileRecordingOutput, FOLDER_TEMP_VIDEO_MEM);
       strcat(s_szFileRecordingOutput, FILE_TEMP_VIDEO_MEM_FILE);
@@ -138,12 +138,15 @@ void* _thread_video_recording(void *argument)
       long lt, lu, lf;
       sscanf(szBuff, "%s %ld %ld %ld", szTemp, &lt, &lu, &lf);
       lf -= 200;
-      if ( lf < 50 )
+      if ( lf > 800 )
+         lf -= 200;
+      if ( lf < 100 )
       {
          _recording_write_error("Failed to create RAM file.");
          s_bRecording = false;
          return NULL;
       }
+      log_line("[VideoRecording-Th] Create RAM disk of size: %d Mb", (int)lf);
       sprintf(szComm, "mount -t tmpfs -o size=%dM tmpfs %s", (int)lf, FOLDER_TEMP_VIDEO_MEM);
       hw_execute_bash_command(szComm, NULL);
    }

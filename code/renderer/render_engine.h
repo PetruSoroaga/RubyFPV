@@ -180,7 +180,7 @@ class RenderEngine
       u8 m_ColorStroke[4];
       u8 m_ColorTextBoundingBoxBgFill[4];
       u8 m_uTextFontMixColor[4];
-      float m_fStrokeSize;
+      float m_fStrokeSizePx;
 
       RenderEngineRawFont* m_pRawFonts[MAX_RAW_FONTS];
       u32 m_RawFontIds[MAX_RAW_FONTS];

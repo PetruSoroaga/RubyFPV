@@ -35,6 +35,7 @@
 #include "../base/models_list.h"
 #include "../base/shared_mem.h"
 #include "../base/ruby_ipc.h"
+#include "../base/commands.h"
 #include "../base/hw_procs.h"
 #include "../base/hardware_cam_maj.h"
 #include "../base/hardware_radio.h"
@@ -861,8 +862,6 @@ void _process_local_notification_model_changed(t_packet_header* pPH, int changeT
             iSikRadioIndexToUpdate = i;
       }
 
-      apply_vehicle_tx_power_levels(g_pCurrentModel);
-
       if ( -1 != iSikRadioIndexToUpdate )
       {
          log_line("SiK radio interface %d tx power was changed from %d to %d. Updating SiK radio interfaces...", 
@@ -1156,6 +1155,87 @@ void process_local_control_packet(t_packet_header* pPH)
    {
       log_line("Received controll message: Video is paused.");
       g_bVideoPaused = true;
+   }
+
+   if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_VEHICLE_CALIBRATION_FILE )
+   {
+      if ( pPH->total_length != (int)(sizeof(t_packet_header) + sizeof(t_packet_header_command_upload_calib_file)) )
+      {
+         log_softerror_and_alarm("Received invalid size (%d bytes) for camera calibration file segment data, expected %d bytes",
+            pPH->total_length, (int)(sizeof(t_packet_header) + sizeof(t_packet_header_command_upload_calib_file)) );
+         return;
+      }
+      u8* pData = (u8*)pPH;
+      t_packet_header_command_upload_calib_file* pCalibFileSegment = (t_packet_header_command_upload_calib_file*)(pData + sizeof(t_packet_header));
+      bool bValidName = false;
+      for( int i=0; i<MAX_CAMERA_BIN_PROFILE_NAME; i++ )
+      {
+         if ( pCalibFileSegment->szFileName[i] == 0 )
+         {
+            bValidName = true;
+            break;
+         }
+      }
+      if ( ! bValidName )
+      {
+         if ( 0 != pCalibFileSegment->calibration_file_type )
+         {
+            log_softerror_and_alarm("Received invalid calibration filename. Reseting it to default.");
+            pCalibFileSegment->calibration_file_type = 0;
+         }
+         pCalibFileSegment->szFileName[0] = 0;
+      }
+      log_line("Received message to set new camera calibration file: type: %d, filename: [%s]",
+         pCalibFileSegment->calibration_file_type,
+         pCalibFileSegment->szFileName);
+
+      if ( 0 == pCalibFileSegment->calibration_file_type )
+      {
+         g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraBinProfile = 0;
+         g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName[0] = 0;
+         saveCurrentModel();
+         t_packet_header PH;
+         radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED, STREAM_ID_DATA);
+         PH.vehicle_id_src = PACKET_COMPONENT_COMMANDS | (MODEL_CHANGED_CAMERA_CALIBRATION_FILE<<8);
+         PH.total_length = sizeof(t_packet_header);
+
+         ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)&PH, PH.total_length);
+         if ( g_pCurrentModel->rc_params.rc_enabled )
+            ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)&PH, PH.total_length);
+
+         if ( NULL != g_pProcessStats )
+            g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
+         if ( NULL != g_pProcessStats )
+            g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
+
+         if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
+            video_source_majestic_request_update_program(MODEL_CHANGED_CAMERA_CALIBRATION_FILE);
+         return;
+      }
+      else if ( pCalibFileSegment->is_last_segment )
+      {
+         g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraBinProfile = pCalibFileSegment->calibration_file_type;
+         strncpy(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName, pCalibFileSegment->szFileName, MAX_CAMERA_BIN_PROFILE_NAME);
+         saveCurrentModel();
+         t_packet_header PH;
+         radio_packet_init(&PH, PACKET_COMPONENT_LOCAL_CONTROL, PACKET_TYPE_LOCAL_CONTROL_MODEL_CHANGED, STREAM_ID_DATA);
+         PH.vehicle_id_src = PACKET_COMPONENT_COMMANDS | (MODEL_CHANGED_CAMERA_CALIBRATION_FILE<<8);
+         PH.total_length = sizeof(t_packet_header);
+
+         ruby_ipc_channel_send_message(s_fIPCRouterToTelemetry, (u8*)&PH, PH.total_length);
+         if ( g_pCurrentModel->rc_params.rc_enabled )
+            ruby_ipc_channel_send_message(s_fIPCRouterToRC, (u8*)&PH, PH.total_length);
+
+         if ( NULL != g_pProcessStats )
+            g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
+         if ( NULL != g_pProcessStats )
+            g_pProcessStats->lastActiveTime = get_current_timestamp_ms();
+
+         if ( g_pCurrentModel->isRunningOnOpenIPCHardware() )
+            video_source_majestic_request_update_program(MODEL_CHANGED_CAMERA_CALIBRATION_FILE);
+         return;
+      }
+      return;
    }
 
    if ( pPH->packet_type == PACKET_TYPE_LOCAL_CONTROL_VEHICLE_SET_SIK_RADIO_SERIAL_SPEED )

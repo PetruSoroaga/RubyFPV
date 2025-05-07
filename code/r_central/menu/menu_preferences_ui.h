@@ -1,6 +1,7 @@
 #pragma once
 #include "menu_objects.h"
 #include "menu_item_select.h"
+#include "menu_item_slider.h"
 
 class MenuPreferencesUI: public Menu
 {
@@ -8,6 +9,7 @@ class MenuPreferencesUI: public Menu
       MenuPreferencesUI(bool bShowOnlyOSD = false);
       virtual void onShow();     
       virtual void Render();
+      virtual void onItemValueChanged(int itemIndex);
       virtual void onSelectItem();
       virtual void valuesToUI();
       
@@ -15,7 +17,8 @@ class MenuPreferencesUI: public Menu
       void addItems();
       
       bool m_bShowOnlyOSD;
-      MenuItemSelect* m_pItemsSelect[20];
+      MenuItemSelect* m_pItemsSelect[25];
+      MenuItemSlider* m_pItemsSlider[10];
       int m_IndexScaleMenu, m_IndexMenuStacked;
       int m_IndexOSDSize, m_IndexOSDFlip;
       int m_IndexInvertColors;
@@ -31,5 +34,8 @@ class MenuPreferencesUI: public Menu
       int m_IndexPersistentMessages;
       int m_IndexLogWindow;
       int m_IndexMSPOSDFont;
+      int m_IndexMSPOSDSize;
+      int m_IndexMSPOSDDeltaX;
+      int m_IndexMSPOSDDeltaY;
       int m_IndexLanguage;
 };

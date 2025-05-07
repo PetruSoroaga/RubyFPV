@@ -9,11 +9,13 @@ class MenuVehicleTelemetry: public Menu
    public:
       MenuVehicleTelemetry();
       virtual ~MenuVehicleTelemetry();
+      virtual void onShow();
       virtual void Render();
       virtual void onSelectItem();
       virtual void valuesToUI();
             
    private:
+      void addItems();
       MenuItemSelect* m_pItemsSelect[15];
       MenuItemSlider* m_pItemsSlider[10];
       MenuItemRange*  m_pItemsRange[10];
@@ -30,6 +32,6 @@ class MenuVehicleTelemetry: public Menu
       int m_IndexRUpdateRate;
       int m_IndexVTelemetryType, m_IndexVSerialPort, m_IndexVBaudRate;
       int m_IndexSpectator;
-      int m_IndexDataRate;
+      int m_IndexFullTelemetry;
       int m_IndexGPS;
 };

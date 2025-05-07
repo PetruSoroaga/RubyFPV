@@ -286,10 +286,7 @@ void MenuVehicleAudio::onItemEndEdit(int itemIndex)
 void MenuVehicleAudio::onSelectItem()
 {
    Menu::onSelectItem();
-   if ( -1 == m_SelectedIndex )
-      return;
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    if ( handle_commands_is_command_in_progress() )

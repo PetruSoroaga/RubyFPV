@@ -42,6 +42,7 @@
 #include "menu_radio_config.h"
 #include "menu_tx_raw_power.h"
 #include "menu_negociate_radio.h"
+#include "menu_vehicle_radio_pit.h"
 #include "../../base/tx_powers.h"
 #include "../../utils/utils_controller.h"
 #include "../link_watch.h"
@@ -54,7 +55,7 @@ int s_iTempGenNewFrequencyLink = 0;
 MenuVehicleRadioConfig::MenuVehicleRadioConfig(void)
 :Menu(MENU_ID_VEHICLE_RADIO_CONFIG, L("Vehicle Radio Configuration"), NULL)
 {
-   m_Width = 0.38;
+   m_Width = 0.35;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.21;
    m_bControllerHasKey = false;
    for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
@@ -123,8 +124,8 @@ void MenuVehicleRadioConfig::populate()
    populateRadioRates();
    populateTxPowers();
 
-   m_IndexRadioConfig = addMenuItem(new MenuItem(L("Full Radio Config"), L("Full radio configuration")));
-   m_pMenuItems[m_IndexRadioConfig]->showArrow();
+   m_IndexPitMode = addMenuItem(new MenuItem(L("Pit Mode / Auto Power"), L("Enable auto adjustment to radio tx powers based on various conditions.")));
+   m_pMenuItems[m_IndexPitMode]->showArrow();
 
    m_pItemsSelect[4] = new MenuItemSelect(L("Disable Uplinks"), L("Disable all uplinks, makes the system a one way system. Except for initial pairing and synching and sending commands to the vehicle. No video retransmissions happen, adaptive video is also disabled."));
    m_pItemsSelect[4]->addSelection(L("No"));
@@ -189,6 +190,9 @@ void MenuVehicleRadioConfig::populate()
 
    m_IndexOptimizeLinks = addMenuItem(new MenuItem(L("Optmize Radio Links Wizard"), L("Runs a process to optimize radio links parameters.")));
    m_pMenuItems[m_IndexOptimizeLinks]->showArrow();
+
+   m_IndexRadioConfig = addMenuItem(new MenuItem(L("Full Radio Config"), L("Full radio configuration")));
+   m_pMenuItems[m_IndexRadioConfig]->showArrow();
 
    m_SelectedIndex = iTmp;
    if ( m_SelectedIndex >= m_ItemsCount )
@@ -586,16 +590,15 @@ void MenuVehicleRadioConfig::computeSendPowerToVehicle(int iVehicleLinkIndex)
 
 void MenuVehicleRadioConfig::onSelectItem()
 {
+   Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
+
    if ( handle_commands_is_command_in_progress() )
    {
       handle_commands_show_popup_progress();
       return;
    }
-
-   Menu::onSelectItem();
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
-      return;
 
    if ( m_IndexDisableUplink == m_SelectedIndex )
    {
@@ -796,6 +799,12 @@ void MenuVehicleRadioConfig::onSelectItem()
          return;
       }
       add_menu_to_stack(new MenuNegociateRadio());
+      return;
+   }
+
+   if ( m_IndexPitMode == m_SelectedIndex )
+   {
+      add_menu_to_stack(new MenuVehicleRadioLinkPITModes());
       return;
    }
 }

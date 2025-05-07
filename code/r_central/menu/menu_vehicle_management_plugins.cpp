@@ -217,6 +217,10 @@ void MenuVehicleManagePlugins::onReturnFromChild(int iChildMenuId, int returnVal
 
 void MenuVehicleManagePlugins::onSelectItem()
 {
+   Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
+
    if ( NULL == g_pCurrentModel )
    {
       Popup* p = new Popup("Vehicle is offline", 0.3, 0.3, 0.5, 4 );
@@ -226,7 +230,7 @@ void MenuVehicleManagePlugins::onSelectItem()
       return;
    }
 
-   if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
+   if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->is_spectator) )
    {
       Popup* p = new Popup("Vehicle Settings can not be changed on a spectator vehicle.", 0.3, 0.3, 0.5, 4 );
       p->setIconId(g_idIconError, get_Color_IconError());

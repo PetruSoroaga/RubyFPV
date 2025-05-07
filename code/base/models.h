@@ -60,6 +60,8 @@ typedef struct
    int iCameraType; // as detected by hardware. 0 for none
    int iForcedCameraType; // as set by user. 0 for none
    char szCameraName[MAX_CAMERA_NAME_LENGTH];
+   int iCameraBinProfile; // 0 - default, 1 - user, 2 - runcam, 3 - fpv1 (335/415), 4 - milos1 (335/415)
+   char szCameraBinProfileName[MAX_CAMERA_BIN_PROFILE_NAME];
 
 } type_camera_parameters;
 
@@ -386,18 +388,14 @@ typedef struct
 
 typedef struct
 {
-   //int txPowerRTL8812AU;
-   //int txPowerRTL8812EU;
-   //int txPowerAtheros;
-   //int txPowerSiK;
-   //int txMaxPowerRTL8812AU;
-   //int txMaxPowerRTL8812EU;
-   //int txMaxPowerAtheros;
-   //int slotTime;
-   //int thresh62;
    int iAutoVehicleTxPower;
    int iAutoControllerTxPower;
-   int iDummyR3;
+   u32 uFlagsRadioInterfaces;
+      //  bit 0: tx pit mode enable
+      //  bit 1: tx pit mode enable: manual (by user)
+      //  bit 2: tx pit mode enable: arm/disarm
+      //  bit 3: tx pit mode enable: temperature
+   
    int iDummyR4;
    int iDummyR5;
    int iDummyR6;
@@ -500,7 +498,10 @@ typedef struct
    u32 uBoardType; //byte 0: board_type;  byte 1: variant
    int iMaxTxVideoBlocksBuffer; // max blocks that can be cached on vehicle
    int iMaxTxVideoBlockPackets; // max packets in a video block
-   u32 uFlags;
+   u32 uHWFlags;
+   // bit 0: OTA capable
+   // byte 1: threshold temp (C)
+   
    u32 uRubyBaseVersion;
    int dummyhwc[1];
    u32 dummyhwc2[3];
@@ -512,7 +513,18 @@ class Model
       Model();
 
       bool b_mustSyncFromVehicle; // non persistent
-      u32 uDummyM1;
+
+      u32 uModelFlags; // MODEL_FLAG_* flags
+        //   bit 0: prioritize uplink
+        //   bit 1: use logger service instead of files
+      u32 uModelPersistentStatusFlags;
+      u32 uModelRuntimeStatusFlags; // MODEL_RUNTIME_STATUS_FLAG_* flags
+        // non persistent (not saved in model), can be send to controller through telemetry if needed
+        // it's current state and updates are visible only in the current process
+        // bit 0: currently in tx pit mode
+        // bit 1: currently in tx pit mode (due to temperature)
+        // bit 2: currently in tx auto power mode
+      
       u32 uDeveloperFlags;
         // byte 0:
         //    bit 0: enable live log
@@ -530,10 +542,6 @@ class Model
         // byte 3:
         //    bit 0: send to controller video bitrate hystory telemetry packet
         //    bit 1: inject recoverable video faults
-
-      u32 uModelFlags;
-        //   bit 0: prioritize uplink
-        //   bit 1: use logger service instead of files
 
       type_hardware_capabilities hwCapabilities;
       
@@ -662,6 +670,8 @@ class Model
       bool isActiveCameraCSICompatible();
       bool isActiveCameraCSI();
       bool isActiveCameraOpenIPC();
+      bool isActiveCameraSensorOpenIPCIMX415();
+
       void log_camera_profiles_differences(camera_profile_parameters_t* pCamProfile1, camera_profile_parameters_t* pCamProfile2, int iIndex1, int iIndex2);
       bool isVideoLinkFixedOneWay();
       int getInitialKeyframeIntervalMs(int iVideoProfile);

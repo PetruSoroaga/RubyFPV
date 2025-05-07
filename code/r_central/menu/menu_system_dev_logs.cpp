@@ -41,6 +41,7 @@
 #include "../popup_log.h"
 #include "../../radio/radiolink.h"
 #include "../../base/utils.h"
+#include "../../base/hardware_files.h"
 #include "../rx_scope.h"
 
 #include <time.h>
@@ -300,7 +301,7 @@ void MenuSystemDevLogs::onReturnFromChild(int iChildMenuId, int returnValue)
 void MenuSystemDevLogs::onSelectItem()
 {
    Menu::onSelectItem();
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    Preferences* pP = get_Preferences();

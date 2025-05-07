@@ -422,6 +422,8 @@ float MenuSystemHardware::renderControllerInfo(float xPos, float yPos, float wid
 void MenuSystemHardware::onSelectItem()
 {
    Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
 
    if ( m_IndexGetVehicleUSBInfo == m_SelectedIndex )
    {

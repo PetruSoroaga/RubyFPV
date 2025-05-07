@@ -77,10 +77,10 @@ void alarms_to_string(u32 uAlarms, u32 uFlags1, u32 uFlags2, char* szOutput)
       strcat(szOutput, " VEHICLE_LOW_STORAGE_SPACE");
    if ( uAlarms & ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR )
       strcat(szOutput, " VEHICLE_STORAGE_WRITE_ERRROR");
-   if ( uAlarms & ALARM_ID_VEHICLE_VIDEO_TX_BITRATE_TOO_LOW )
-      strcat(szOutput, " VEHICLE_VIDEO_TX_BITRATE_TOO_LOW");
    if ( uAlarms & ALARM_ID_VEHICLE_VIDEO_CAPTURE_RESTARTED )
       strcat(szOutput, " VEHICLE_VIDEO_CAPTURE_RESTARTED");
+   if ( uAlarms & ALARM_ID_VEHICLE_CPU_RX_LOOP_OVERLOAD )
+      strcat(szOutput, " ALARM_ID_VEHICLE_CPU_RX_LOOP_OVERLOAD");
 
    if ( uAlarms & ALARM_ID_RADIO_INTERFACE_DOWN )
       strcat(szOutput, " RADIO_INTERFACE_DOWN");
@@ -111,8 +111,8 @@ void alarms_to_string(u32 uAlarms, u32 uFlags1, u32 uFlags2, char* szOutput)
       strcat(szOutput, " CONTROLLER_UNSUPPORTED_VIDEO_TYPE");
    if ( uAlarms & ALARM_ID_FIRMWARE_OLD )
       strcat(szOutput, " FIRMWARE_OLD");
-   if ( uAlarms & ALARM_ID_CPU_RX_LOOP_OVERLOAD )
-      strcat(szOutput, " ALARM_ID_CPU_RX_LOOP_OVERLOAD");
+   if ( uAlarms & ALARM_ID_CONTROLLER_CPU_RX_LOOP_OVERLOAD )
+      strcat(szOutput, " ALARM_ID_CONTROLLER_CPU_RX_LOOP_OVERLOAD");
 
    if ( uAlarms & ALARM_ID_GENERIC )
       strcat(szOutput, " ALARM_ID_GENERIC");

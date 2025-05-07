@@ -189,7 +189,7 @@ void MenuVehicleDev::onReturnFromChild(int iChildMenuId, int returnValue)
 void MenuVehicleDev::onSelectItem()
 {
    Menu::onSelectItem();
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    if ( NULL == g_pCurrentModel )

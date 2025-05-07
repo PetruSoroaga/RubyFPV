@@ -8,4 +8,4 @@ void executeQuickActionSwitchVideoProfile();
 void executeQuickActionCycleOSD();
 void executeQuickActionRelaySwitch();
 void executeQuickActionSwitchFavoriteVehicle();
-
+void executeQuickActionSwitchPITMode();

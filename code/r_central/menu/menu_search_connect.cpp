@@ -181,6 +181,8 @@ void MenuSearchConnect::Render()
 void MenuSearchConnect::onSelectItem()
 {
    Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
    
    // Add model as controller
    if ( m_iIndexController == m_SelectedIndex )

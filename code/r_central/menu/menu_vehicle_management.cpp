@@ -41,7 +41,7 @@
 
 #include <ctype.h>
 #include "../link_watch.h"
-
+#include "../../base/hardware_files.h"
 
 MenuVehicleManagement::MenuVehicleManagement(void)
 :Menu(MENU_ID_VEHICLE_MANAGEMENT, L("Vehicle Management"), NULL)
@@ -236,6 +236,10 @@ void MenuVehicleManagement::onReturnFromChild(int iChildMenuId, int returnValue)
 
 void MenuVehicleManagement::onSelectItem()
 {
+   Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
+
    if ( NULL == g_pCurrentModel )
    {
       Popup* p = new Popup( L("Vehicle is offline"), 0.3, 0.3, 0.5, 4 );
@@ -245,7 +249,7 @@ void MenuVehicleManagement::onSelectItem()
       return;
    }
 
-   if ( NULL != g_pCurrentModel && g_pCurrentModel->is_spectator )
+   if ( g_pCurrentModel->is_spectator )
    {
       Popup* p = new Popup( L("Vehicle settings can not be changed on a spectator vehicle."), 0.3, 0.3, 0.5, 4 );
       p->setIconId(g_idIconError, get_Color_IconError());
@@ -381,7 +385,7 @@ void MenuVehicleManagement::onSelectItem()
       char szTextW[256];
       if ( hardware_board_is_raspberry(g_pCurrentModel->hwCapabilities.uBoardType) )
          bSupportsOTA = true;
-      if ( g_pCurrentModel->hwCapabilities.uFlags & MODEL_HW_CAP_FLAG_OTA )
+      if ( g_pCurrentModel->hwCapabilities.uHWFlags & MODEL_HW_CAP_FLAG_OTA )
          bSupportsOTA = true;
 
       if ( hardware_board_is_openipc(g_pCurrentModel->hwCapabilities.uBoardType) )

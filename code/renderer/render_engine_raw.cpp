@@ -739,7 +739,7 @@ void RenderEngineRaw::drawLine(float x1, float y1, float x2, float y2)
 
    u8 alfa = m_ColorStroke[3];
 
-   if ( m_fStrokeSize < 1.5 )
+   if ( m_fStrokeSizePx < 1.5 )
    {
       fbg_line(m_pFBG, x1*m_iRenderWidth, y1*m_iRenderHeight, x2*m_iRenderWidth, y2*m_iRenderHeight, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], alfa);
       return;
@@ -761,7 +761,7 @@ void RenderEngineRaw::drawLine(float x1, float y1, float x2, float y2)
    xp2 = xp2 / len;
    yp2 = yp2 / len;
    }
-   if ( m_fStrokeSize < 2.5 )
+   if ( m_fStrokeSizePx < 2.5 )
    {
       xp1 *= 0.5*m_fPixelWidth;
       yp1 *= 0.5*m_fPixelHeight;
@@ -782,7 +782,7 @@ void RenderEngineRaw::drawLine(float x1, float y1, float x2, float y2)
          fbg_line(m_pFBG, (x1+xp2)*m_iRenderWidth, (y1+yp2)*m_iRenderHeight, (x2+xp2)*m_iRenderWidth, (y2+yp2)*m_iRenderHeight, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], alfa);
    }
 
-   if ( m_fStrokeSize < 3.5 )
+   if ( m_fStrokeSizePx < 3.5 )
    {
       fbg_line(m_pFBG, x1*m_iRenderWidth, y1*m_iRenderHeight, x2*m_iRenderWidth, y2*m_iRenderHeight, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], alfa);
 
@@ -805,7 +805,7 @@ void RenderEngineRaw::drawLine(float x1, float y1, float x2, float y2)
          fbg_line(m_pFBG, (x1+xp2)*m_iRenderWidth, (y1+yp2)*m_iRenderHeight, (x2+xp2)*m_iRenderWidth, (y2+yp2)*m_iRenderHeight, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], alfa);
    }
 
-   //if ( m_fStrokeSize < 4.5 )
+   //if ( m_fStrokeSizePx < 4.5 )
    {
       float xp1b = xp1*1.5*m_fPixelWidth;
       float yp1b = yp1*1.5*m_fPixelHeight;
@@ -885,14 +885,14 @@ void RenderEngineRaw::drawRect(float xPos, float yPos, float fWidth, float fHeig
         (m_ColorStroke[1] != m_ColorFill[1]) ||
         (m_ColorStroke[2] != m_ColorFill[2]) ||
         (m_ColorStroke[3] != m_ColorFill[3]) )
-   if ( m_ColorStroke[3] > 0 && m_fStrokeSize >= 0.9 )
+   if ( m_ColorStroke[3] > 0 && m_fStrokeSizePx >= 0.9 )
    {
       fbg_enable_rect_blending(m_pFBG, m_bEnableRectBlending?1:0);
       fbg_hline(m_pFBG, x,y,w , m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
       fbg_hline(m_pFBG, x,y+h-1,w , m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
       fbg_vline(m_pFBG, x,y,h , m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
       fbg_vline(m_pFBG, x+w-1,y,h , m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
-      if ( m_fStrokeSize >= 1.9 )
+      if ( m_fStrokeSizePx >= 1.9 )
       {
          if ( x > 0 && y > 0 && x+w+1 < m_iRenderWidth )
             fbg_hline(m_pFBG, x-1,y-1,w+2 , m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
@@ -960,7 +960,7 @@ void RenderEngineRaw::drawRoundRect(float xPos, float yPos, float fWidth, float 
         (m_ColorStroke[1] != m_ColorFill[1]) ||
         (m_ColorStroke[2] != m_ColorFill[2]) ||
         (m_ColorStroke[3] != m_ColorFill[3]))
-   if ( m_ColorStroke[3] > 0 && m_fStrokeSize >= 0.9 )
+   if ( m_ColorStroke[3] > 0 && m_fStrokeSizePx >= 0.9 )
    {
       fbg_hline(m_pFBG, x+3,y,w-6, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
       fbg_hline(m_pFBG, x+1,y+1, 2, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);

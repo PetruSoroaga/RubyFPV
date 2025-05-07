@@ -38,12 +38,10 @@
 #include <sys/resource.h>
 #include <semaphore.h>
 
-static bool s_bMenuSystemAlarmsOnCustomOption = false;
-
 MenuSystemAlarms::MenuSystemAlarms(void)
 :Menu(MENU_ID_SYSTEM_ALARMS, "Configure System Alarms", NULL)
 {
-   m_Width = 0.37;
+   m_Width = 0.42;
    m_yPos = 0.28;
    m_xPos = menu_get_XStartPos(m_Width);
 
@@ -107,7 +105,7 @@ MenuSystemAlarms::MenuSystemAlarms(void)
    m_pItemsSelect[4]->setUseMultiViewLayout();
    m_IndexAlarmControllerCPUOverload = addMenuItem( m_pItemsSelect[4]);
 
-   m_pItemsSelect[7] = new MenuItemSelect("Vehicle Radio Timeout", "Alarm when a controller radio interface times out reading a pending received packet. Turn this alarm on or off.");
+   m_pItemsSelect[7] = new MenuItemSelect("Controller Radio Timeout", "Alarm when a controller radio interface times out reading a pending received packet. Turn this alarm on or off.");
    m_pItemsSelect[7]->addSelection("Disabled");
    m_pItemsSelect[7]->addSelection("Enabled");
    m_pItemsSelect[7]->setUseMultiViewLayout();
@@ -118,6 +116,12 @@ MenuSystemAlarms::MenuSystemAlarms(void)
    m_pItemsSelect[9]->addSelection("Enabled");
    m_pItemsSelect[9]->setUseMultiViewLayout();
    m_IndexAlarmsDev = addMenuItem( m_pItemsSelect[9]);
+
+   Preferences* pP = get_Preferences();
+
+   m_bMenuSystemAlarmsIsOnCustomOption = true;
+   if ( (pP->uEnabledAlarms == 0xFFFFFFFF) || (pP->uEnabledAlarms == 0) )
+      m_bMenuSystemAlarmsIsOnCustomOption = false;
 }
 
 void MenuSystemAlarms::valuesToUI()
@@ -125,7 +129,7 @@ void MenuSystemAlarms::valuesToUI()
    
    Preferences* pP = get_Preferences();
 
-   if ( s_bMenuSystemAlarmsOnCustomOption )
+   if ( m_bMenuSystemAlarmsIsOnCustomOption )
       m_pItemsSelect[0]->setSelectedIndex(2);
    else if ( 0 == pP->uEnabledAlarms )
       m_pItemsSelect[0]->setSelectedIndex(0);
@@ -144,10 +148,10 @@ void MenuSystemAlarms::valuesToUI()
    m_pItemsSelect[2]->setSelectedIndex((pP->uEnabledAlarms & ALARM_ID_VEHICLE_VIDEO_DATA_OVERLOAD)?1:0);
 
    m_pItemsSelect[3]->setEnabled(true);
-   m_pItemsSelect[3]->setSelectedIndex((pP->uEnabledAlarms & ALARM_ID_VEHICLE_CPU_LOOP_OVERLOAD)?1:0);
+   m_pItemsSelect[3]->setSelectedIndex((pP->uEnabledAlarms & (ALARM_ID_VEHICLE_CPU_LOOP_OVERLOAD | ALARM_ID_VEHICLE_CPU_RX_LOOP_OVERLOAD))?1:0);
 
    m_pItemsSelect[4]->setEnabled(true);
-   m_pItemsSelect[4]->setSelectedIndex((pP->uEnabledAlarms & ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD)?1:0);
+   m_pItemsSelect[4]->setSelectedIndex((pP->uEnabledAlarms & (ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD | ALARM_ID_CONTROLLER_CPU_RX_LOOP_OVERLOAD))?1:0);
 
    m_pItemsSelect[5]->setEnabled(true);
    m_pItemsSelect[5]->setSelectedIndex((pP->uEnabledAlarms & ALARM_ID_LINK_TO_CONTROLLER_LOST)?1:0);
@@ -211,21 +215,20 @@ void MenuSystemAlarms::Render()
 void MenuSystemAlarms::onSelectItem()
 {
    Menu::onSelectItem();
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
-   
+
    Preferences* pP = get_Preferences();
 
    if ( m_IndexAllAlarms == m_SelectedIndex )
    {
-      s_bMenuSystemAlarmsOnCustomOption = false;
+      m_bMenuSystemAlarmsIsOnCustomOption = false;
       if ( 0 == m_pItemsSelect[0]->getSelectedIndex() )
          pP->uEnabledAlarms = 0;
       else if ( 1 == m_pItemsSelect[0]->getSelectedIndex() )
          pP->uEnabledAlarms = 0xFFFFFFFF;
       else
-        s_bMenuSystemAlarmsOnCustomOption = true;
+        m_bMenuSystemAlarmsIsOnCustomOption = true;
    }
 
    if ( m_IndexAlarmControllerIOErrors == m_SelectedIndex )
@@ -263,14 +266,14 @@ void MenuSystemAlarms::onSelectItem()
    if ( m_IndexAlarmVehicleCPUOverload == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[3]->getSelectedIndex() )
-         pP->uEnabledAlarms &= (~(ALARM_ID_VEHICLE_CPU_LOOP_OVERLOAD)) && (~(ALARM_ID_CPU_RX_LOOP_OVERLOAD));
+         pP->uEnabledAlarms &= ~(ALARM_ID_VEHICLE_CPU_LOOP_OVERLOAD | ALARM_ID_VEHICLE_CPU_RX_LOOP_OVERLOAD);
       else
-         pP->uEnabledAlarms |= (ALARM_ID_VEHICLE_CPU_LOOP_OVERLOAD | ALARM_ID_CPU_RX_LOOP_OVERLOAD);
+         pP->uEnabledAlarms |= (ALARM_ID_VEHICLE_CPU_LOOP_OVERLOAD | ALARM_ID_VEHICLE_CPU_RX_LOOP_OVERLOAD);
    }
 
    if ( m_IndexAlarmVehicleRxTimeout == m_SelectedIndex )
    {
-      if ( 0 == m_pItemsSelect[7]->getSelectedIndex() )
+      if ( 0 == m_pItemsSelect[6]->getSelectedIndex() )
          pP->uEnabledAlarms &= ~(ALARM_ID_VEHICLE_RX_TIMEOUT);
       else
          pP->uEnabledAlarms |= (ALARM_ID_VEHICLE_RX_TIMEOUT);
@@ -280,9 +283,9 @@ void MenuSystemAlarms::onSelectItem()
    if ( m_IndexAlarmControllerCPUOverload == m_SelectedIndex )
    {
       if ( 0 == m_pItemsSelect[4]->getSelectedIndex() )
-         pP->uEnabledAlarms &= (~(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD)) && (~(ALARM_ID_CPU_RX_LOOP_OVERLOAD));
+         pP->uEnabledAlarms &= ~(ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD | ALARM_ID_CONTROLLER_CPU_RX_LOOP_OVERLOAD);
       else
-         pP->uEnabledAlarms |= (ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD | ALARM_ID_CPU_RX_LOOP_OVERLOAD);
+         pP->uEnabledAlarms |= (ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD | ALARM_ID_CONTROLLER_CPU_RX_LOOP_OVERLOAD);
    }
 
    if ( m_IndexAlarmControllerRxTimeout == m_SelectedIndex )
@@ -301,6 +304,13 @@ void MenuSystemAlarms::onSelectItem()
          pP->uEnabledAlarms |= (ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING);
    }
 
+   if ( m_IndexAlarmsDev == m_SelectedIndex )
+   {
+      if ( 0 == m_pItemsSelect[9]->getSelectedIndex() )
+         pP->uEnabledAlarms &= ~(ALARM_ID_DEVELOPER_ALARM);
+      else
+         pP->uEnabledAlarms |= (ALARM_ID_DEVELOPER_ALARM);
+   }
 
    save_Preferences();
    valuesToUI();

@@ -96,6 +96,10 @@ void MenuConfirmationVehicleBoard::onSelectItem()
 {
    log_line("Menu Confirmation Vehicle Board: selected item: %d", m_SelectedIndex);
 
+   Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
+
    if ( NULL == g_pCurrentModel )
    {
       menu_stack_pop(0);

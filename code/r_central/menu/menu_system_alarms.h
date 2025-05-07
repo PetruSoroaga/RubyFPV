@@ -27,4 +27,6 @@ class MenuSystemAlarms: public Menu
       int m_IndexAlarmControllerRxTimeout;
       int m_IndexAlarmControllerRecording;
       int m_IndexAlarmsDev;
+
+      bool m_bMenuSystemAlarmsIsOnCustomOption;
 };

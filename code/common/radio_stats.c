@@ -442,6 +442,7 @@ void radio_stats_reset_signal_info_for_card(shared_mem_radio_stats* pSMRS, int i
       pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesAll.iDbmNoiseMin[i] = 1000;
       pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesAll.iDbmNoiseMax[i] = 1000;
       pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesAll.iDbmNoiseAvg[i] = 1000;
+      pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesAll.uLastTimeCapture[i] = 0;
 
       pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesVideo.iDbmLast[i] = 1000;
       pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesVideo.iDbmMin[i] = 1000;
@@ -453,6 +454,7 @@ void radio_stats_reset_signal_info_for_card(shared_mem_radio_stats* pSMRS, int i
       pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesVideo.iDbmNoiseMin[i] = 1000;
       pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesVideo.iDbmNoiseMax[i] = 1000;
       pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesVideo.iDbmNoiseAvg[i] = 1000;
+      pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesVideo.uLastTimeCapture[i] = 0;
 
       pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesData.iDbmLast[i] = 1000;
       pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesData.iDbmMin[i] = 1000;
@@ -464,6 +466,7 @@ void radio_stats_reset_signal_info_for_card(shared_mem_radio_stats* pSMRS, int i
       pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesData.iDbmNoiseMin[i] = 1000;
       pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesData.iDbmNoiseMax[i] = 1000;
       pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesData.iDbmNoiseAvg[i] = 1000;
+      pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesData.uLastTimeCapture[i] = 0;
    }
 }
 
@@ -1020,7 +1023,7 @@ void radio_stats_set_bad_data_on_current_rx_interval(shared_mem_radio_stats* pSM
 
 // Returns 1 if ok, -1 for error
 
-void _radio_stats_update_dbm_values_from_hw_interfaces(shared_mem_radio_stats_radio_interface_rx_signal* pTargetDBMValues, int* piDbmLast, int* piDbmLastChange, int* piDbmNoiseLast, int iAntennaCount)
+void _radio_stats_update_dbm_values_from_hw_interfaces(shared_mem_radio_stats_radio_interface_rx_signal* pTargetDBMValues, int* piDbmLast, int* piDbmLastChange, int* piDbmNoiseLast, u32* puLastCaptureTimes, int iAntennaCount)
 {
    if ( (iAntennaCount <= 0) || (iAntennaCount > MAX_RADIO_ANTENNAS) )
       return;
@@ -1031,6 +1034,7 @@ void _radio_stats_update_dbm_values_from_hw_interfaces(shared_mem_radio_stats_ra
    {
       pTargetDBMValues->iDbmLast[i] = piDbmLast[i];
       pTargetDBMValues->iDbmNoiseLast[i] = piDbmNoiseLast[i];
+      pTargetDBMValues->uLastTimeCapture[i] = puLastCaptureTimes[i];
       if ( piDbmLast[i] < 500 )
       {
          if ( pTargetDBMValues->iDbmAvg[i] > 500 )
@@ -1105,17 +1109,17 @@ int radio_stats_update_on_new_radio_packet_received(shared_mem_radio_stats* pSMR
    if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount > pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.iAntennaCount )
       pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.iAntennaCount = pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount;
 
-   _radio_stats_update_dbm_values_from_hw_interfaces( &pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesAll, &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLastChange[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseLast[0]), pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount);
+   _radio_stats_update_dbm_values_from_hw_interfaces( &pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesAll, &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLastChange[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseLast[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.uLastTimeCapture[0]), pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount);
 
    if ( iIsVideoData )
    {
       pSMRS->radio_interfaces[iInterfaceIndex].lastRecvDataRateVideo = pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDataRateBPSMCS;
-      _radio_stats_update_dbm_values_from_hw_interfaces( &pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesVideo, &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLastChange[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseLast[0]), pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount);
+      _radio_stats_update_dbm_values_from_hw_interfaces( &pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesVideo, &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLastChange[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseLast[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.uLastTimeCapture[0]), pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount);
    }
    else
    {
       pSMRS->radio_interfaces[iInterfaceIndex].lastRecvDataRateData = pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDataRateBPSMCS;
-      _radio_stats_update_dbm_values_from_hw_interfaces( &pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesData, &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLastChange[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseLast[0]), pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount);
+      _radio_stats_update_dbm_values_from_hw_interfaces( &pSMRS->radio_interfaces[iInterfaceIndex].signalInfo.dbmValuesData, &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLastChange[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseLast[0]), &(pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.uLastTimeCapture[0]), pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount);
    }
    
    // -------------------------------------------------------------

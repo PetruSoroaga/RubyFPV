@@ -273,6 +273,8 @@ void MenuSystem::onReturnFromChild(int iChildMenuId, int returnValue)
 void MenuSystem::onSelectItem()
 {
    Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
 
    if ( m_IndexAlarms == m_SelectedIndex )
    {

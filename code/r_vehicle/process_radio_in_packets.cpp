@@ -231,6 +231,8 @@ void process_received_single_radio_packet(int iRadioInterface, u8* pData, int da
          g_UplinkInfoRxStats[iRadioInterface].lastReceivedDBM = pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmLast[i];
          if ( pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseLast[i] < 0 )
             g_UplinkInfoRxStats[iRadioInterface].lastReceivedNoiseDBM = -pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDbmNoiseLast[i];
+      
+         g_UplinkInfoRxStats[iRadioInterface].uTimeLastCapture = pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.uLastTimeCapture[i];
       }
    }
    g_UplinkInfoRxStats[iRadioInterface].lastReceivedDataRate = pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nDataRateBPSMCS;

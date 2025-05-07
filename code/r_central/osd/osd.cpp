@@ -434,10 +434,11 @@ float osd_show_video_link_mbs(float xPos, float yPos, bool bLeft)
 
    strcpy(szSuffix, "Mbps");
 
-   if ( ! g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo )
+   //if ( ! g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotRubyTelemetryInfo )
       sprintf(szBuff,"%.1f", totalMaxVideo_bps/1000.0/1000.0);
-   else
-      sprintf(szBuff, "%.1f (%.1f)", totalMaxVideo_bps/1000.0/1000.0, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
+   //else
+      //sprintf(szBuff, "%.1f (%.1f)", totalMaxVideo_bps/1000.0/1000.0, g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
+      //sprintf(szBuff, "%.1f", g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.downlink_tx_video_bitrate_bps/1000.0/1000.0);
 
    u32 uMaxVideoRadioDataRate = pActiveModel->getRadioLinkVideoDataRateBSP(0);
    if ( pActiveModel->radioLinksParams.links_count > 1 )
@@ -815,13 +816,13 @@ float osd_show_cpus(float xPos, float yPos, float fScale )
          if ( (NULL != pActiveModel) && (pActiveModel->osd_params.uFlags & OSD_BIT_FLAGS_SHOW_TEMPS_F) )
             bF = true;
          if ( bF )
-            sprintf(szBuff, "%d F",  (int)osd_convertTemperature((float)(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.temperature), true));
+            sprintf(szBuff, "%d F",  (int)osd_convertTemperature((float)(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.temperatureC), true));
          else
-            sprintf(szBuff, "%d C",  (int)osd_convertTemperature((float)(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.temperature), false));
-         if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.temperature >= 70 )
+            sprintf(szBuff, "%d C",  (int)osd_convertTemperature((float)(g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.temperatureC), false));
+         if ( (NULL != pActiveModel) && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.temperatureC >= ((pActiveModel->hwCapabilities.uHWFlags & 0xFF00)>>8)-5) )
          if ( (g_TimeNow/500)%2 )
             g_pRenderEngine->setColors(get_Color_IconWarning());
-         if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.temperature >= 75 )
+         if ( (NULL != pActiveModel) && (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerRubyTelemetryExtended.temperatureC >= ((pActiveModel->hwCapabilities.uHWFlags & 0xFF00)>>8)) )
          if ( (g_TimeNow/500)%2 )
             g_pRenderEngine->setColors(get_Color_IconError());
       }
@@ -1057,9 +1058,9 @@ void osd_show_recording(bool bShowWhenStopped, float xPos, float yPos)
    float height_text_small = osd_getFontHeightSmall();
    float w = 0.03*osd_getScaleOSD();
 
-   static long s_lMemDiskOSDFree = 0;
-   static long s_lMemDiskOSDTotal = 0;
-   static u32  s_lMemDiskLastTime = 0;
+   //static long s_lMemDiskOSDFree = 0;
+   //static long s_lMemDiskOSDTotal = 0;
+   //static u32  s_lMemDiskLastTime = 0;
 
    if ( (! g_bVideoRecordingStarted) && (!s_bDebugOSDShowAll) )
    {
@@ -1067,9 +1068,9 @@ void osd_show_recording(bool bShowWhenStopped, float xPos, float yPos)
       if ( g_pCurrentModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_VIDEO_MODE )
       if ( bShowWhenStopped )
       {
-         s_lMemDiskOSDFree = 0;
-         s_lMemDiskOSDTotal = 0;
-         s_lMemDiskLastTime = 0;
+         //s_lMemDiskOSDFree = 0;
+         //s_lMemDiskOSDTotal = 0;
+         //s_lMemDiskLastTime = 0;
 
          if ( g_bToglleAllOSDOff || g_bToglleOSDOff )
             return;
@@ -1108,16 +1109,17 @@ void osd_show_recording(bool bShowWhenStopped, float xPos, float yPos)
    char szTime[64];
    u32 tMili = g_TimeNow - g_uVideoRecordStartTime;
 
-   if ( p->iVideoDestination == 0 )
+   //if ( p->iVideoDestination == prefVideoDestination_Disk )
    {
       if ( (tMili/900)%2 )
          sprintf(szTime, "%02d:%02d", (tMili/1000)/60, (tMili/1000)%60 );
       else
          sprintf(szTime, "%02d %02d", (tMili/1000)/60, (tMili/1000)%60 );
-      s_lMemDiskOSDFree = 0;
-      s_lMemDiskOSDTotal = 0;
-      s_lMemDiskLastTime = 0;
+      //s_lMemDiskOSDFree = 0;
+      //s_lMemDiskOSDTotal = 0;
+      //s_lMemDiskLastTime = 0;
    }
+   /*
    else
    {
       if  ( 0 == s_lMemDiskOSDTotal )
@@ -1139,7 +1141,7 @@ void osd_show_recording(bool bShowWhenStopped, float xPos, float yPos)
       }
       sprintf(szTime, "%d/%d", (int)(s_lMemDiskOSDTotal/1000-s_lMemDiskOSDFree/1000), (int)(s_lMemDiskOSDTotal/1000));
    }
-
+   */
    if ( p->iShowBigRecordButton )
    {
       yPos += osd_getBarHeight()+osd_getSecondBarHeight()*1.2;
@@ -2046,6 +2048,7 @@ void osd_render_elements()
    
    osd_set_colors();
 
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_HID_IN_OSD) )
       osd_show_HID();
 
@@ -2059,6 +2062,7 @@ void osd_render_elements()
    // Top part - left
    // ------------------------------
 
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_GPS_POS ) )
    {
       float y = 1.0 - osd_getMarginY() - osd_getBarHeight() - osd_getSecondBarHeight() + osd_getSpacingV();
@@ -2066,6 +2070,7 @@ void osd_render_elements()
       osd_show_gps_pos(x,y, 0.9);
    }
 
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_TOTAL_DISTANCE ) )
    {
       float y = 1.0 - osd_getMarginY() - osd_getBarHeight() - osd_getSecondBarHeight() + osd_getSpacingV();
@@ -2080,7 +2085,8 @@ void osd_render_elements()
    y = osd_getMarginY() + osd_getSpacingV();
 
    x = osd_getMarginX() + osd_getSpacingH()*0.5;
-   if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_GPS_INFO ) )
+   if ( (pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP) && 
+        (s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_GPS_INFO )) )
       x += _osd_show_gps(x,y, true);
    else
       x += osd_getSpacingH()*0.5;
@@ -2101,6 +2107,7 @@ void osd_render_elements()
 
    x = 1.0 - osd_getMarginX() - 0.5*osd_getSpacingH();
 
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_RC_RSSI ) )
    {
       x -= _osd_show_rc_rssi(x,y, 1.0) + osd_getSpacingH();
@@ -2180,6 +2187,7 @@ void osd_render_elements()
    y = 1.0 - osd_getMarginY()-osd_getBarHeight()+osd_getSpacingV();
    y0 = 1.0 - osd_getMarginY()-osd_getBarHeight() - osd_getSecondBarHeight() + osd_getSpacingV();
    
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || ((pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_DISTANCE) && (g_pCurrentModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_NONE) ) )
    if ( (g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bHomeSet && g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bFCTelemetrySourcePresent) || ((g_TimeNow/500)%2) )
    {
@@ -2213,6 +2221,8 @@ void osd_render_elements()
    float xSpeed = x;
    if ( bShowBothSpeeds )
       xSpeed -= 0.5 * osd_getSpacingH();
+     
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_GROUND_SPEED) )
    {
       char szBuff2[64];
@@ -2245,6 +2255,7 @@ void osd_render_elements()
       xSpeed += 0.5*osd_getSpacingH();
    }
       
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_AIR_SPEED) )
    {
       char szBuff2[64];
@@ -2276,6 +2287,7 @@ void osd_render_elements()
       xSpeed += 0.5*osd_getSpacingH();
    }
 
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_GROUND_SPEED) || (g_pCurrentModel->osd_params.osd_flags2[osd_get_current_layout_index()] & OSD_FLAG2_SHOW_AIR_SPEED) || (g_pCurrentModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_DISTANCE) )
    {
       x += 0.08*osd_getScaleOSD();
@@ -2283,6 +2295,7 @@ void osd_render_elements()
          x += g_pRenderEngine->textWidth(g_idFontOSD, "AAA");
    }
 
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_ALTITUDE ) )
    if ( (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_GENERIC ||
         (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE || 
@@ -2334,6 +2347,7 @@ void osd_render_elements()
         x += 0.02*osd_getScaleOSD();
    }
 
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_DISTANCE ) )
    {
       g_pRenderEngine->drawIcon(x, y+height_text_big*0.14, height_text_big*0.8/g_pRenderEngine->getAspectRatio(), height_text_big*0.8, g_idIconHeading);
@@ -2350,12 +2364,14 @@ void osd_render_elements()
    }
 
 
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_HOME ) )
    {
       x += osd_show_home(x, y, true, 1.0);
       x += osd_getSpacingH(); 
    }
 
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_SHOW_WIND ) )
    if ( g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry )
    {
@@ -2421,6 +2437,7 @@ void osd_render_elements()
    x = 1.0 - osd_getMarginX() - osd_getSpacingH()*0.6;
    y = 1.0 - osd_getMarginY()-osd_getBarHeight()+osd_getSpacingV();
 
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_BATTERY ) )
    {
       x -= render_osd_voltagesamps(x,y);
@@ -2444,6 +2461,7 @@ void osd_render_elements()
    float xEnd3 = x;
 
    float yTemp = y;
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_THROTTLE ) )
    {
       yTemp = 1.0 - osd_getMarginY()-osd_getSpacingV() - height_text*1.2;
@@ -2452,6 +2470,7 @@ void osd_render_elements()
       yTemp -= height_text*0.9;
    }
 
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags[osd_get_current_layout_index()] & OSD_FLAG_SHOW_PITCH ) )
    if ( (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_GENERIC ||
         (pActiveModel->vehicle_type & MODEL_TYPE_MASK) == MODEL_TYPE_DRONE || 
@@ -2469,17 +2488,18 @@ void osd_render_elements()
       yTemp -= height_text*0.9;
    }
    
+   if ( pActiveModel->telemetry_params.fc_telemetry_type != TELEMETRY_TYPE_MSP )
    if ( s_bDebugOSDShowAll || (pActiveModel->osd_params.osd_flags3[osd_get_current_layout_index()] & OSD_FLAG3_SHOW_FC_TEMPERATURE ) )
    {
-      if ( (! g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry) || 0 == g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.temperature )
+      if ( (! g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].bGotFCTelemetry) || 0 == g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.temperatureC )
          strcpy(szBuff, "N/A");
       else
       {
          //if ( p->iUnits == prefUnitsImperial || p->iUnits == prefUnitsFeets )
          if ( (NULL != pActiveModel) && (pActiveModel->osd_params.uFlags & OSD_BIT_FLAGS_SHOW_TEMPS_F) )
-            sprintf(szBuff, "%d F", (int)osd_convertTemperature(((float)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.temperature)-100.0, true));
+            sprintf(szBuff, "%d F", (int)osd_convertTemperature(((float)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.temperatureC)-100.0, true));
          else
-            sprintf(szBuff, "%d C", (int)osd_convertTemperature(((float)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.temperature)-100.0, false));
+            sprintf(szBuff, "%d C", (int)osd_convertTemperature(((float)g_VehiclesRuntimeInfo[osd_get_current_data_source_vehicle_index()].headerFCTelemetry.temperatureC)-100.0, false));
       }
       xEnd3 -= osd_show_value_left(xStart,yTemp, szBuff, g_idFontOSD);
       xEnd3 -= height_text*0.15;
@@ -2590,7 +2610,9 @@ void _osd_render_msp(Model* pModel)
         (pRuntimeInfo->mspState.headerTelemetryMSP.uCols == 0) ||
         ((pRuntimeInfo->mspState.headerTelemetryMSP.uFlags & MSP_FLAGS_FC_TYPE_MASK) == 0) )
       return;
-      
+
+   Preferences* pP = get_Preferences();
+
    u32 uImgId = g_idImgMSPOSDBetaflight;
    if ( (pRuntimeInfo->mspState.headerTelemetryMSP.uFlags & MSP_FLAGS_FC_TYPE_MASK) == MSP_FLAGS_FC_TYPE_INAV )
       uImgId = g_idImgMSPOSDINAV;
@@ -2617,6 +2639,21 @@ void _osd_render_msp(Model* pModel)
    float fScreenCharWidth = (1.0 - 2.0*osd_getMarginX()) / (float)pRuntimeInfo->mspState.headerTelemetryMSP.uCols;
    float fScreenCharHeight = (1.0 - 2.0*osd_getMarginY()) / (float)pRuntimeInfo->mspState.headerTelemetryMSP.uRows;
 
+   if ( (pP->iMSPOSDSize > 30) && (pP->iMSPOSDSize < 150) )
+   {
+      fScreenCharWidth = ((float)pP->iMSPOSDSize) * fScreenCharWidth / 100.0;
+      fScreenCharHeight = ((float)pP->iMSPOSDSize) * fScreenCharHeight / 100.0;
+   }
+
+   float fStartPosX = osd_getMarginX();
+   float fStartPosY = osd_getMarginY();
+
+   if ( (pP->iMSPOSDDeltaX > -40) && (pP->iMSPOSDDeltaX < 40) && (pP->iMSPOSDDeltaY > -40) && (pP->iMSPOSDDeltaY < 40) )
+   {
+      fStartPosX += pP->iMSPOSDDeltaX * fScreenCharWidth;
+      fStartPosY += pP->iMSPOSDDeltaY * fScreenCharHeight;
+   }
+
    for( int y=0; y<pRuntimeInfo->mspState.headerTelemetryMSP.uRows; y++ )
    for( int x=0; x<pRuntimeInfo->mspState.headerTelemetryMSP.uCols; x++ )
    {
@@ -2628,7 +2665,7 @@ void _osd_render_msp(Model* pModel)
       int iImgSrcX = ((int)(uPage & 0x03)) * iImgCharWidth;
       int iImgSrcY = ((int)(uChar & 0xFF)) * iImgCharHeight;
 
-      g_pRenderEngine->bltSprite(osd_getMarginX() + x * fScreenCharWidth, osd_getMarginY() + y * fScreenCharHeight,
+      g_pRenderEngine->bltSprite(fStartPosX + x * fScreenCharWidth, fStartPosY + y * fScreenCharHeight,
          iImgSrcX, iImgSrcY, iImgCharWidth, iImgCharHeight, uImgId);
    }
 }

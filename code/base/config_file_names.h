@@ -114,6 +114,7 @@
 #define FOLDER_USB_MOUNT "/home/pi/ruby/tmp/tmpusbfiles/"
 #define FOLDER_TEMP_VIDEO_MEM "/home/pi/ruby/tmp/memdisk/"
 #define FOLDER_WINDOWS_PARTITION "/boot/"
+#define FOLDER_CALIBRATION_FILES "/home/pi/ruby/cal/"
 
 #define FILE_FORCE_VEHICLE "/boot/forcevehicle"
 #define FILE_FORCE_VEHICLE_NO_CAMERA "/boot/force_no_camera"
@@ -161,6 +162,7 @@
 #define FOLDER_USB_MOUNT "/home/radxa/ruby/tmp/tmpusbfiles/"
 #define FOLDER_TEMP_VIDEO_MEM "/home/radxa/ruby/tmp/memdisk/"
 #define FOLDER_WINDOWS_PARTITION "/config/"
+#define FOLDER_CALIBRATION_FILES "/home/radxa/ruby/cal/"
 
 #define FILE_FORCE_VEHICLE "/config/forcevehicle"
 #define FILE_FORCE_VEHICLE_NO_CAMERA "/config/force_no_camera"
@@ -197,6 +199,7 @@
 #define FOLDER_USB_MOUNT "/tmp/tmpusbfiles/"
 #define FOLDER_TEMP_VIDEO_MEM "/tmp/ruby/memdisk/"
 #define FOLDER_WINDOWS_PARTITION ""
+#define FOLDER_CALIBRATION_FILES "/tmp/"
 
 #define FILE_FORCE_VEHICLE "/root/forcevehicle"
 #define FILE_FORCE_VEHICLE_NO_CAMERA "/root/force_no_camera"

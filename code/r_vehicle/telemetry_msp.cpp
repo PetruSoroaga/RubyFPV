@@ -37,8 +37,11 @@
 #include "../base/ruby_ipc.h"
 #include "../base/msp.h"
 
+void broadcast_vehicle_stats();
 bool isRadioLinksInitInProgress();
 extern int s_fIPCToRouter;
+extern t_packet_header_ruby_telemetry_extended_v4 sPHRTE;
+extern u32 s_CountMessagesFromFCPerSecond;
 
 u8 s_uMSPRawStream[256]; // Max size is one byte long
 int s_iMSPRawStreamFilledBytes = 0;
@@ -59,6 +62,7 @@ t_packet_header_telemetry_msp s_PHTMSP;
 
 u32 s_uMSPTimeLastConfigCommandToFC = 0;
 bool s_bMSPGotFCInfo = false;
+bool s_bMSPSentOSDCanvasSize = false;
 
 u32 s_uMSPLastRequestBatteryInfoTime = 0;
 
@@ -105,6 +109,7 @@ void telemetry_msp_on_open_port(int iSerialPortFile)
    s_iMSPState = MSP_STATE_NONE;
    s_bMSPGotFCInfo = false;
    s_uMSPLastRequestBatteryInfoTime = 0;
+   s_bMSPSentOSDCanvasSize = false;
 
    memset(&s_PHTMSP, 0, sizeof(t_packet_header_telemetry_msp));
    s_PHTMSP.uCols = 60;
@@ -129,9 +134,26 @@ void telemetry_msp_periodic_loop()
    if ( g_TimeNow >= s_uMSPLastRequestBatteryInfoTime + 500 )
    {
       s_uMSPLastRequestBatteryInfoTime = g_TimeNow;
-      _send_msp_to_fc(MSP_CMD_BATTERY_STATE, NULL, 0); 
+      _send_msp_to_fc(MSP_CMD_BATTERY_STATE, NULL, 0);
+      _send_msp_to_fc(MSP_CMD_STATUS, NULL, 0);
    } 
 }
+
+
+void telemetry_msp_on_second_lapse()
+{
+   t_packet_header_fc_telemetry* pFCTelem = telemetry_get_fc_telemetry_header();
+   if ( NULL == pFCTelem )
+      return;
+   
+   if ( pFCTelem->flight_mode != 0 )
+   if ( pFCTelem->flight_mode & FLIGHT_MODE_ARMED )
+      pFCTelem->arm_time++;
+   
+   g_pCurrentModel->updateStatsEverySecond(pFCTelem);
+   broadcast_vehicle_stats();
+}
+
 
 u32 telemetry_msp_get_last_command_received_time()
 {
@@ -267,6 +289,38 @@ void _parse_msp_command()
 
    switch ( s_uMSPCommand )
    {
+      case MSP_CMD_STATUS:
+       {
+          int iArmed = (s_uMSPCommandData[6] & 0x01);
+          // To remove
+          //iArmed = (g_TimeNow/1000/5) % 2;
+
+          t_packet_header_fc_telemetry* pFCTelem = telemetry_get_fc_telemetry_header();
+          if ( NULL != pFCTelem )
+          {
+             pFCTelem->flight_mode &= ~FLIGHT_MODE_ARMED;
+             if ( iArmed )
+                pFCTelem->flight_mode |= FLIGHT_MODE_ARMED;
+
+             if ( pFCTelem->flight_mode & FLIGHT_MODE_ARMED )
+                pFCTelem->uFCFlags |= FC_TELE_FLAGS_ARMED;
+             else
+                pFCTelem->uFCFlags &= ~FC_TELE_FLAGS_ARMED;
+
+             if ( g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_FORCE_ARMED )
+                pFCTelem->flight_mode |= FLIGHT_MODE_ARMED;
+          }
+       }
+       break;
+      case MSP_CMD_STATUS_EX:
+       {
+       }
+       break;
+
+      case MSP_CMD_BATTERY_STATE:
+       {
+       }
+       break;
       case MSP_CMD_FC_VARIANT:
          {
             char szBuff[5];
@@ -290,10 +344,15 @@ void _parse_msp_command()
             s_bMSPGotFCInfo = true;
             for( int i=0; i<s_iMSPCommandDataSize; i++ )
                log_line("[Telem] Got MSP API version, byte[%d]=%d", i, s_uMSPCommandData[i]);
-            u8 uBuffer[2];
-            uBuffer[0] = 60;
-            uBuffer[1] = 22;
-            _send_msp_to_fc(MSP_CMD_SET_OSD_CANVAS, uBuffer, 2);
+
+            if ( ! s_bMSPSentOSDCanvasSize )
+            {
+               s_bMSPSentOSDCanvasSize = true;
+               u8 uBuffer[2];
+               uBuffer[0] = 60;
+               uBuffer[1] = 22;
+               _send_msp_to_fc(MSP_CMD_SET_OSD_CANVAS, uBuffer, 2);
+            }
          }
          break;
       default: break;
@@ -304,7 +363,8 @@ bool telemetry_msp_on_new_serial_data(u8* pData, int iDataLength)
 {
    if ( (NULL == pData) || (iDataLength <= 0) )
       return false;
-   
+   bool bReturn = false;
+
    for( int i=0; i<iDataLength; i++ )
    {
       s_uMSPRawStream[s_iMSPRawStreamFilledBytes] = *pData;
@@ -385,6 +445,7 @@ bool telemetry_msp_on_new_serial_data(u8* pData, int iDataLength)
                   _parse_msp_osd_command();
                else
                   _parse_msp_command();
+               bReturn = true;
             }
             s_iMSPState = MSP_STATE_NONE;
             break;
@@ -394,5 +455,48 @@ bool telemetry_msp_on_new_serial_data(u8* pData, int iDataLength)
       }
       pData++;
    }
-   return false;
+   return bReturn;
+}
+
+
+void telemetry_msp_send_to_controller()
+{
+   if ( (NULL == g_pCurrentModel) || (!g_bRouterReady) )
+      return;
+
+   t_packet_header PH;
+
+   radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_FC_TELEMETRY, STREAM_ID_TELEMETRY);
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+   PH.vehicle_id_dest = 0;
+   t_packet_header_fc_telemetry* pFCTelem = telemetry_get_fc_telemetry_header();
+
+   pFCTelem->fc_telemetry_type = g_pCurrentModel->telemetry_params.fc_telemetry_type;
+   if ( g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_FORCE_ARMED )
+      pFCTelem->flight_mode |= FLIGHT_MODE_ARMED;
+
+   pFCTelem->extra_info[5]++;
+   pFCTelem->extra_info[6] = (s_CountMessagesFromFCPerSecond>255)?255:s_CountMessagesFromFCPerSecond;
+
+   pFCTelem->uFCFlags = pFCTelem->uFCFlags & (~FC_TELE_FLAGS_HAS_MESSAGE);
+   pFCTelem->uFCFlags = pFCTelem->uFCFlags & (~FC_TELE_FLAGS_RC_FAILSAFE);
+
+   radio_packet_init(&PH, PACKET_COMPONENT_TELEMETRY, PACKET_TYPE_FC_TELEMETRY, STREAM_ID_TELEMETRY);
+   PH.vehicle_id_src = g_pCurrentModel->uVehicleId;
+   PH.vehicle_id_dest = 0;
+   PH.total_length = (u16)sizeof(t_packet_header) + (u16)sizeof(t_packet_header_fc_telemetry);
+
+   u8 buffer[MAX_PACKET_TOTAL_SIZE];
+   memcpy(buffer, &PH, sizeof(t_packet_header));
+   memcpy(buffer+sizeof(t_packet_header), pFCTelem, sizeof(t_packet_header_fc_telemetry));
+
+   if ( g_bRouterReady && (! isRadioLinksInitInProgress()) )
+   {
+      int result = ruby_ipc_channel_send_message(s_fIPCToRouter, buffer, PH.total_length);
+      if ( result != PH.total_length )
+         log_softerror_and_alarm("Failed to send data to router. Sent result: %d", result );
+   }
+
+   if ( NULL != g_pProcessStats )
+      g_pProcessStats->lastIPCOutgoingTime = g_TimeNow;
 }

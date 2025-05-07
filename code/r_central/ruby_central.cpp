@@ -802,6 +802,7 @@ int ruby_start_recording()
    #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
    sprintf(szComm, "df -m %s | tail -n 1", FOLDER_MEDIA);
    #endif
+
    if ( 1 == hw_execute_bash_command_raw(szComm, szBuff) )
    {
       char szTemp[1024];
@@ -1025,6 +1026,14 @@ void executeQuickActions()
       return;
    }
          
+   if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && (quickActionPITMode == p->iActionQuickButton1)) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && (quickActionPITMode == p->iActionQuickButton2)) ||
+        ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && (quickActionPITMode == p->iActionQuickButton3)) )
+   {
+      executeQuickActionSwitchPITMode();
+      return;
+   }
+
    if ( ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA1) && quickActionToggleOSD == p->iActionQuickButton1) ||
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA2) && quickActionToggleOSD == p->iActionQuickButton2) ||
         ((keyboard_get_triggered_input_events() & INPUT_EVENT_PRESS_QA3) && quickActionToggleOSD == p->iActionQuickButton3) )

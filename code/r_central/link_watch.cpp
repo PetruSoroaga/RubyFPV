@@ -1002,7 +1002,7 @@ void link_watch_loop_recording()
    if ( g_bVideoRecordingStarted )
    {
       Preferences *p = get_Preferences();
-      if ( p->iVideoDestination == 1 )
+      if ( p->iVideoDestination == prefVideoDestination_Mem )
       {
          if ( g_TimeNow > s_TimeLastVideoMemoryFreeCheck + 4000 )
          {
@@ -1014,8 +1014,12 @@ void link_watch_loop_recording()
             hw_execute_bash_command_raw(szComm, szBuff);
             long lu, lf, lt;
             sscanf(szBuff, "%s %ld %ld %ld", szTemp, &lt, &lu, &lf);
+            log_line("DBG free mem disk: %d kb", lf );
             if ( lf/1000 < 20 )
+            {
+               warnings_add(0, "Recording buffers are full. Stopping recording", g_idIconCamera);
                ruby_stop_recording();
+            }
          }
       }
    }

@@ -6,6 +6,7 @@
 
 float g_fOSDDbm[MAX_RADIO_INTERFACES];
 float g_fOSDSNR[MAX_RADIO_INTERFACES];
+u32   g_uOSDDbmLastCaptureTime[MAX_RADIO_INTERFACES];
 
 
 void shared_vars_osd_reset_before_pairing()
@@ -14,6 +15,7 @@ void shared_vars_osd_reset_before_pairing()
    {
       g_fOSDDbm[i] = -200.0f;
       g_fOSDSNR[i] = 0.0;
+      g_uOSDDbmLastCaptureTime[i] = 0;
    }
 }
 
@@ -29,6 +31,8 @@ void shared_vars_osd_update()
 
       int idbmMaxForRadioCard = -1000;
       int iSNRMaxForRadioCard = -1000;
+      u32 uTimeCapture = 0;
+
       /*
       for( int k=0; k<g_SM_RadioStats.radio_interfaces[i].signalInfo.iAntennaCount; k++ )
       {
@@ -44,26 +48,28 @@ void shared_vars_osd_update()
          iIndex = SYSTEM_RT_INFO_INTERVALS-1;
       for( int iAnt=0; iAnt<g_SMControllerRTInfo.radioInterfacesDbm[iIndex][i].iCountAntennas; iAnt++ )
       {
-         if ( g_SMControllerRTInfo.radioInterfacesDbm[iIndex][i].iDbmMax[iAnt] < 1000 )
+         if ( g_SMControllerRTInfo.radioInterfacesDbm[iIndex][i].iDbmMax[iAnt] < 500 )
+         if ( g_SMControllerRTInfo.radioInterfacesDbm[iIndex][i].iDbmMax[iAnt] > -120 )
          if ( g_SMControllerRTInfo.radioInterfacesDbm[iIndex][i].iDbmMax[iAnt] > idbmMaxForRadioCard )
          {
             idbmMaxForRadioCard = g_SMControllerRTInfo.radioInterfacesDbm[iIndex][i].iDbmMax[iAnt];
-
+            uTimeCapture = g_SMControllerRTInfo.radioInterfacesDbm[iIndex][i].uLastTimeCapture[iAnt];
             int iSNR = g_SMControllerRTInfo.radioInterfacesDbm[iIndex][i].iDbmMax[iAnt] - g_SMControllerRTInfo.radioInterfacesDbm[iIndex][i].iDbmNoiseMin[iAnt];
-            if ( iSNR < 1000 )
-            if ( iSNR > idbmMaxForRadioCard )
+            if ( iSNR < 500 )
+            if ( iSNR > -120 )
                iSNRMaxForRadioCard = iSNR;
          }
       }
      
-      if ( idbmMaxForRadioCard > -500 )
+      if ( idbmMaxForRadioCard > -120 )
       {
+         g_uOSDDbmLastCaptureTime[i] = uTimeCapture;
          if ( fabs(g_fOSDDbm[i] - (float)idbmMaxForRadioCard) > 10.0 )
             g_fOSDDbm[i] = 0.6 * g_fOSDDbm[i] + 0.4 * (float)idbmMaxForRadioCard;
          else
             g_fOSDDbm[i] = 0.5 * g_fOSDDbm[i] + 0.5 * (float)idbmMaxForRadioCard;
       }
-      if ( iSNRMaxForRadioCard > -500 )
+      if ( iSNRMaxForRadioCard > -120 )
       {
          if ( iSNRMaxForRadioCard < g_fOSDSNR[i] - 10 )
             g_fOSDSNR[i] = (float)iSNRMaxForRadioCard;

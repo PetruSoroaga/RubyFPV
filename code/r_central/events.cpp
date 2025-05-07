@@ -682,6 +682,7 @@ bool _onEventCheckNewPairedModelForUIActionsToTake()
       warnings_add(s_pEventsLastRecvModelSettings->uVehicleId, szBuff, 0, NULL, 10);
       MenuConfirmation* pMC = new MenuConfirmation(L("Update Info"), szBuff, 0, true);
       pMC->m_yPos = 0.3;
+      pMC->setDefaultActionPositive();
       add_menu_to_stack(pMC);
 
       s_bEventTookPairingUIActionUpdateController = true;

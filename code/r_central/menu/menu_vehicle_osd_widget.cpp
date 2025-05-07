@@ -388,8 +388,7 @@ void MenuVehicleOSDWidget::onSelectItem()
    }
 
    Menu::onSelectItem();
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    type_osd_widget* pWidget = osd_widgets_get(m_nWidgetIndex);

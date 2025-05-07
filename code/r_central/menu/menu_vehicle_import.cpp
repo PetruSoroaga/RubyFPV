@@ -39,6 +39,7 @@
 #include <dirent.h>
 #include <ctype.h>
 #include "../link_watch.h"
+#include "../../base/hardware_files.h"
 
 MenuVehicleImport::MenuVehicleImport(void)
 :Menu(MENU_ID_VEHICLE_IMPORT, "Import Vehicle Settings", NULL)

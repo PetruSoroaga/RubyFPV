@@ -1030,11 +1030,10 @@ void MenuVehicleSimpleSetup::onSelectItem()
 {
    log_line("Menu Vehicle Simple Setup: selected item: %d", m_SelectedIndex);
    Menu::onSelectItem();
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
-   if ( (NULL == g_pCurrentModel) || (m_SelectedIndex < 0) )
+   if ( NULL == g_pCurrentModel )
       return;
 
    if ( (-1 != m_iIndexCamera) && (m_iIndexCamera == m_SelectedIndex) )

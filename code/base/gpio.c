@@ -131,18 +131,17 @@ void _gpio_load_custom_mapping()
 
    log_line("[GPIO] Assigned GPIO for menu/back/plus/minus: %d %d %d %d", g_iGPIOPinMenu, g_iGPIOPinBack, g_iGPIOPinPlus, g_iGPIOPinMinus);
 
-   if ( 3 != fscanf(fd, "%d %d %d", &iTmp1, &iTmp2, &iTmp3) )
-   {
-      log_line("[GPIO] Invalid QA mapping file (%s). Ignoring it.", szFile);
-      fclose(fd);
-      return;
-   }
-   if ( (iTmp1 <= 0) || (iTmp2 <= 0) || (iTmp3 <= 0) )
-   {
-      log_line("[GPIO] Invalid QA (2) mapping file (%s). Ignoring it.", szFile);
-      fclose(fd);
-      return;
-   }
+   if ( 1 == fscanf(fd, "%d", &iTmp1) )
+   if ( iTmp1 > 0 )
+      g_iGPIOPinQA1 = iTmp1;
+
+   if ( 1 == fscanf(fd, "%d", &iTmp1) )
+   if ( iTmp1 > 0 )
+      g_iGPIOPinQA2 = iTmp1;
+
+   if ( 1 == fscanf(fd, "%d", &iTmp1) )
+   if ( iTmp1 > 0 )
+      g_iGPIOPinQA3 = iTmp1;
 
    g_iGPIOPinQA1 = iTmp1;
    g_iGPIOPinQA2 = iTmp2;

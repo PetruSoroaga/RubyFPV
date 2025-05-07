@@ -379,7 +379,9 @@ void MenuControllerJoystick::onSelectItem()
    }
 
    Menu::onSelectItem();
-   
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
+
    if ( m_IndexBack == m_SelectedIndex )
       menu_stack_pop(0);   
 

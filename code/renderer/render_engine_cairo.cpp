@@ -90,7 +90,7 @@ RenderEngineCairo::RenderEngineCairo()
 
    m_pCairoCtx = NULL;
    m_pCairoTempCtx = NULL;
-   m_fStrokeSize = 1.0;
+   m_fStrokeSizePx = 1.0;
    
    m_iCountImages = 0;
    m_iCountIcons = 0;
@@ -182,20 +182,22 @@ void RenderEngineCairo::endFrame()
 void RenderEngineCairo::setStroke(const double* color, float fStrokeSize)
 {
    RenderEngine::setStroke(color, fStrokeSize);
-   if ( m_fStrokeSize > 0.5 )
-      cairo_set_line_width(m_pCairoCtx, m_fStrokeSize*(m_fPixelWidth+m_fPixelHeight)*0.6);
-   else
-      cairo_set_line_width(m_pCairoCtx, m_fStrokeSize);
+   //if ( m_fStrokeSizePx > 0.5 )
+   //   cairo_set_line_width(m_pCairoCtx, m_fStrokeSizePx*(m_fPixelWidth+m_fPixelHeight)*0.6);
+   //else
+   //   cairo_set_line_width(m_pCairoCtx, m_fStrokeSizePx);
+   cairo_set_line_width(m_pCairoCtx, 1.1);
 }
 
 
 void RenderEngineCairo::setStrokeSize(float fStrokeSize)
 {
    RenderEngine::setStrokeSize(fStrokeSize);
-   if ( m_fStrokeSize > 0.5 )
-      cairo_set_line_width(m_pCairoCtx, m_fStrokeSize*(m_fPixelWidth+m_fPixelHeight)*0.6);
-   else
-      cairo_set_line_width(m_pCairoCtx, m_fStrokeSize);
+   //if ( m_fStrokeSizePx > 0.5 )
+   //   cairo_set_line_width(m_pCairoCtx, m_fStrokeSizePx*(m_fPixelWidth+m_fPixelHeight)*0.6);
+   //else
+   //   cairo_set_line_width(m_pCairoCtx, m_fStrokeSizePx);
+   cairo_set_line_width(m_pCairoCtx, 1.1);
 }
 
 cairo_t* RenderEngineCairo::_createTempDrawContext()
@@ -944,7 +946,7 @@ void RenderEngineCairo::drawLine(float x1, float y1, float x2, float y2)
          yPos = y2;
          h = y1 - y2;
       }
-      if ( m_fStrokeSize < 1.5 )
+      if ( m_fStrokeSizePx < 1.5 )
          _draw_vline(x1*m_iRenderWidth, yPos*m_iRenderHeight, h*m_iRenderHeight, m_ColorStroke[0], m_ColorStroke[1], m_ColorStroke[2], m_ColorStroke[3]);
       else
       {
@@ -953,10 +955,20 @@ void RenderEngineCairo::drawLine(float x1, float y1, float x2, float y2)
       }
       return;
    }
+/*
+   float r = 0.05;
+   cairo_set_source_rgba(m_pCairoCtx, m_ColorStroke[0]/255.0, m_ColorStroke[1]/255.0, m_ColorStroke[2]/255.0, m_ColorStroke[3]/255.0);
+      cairo_move_to (m_pCairoCtx, x1 * m_iRenderWidth + r * m_iRenderHeight, y1 * m_iRenderHeight);
+      cairo_arc (m_pCairoCtx, x1 * m_iRenderWidth, y1 * m_iRenderHeight, r * m_iRenderHeight,
+           0.0, 2 * M_PI);
+      cairo_stroke(m_pCairoCtx);
+*/
 
+   //cairo_set_source_rgba(m_pCairoCtx, m_ColorStroke[0]/255.0, m_ColorStroke[1]/255.0, m_ColorStroke[2]/255.0, m_ColorStroke[3]/255.0);
+   cairo_set_source_rgba(m_pCairoCtx,1,1,1,1);
    cairo_move_to (m_pCairoCtx, x1 * m_iRenderWidth, y1 * m_iRenderHeight); 
    cairo_line_to (m_pCairoCtx, x2 * m_iRenderWidth, y2 * m_iRenderHeight);
-   cairo_set_source_rgba(m_pCairoCtx, m_ColorStroke[0]/255.0, m_ColorStroke[1]/255.0, m_ColorStroke[2]/255.0, m_ColorStroke[3]/255.0);
+   //cairo_close_path(m_pCairoCtx);
    cairo_stroke (m_pCairoCtx);
 }
 
@@ -1000,7 +1012,7 @@ void RenderEngineCairo::drawRect(float xPos, float yPos, float fWidth, float fHe
          cairo_fill(m_pCairoCtx);
       }
       if ( m_fColorStroke[3] > 0.001 )
-      if ( m_fStrokeSize > 0.00001 )
+      if ( m_fStrokeSizePx > 0.00001 )
       {
          cairo_rectangle(m_pCairoCtx, xPos * m_iRenderWidth, yPos * m_iRenderHeight, fWidth * m_iRenderWidth, fHeight * m_iRenderHeight);  
          cairo_set_source_rgba(m_pCairoCtx, m_fColorStroke[0], m_fColorStroke[1], m_fColorStroke[2], m_fColorStroke[3]);
@@ -1034,7 +1046,7 @@ void RenderEngineCairo::drawRect(float xPos, float yPos, float fWidth, float fHe
       }
    }
    if ( m_ColorStroke[3] > 2 )
-   if ( m_fStrokeSize > 0.00001 )
+   if ( m_fStrokeSizePx > 0.00001 )
    {
       r = m_ColorStroke[0];
       g = m_ColorStroke[1];
@@ -1058,7 +1070,7 @@ void RenderEngineCairo::drawRect(float xPos, float yPos, float fWidth, float fHe
       cairo_fill(m_pCairoCtx);
    }
    if ( m_fColorStroke[3] > 0.001 )
-   if ( m_fStrokeSize > 0.00001 )
+   if ( m_fStrokeSizePx > 0.00001 )
    {
       cairo_rectangle(m_pCairoCtx, xPos * m_iRenderWidth, yPos * m_iRenderHeight, fWidth * m_iRenderWidth, fHeight * m_iRenderHeight);  
       cairo_set_source_rgba(m_pCairoCtx, m_fColorStroke[0], m_fColorStroke[1], m_fColorStroke[2], m_fColorStroke[3]);
@@ -1131,7 +1143,7 @@ void RenderEngineCairo::drawRoundRect(float xPos, float yPos, float fWidth, floa
       _draw_vline(xSt+w,   ySt+3, h-6 , r,g,b,a);
    }
 
-   if ( (m_ColorStroke[3] > 2) && (m_fStrokeSize >= 0.9) )
+   if ( (m_ColorStroke[3] > 2) && (m_fStrokeSizePx >= 0.9) )
    if ( (m_ColorStroke[0] != m_ColorFill[0]) ||
         (m_ColorStroke[1] != m_ColorFill[1]) ||
         (m_ColorStroke[2] != m_ColorFill[2]) ||
@@ -1202,7 +1214,7 @@ void RenderEngineCairo::fillTriangle(float x1, float y1, float x2, float y2, flo
 
    bool bStroke = false;
    if ( m_ColorStroke[3] > 2 )
-   if ( m_fStrokeSize > 0.00001 )
+   if ( m_fStrokeSizePx > 0.00001 )
       bStroke = true;
 
    if ( m_ColorFill[3] > 2 )
@@ -1449,7 +1461,7 @@ float RenderEngineCairo::textRawWidthScaled(u32 fontId, float fScale, const char
    strncpy(szTxt, szText, sizeof(szTxt)-3);
    
    cairo_scaled_font_t * pSFont = cairo_get_scaled_font(pCairoCtx);
-   
+
    cairo_glyph_t* glyphs = NULL;
    int glyph_count = 0;
    cairo_text_cluster_t* clusters = NULL;
@@ -1459,12 +1471,20 @@ float RenderEngineCairo::textRawWidthScaled(u32 fontId, float fScale, const char
    cairo_status_t result = cairo_scaled_font_text_to_glyphs(pSFont, 0, 0, szTxt, strlen(szTxt), &glyphs, &glyph_count, &clusters, &cluster_count, &clusterflags);
    if ( result != CAIRO_STATUS_SUCCESS )
    {
+      if ( NULL != glyphs )
+         cairo_glyph_free(glyphs);
+      if ( NULL != clusters )
+         cairo_text_cluster_free(clusters);
       log_softerror_and_alarm("[RenderEngineCairo] Failed to get text width: (%s)", szTxt);
       return 0.0;
    }
 
    if ( (0 == glyph_count) && (0 == cluster_count) )
    {
+      if ( NULL != glyphs )
+         cairo_glyph_free(glyphs);
+      if ( NULL != clusters )
+         cairo_text_cluster_free(clusters);
       log_softerror_and_alarm("[RenderEngineCairo] Failed to get text width glyphs: (%s)", szTxt);
       return 0.0;
    }
@@ -1484,7 +1504,12 @@ float RenderEngineCairo::textRawWidthScaled(u32 fontId, float fScale, const char
      fWidthPixelsGlyphs += extents.x_advance;
      glyph_index += cluster->num_glyphs;
      byte_index += cluster->num_bytes;
-  }
+   }
+
+   if ( NULL != glyphs )
+      cairo_glyph_free(glyphs);
+   if ( NULL != clusters )
+      cairo_text_cluster_free(clusters);
  
    if ( fWidthPixelsGlyphs <= 1.0 )
       return 0.0;

@@ -478,3 +478,33 @@ void hardware_camera_check_set_oipc_sensor()
    }
    #endif
 }
+
+void hardware_camera_set_default_oipc_calibration(int iCameraType)
+{
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+
+   hardware_camera_check_set_oipc_sensor();
+
+   char szMajComm[256];
+   szMajComm[0] = 0;
+   log_line("[HardwareCamera] Set default calibration for camera type: %d (%s)", iCameraType, str_get_hardware_camera_type_string(iCameraType));
+
+   if ( iCameraType == CAMERA_TYPE_OPENIPC_IMX335 )
+   {
+      if ( access("/etc/sensors/imx335_fpv.bin", R_OK) != -1 )
+         sprintf(szMajComm, "cli -s .isp.sensorConfig /etc/sensors/imx335_fpv.bin");
+      else
+         sprintf(szMajComm, "cli -s .isp.sensorConfig /etc/sensors/imx335.bin");
+   }
+   else
+   {
+      if ( access("/etc/sensors/imx415_fpv.bin", R_OK) != -1 )
+         sprintf(szMajComm, "cli -s .isp.sensorConfig /etc/sensors/imx415_fpv.bin");
+      else
+         sprintf(szMajComm, "cli -s .isp.sensorConfig /etc/sensors/imx415.bin");
+   }
+
+   if ( 0 != szMajComm[0] )
+      hw_execute_bash_command_raw(szMajComm, NULL);
+   #endif
+}

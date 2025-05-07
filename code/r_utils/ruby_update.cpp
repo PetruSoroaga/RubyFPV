@@ -101,6 +101,63 @@ void update_openipc_cpu(Model* pModel)
 }
 
 
+void do_update_to_111()
+{
+   log_line("Doing update to 11.1");
+ 
+   if ( ! s_isVehicle )
+   {
+      load_Preferences();
+      Preferences* pP = get_Preferences();
+      pP->uEnabledAlarms &= ~ (ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD | ALARM_ID_CONTROLLER_CPU_RX_LOOP_OVERLOAD | ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING);
+      pP->iVideoDestination = prefVideoDestination_Mem;
+      save_Preferences();
+
+      load_ControllerSettings();
+      ControllerSettings* pCS = get_ControllerSettings();
+      pCS->iNiceCentral = DEFAULT_PRIORITY_PROCESS_CENTRAL;
+      save_ControllerSettings();
+   }
+
+   Model* pModel = getCurrentModel();
+   if ( NULL == pModel )
+      return;
+
+   #if defined (HW_PLATFORM_OPENIPC_CAMERA)
+   hardware_camera_set_default_oipc_calibration(pModel->getActiveCameraType());
+   pModel->resetAudioParams();
+   #endif
+
+   pModel->uModelPersistentStatusFlags = 0;
+   pModel->radioInterfacesParams.uFlagsRadioInterfaces = 0;
+
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].iBlockPackets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].iBlockPackets = DEFAULT_VIDEO_BLOCK_PACKETS_HP;
+   pModel->video_link_profiles[VIDEO_PROFILE_USER].iBlockPackets = DEFAULT_VIDEO_BLOCK_PACKETS_HQ;
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].iBlockPackets = DEFAULT_MQ_VIDEO_BLOCK_PACKETS;
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].iBlockPackets = DEFAULT_LQ_VIDEO_BLOCK_PACKETS;
+
+   pModel->video_link_profiles[VIDEO_PROFILE_HIGH_QUALITY].iECPercentage = DEFAULT_VIDEO_EC_RATE_HQ;
+   pModel->video_link_profiles[VIDEO_PROFILE_BEST_PERF].iECPercentage = DEFAULT_VIDEO_EC_RATE_HP;
+   pModel->video_link_profiles[VIDEO_PROFILE_USER].iECPercentage = DEFAULT_VIDEO_EC_RATE_HQ;
+   pModel->video_link_profiles[VIDEO_PROFILE_MQ].iECPercentage = DEFAULT_VIDEO_EC_RATE_MQ;
+   pModel->video_link_profiles[VIDEO_PROFILE_LQ].iECPercentage = DEFAULT_VIDEO_EC_RATE_LQ;
+
+   for( int k=0; k<MODEL_MAX_CAMERAS; k++ )
+   {
+      pModel->camera_params[k].iCameraBinProfile = 0;
+      pModel->camera_params[k].szCameraBinProfileName[0] = 0;
+   }
+
+   for( int i=0; i<MAX_RADIO_INTERFACES; i++ )
+   {
+     pModel->radioLinksParams.uUplinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_AUTO;
+     pModel->radioLinksParams.uDownlinkDataDataRateType[i] = FLAG_RADIO_LINK_DATARATE_DATA_TYPE_AUTO;
+   }
+
+   log_line("Updated model VID %u (%s) to v11.1", pModel->uVehicleId, pModel->getLongName());
+}
+
 void do_update_to_110()
 {
    log_line("Doing update to 11.0");
@@ -122,6 +179,8 @@ void do_update_to_110()
    pModel->video_link_profiles[VIDEO_PROFILE_MQ].iECPercentage = DEFAULT_VIDEO_EC_RATE_MQ;
    pModel->video_link_profiles[VIDEO_PROFILE_LQ].iECPercentage = DEFAULT_VIDEO_EC_RATE_LQ;
    
+   pModel->radioInterfacesParams.iAutoVehicleTxPower = 0;
+
    log_line("Updated model VID %u (%s) to v11.0", pModel->uVehicleId, pModel->getLongName());
 }
 
@@ -1324,6 +1383,8 @@ int main(int argc, char *argv[])
       do_update_to_108();
    if ( iMajor < 11 )
       do_update_to_110();
+   if ( (iMajor < 11) || (iMajor == 11 && iMinor <= 1) )
+      do_update_to_111();
 
 
    saveCurrentModel();

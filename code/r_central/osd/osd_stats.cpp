@@ -212,7 +212,7 @@ float osd_stats_render_video_stream_graph(float xPos, float yPos, float fWidth, 
    for( float i=0; i<=fWidthGraph-2.0*wPixel; i+= 5*wPixel )
       g_pRenderEngine->drawLine(xPos+dxGraph+i, y+midLine, xPos + dxGraph + i + 2.0*wPixel, y+midLine);         
 
-   double colorECUsed[4] = {0,150,0, 1.0};
+   double colorECUsed[4] = {50,250,0, 1.0};
    double colorECMaxUsed[4] = {220,250,20, 1.0};
    double colorReqRetransmissions[4] = {100,100,255, 1.0};
    double colorRetransmitted[4] = {40,20,255,1.0};

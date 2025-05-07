@@ -78,6 +78,7 @@ void _controller_runtime_info_reset_dbm_slice(controller_runtime_info* pRTInfo, 
          pRTInfo->radioInterfacesDbm[iSliceIndex][k].iDbmNoiseMin[j] = 1000;
          pRTInfo->radioInterfacesDbm[iSliceIndex][k].iDbmNoiseMax[j] = 1000;
          pRTInfo->radioInterfacesDbm[iSliceIndex][k].iDbmNoiseAvg[j] = 1000;
+         pRTInfo->radioInterfacesDbm[iSliceIndex][k].uLastTimeCapture[j] = 0;
       }
    }
 }

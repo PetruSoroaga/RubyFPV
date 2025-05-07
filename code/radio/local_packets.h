@@ -46,6 +46,9 @@
 // u8 camera index
 // 1..N camera  params (type_camera_parameters struct)
 
+#define PACKET_TYPE_LOCAL_CONTROL_VEHICLE_CALIBRATION_FILE 202
+// Has a commands t_packet_header_command_upload_calib_file structure
+
 #define PACKET_TYPE_LOCAL_CONTROL_BROADCAST_VEHICLE_STATS 205 // contains a type_vehicle_stats_info structure
 
 #define PACKET_TYPE_LOCAL_CONTROLLER_SEARCH_FREQ_CHANGED 206 // used when changed the search frequency on the controller // vehicle_dest_src is the new frequency to search on

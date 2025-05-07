@@ -242,7 +242,8 @@ void Menu::setTitle(const char* szTitle)
    if ( NULL == szTitle )
       m_szTitle[0] = 0;
    else
-      strcpy(m_szTitle, szTitle);
+      strncpy(m_szTitle, szTitle, sizeof(m_szTitle)/sizeof(m_szTitle[0]));
+   m_szTitle[sizeof(m_szTitle)/sizeof(m_szTitle[0]) - 1] = 0;
    m_bInvalidated = true;
 }
 
@@ -251,7 +252,8 @@ void Menu::setSubTitle(const char* szSubTitle)
    if ( NULL == szSubTitle )
       m_szSubTitle[0] = 0;
    else
-      strcpy(m_szSubTitle, szSubTitle);
+      strncpy(m_szSubTitle, szSubTitle, sizeof(m_szSubTitle)/sizeof(m_szSubTitle[0]));
+   m_szSubTitle[sizeof(m_szSubTitle)/sizeof(m_szSubTitle[0]) - 1] = 0;
    m_bInvalidated = true;
 }
 
@@ -1464,6 +1466,7 @@ void Menu::onSelectItem()
    log_line("MenuBase:onSelectItem: menu id: %d, selected item index: %d", m_MenuId, m_SelectedIndex);
    if ( (m_MenuId%1000) == MENU_ID_SIMPLE_MESSAGE ) // simple message menu? just pop it and return.
    {
+      log_line("MenuBase:onSelectItem: it's a simple message (MENU_ID_SIMPLE_MESSAGE), just pop it.");
       menu_stack_pop(0);
       return;
    }

@@ -416,6 +416,9 @@ void MenuControllerPeripherals::Render()
 void MenuControllerPeripherals::onSelectItem()
 {
    Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
+
    ControllerSettings* pCS = get_ControllerSettings();
    ControllerInterfacesSettings* pCI = get_ControllerInterfacesSettings();
    if ( NULL == pCS || NULL == pCI)

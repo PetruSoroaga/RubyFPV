@@ -417,6 +417,10 @@ typedef struct
 #define FLAG_RUBY_TELEMETRY_HAS_FAST_UPLINK_FROM_CONTROLLER ((u32)(((u32)0x01)<<14)) // false if the fast uplink from controller is lost for more than TIMEOUT_LINK_TO_CONTROLLER_LOST
 #define FLAG_RUBY_TELEMETRY_HAS_SLOW_UPLINK_FROM_CONTROLLER ((u32)(((u32)0x01)<<15)) // false if the slow uplink from controller is lost for more than TIMEOUT_LINK_TO_CONTROLLER_LOST
 
+#define FLAG_RUBY_TELEMETRY_EXTRA_FLAGS_VERSION ((u32)(0x07))
+#define FLAG_RUBY_TELEMETRY_EXTRA_FLAGS_IS_IN_TX_PIT_MODE ((u32)(((u32)0x01)<<3))
+#define FLAG_RUBY_TELEMETRY_EXTRA_FLAGS_IS_IN_TX_PIT_MODE_HOT ((u32)(((u32)0x01)<<4))
+
 typedef struct
 {
    u16 uRubyFlags;    // see above
@@ -461,7 +465,7 @@ typedef struct // introduced in version 7.4
    u16 downlink_tx_data_packets_per_sec;
    u16 downlink_tx_compacted_packets_per_sec;
 
-   u8  temperature;
+   u8  temperatureC;
    u8  cpu_load;
    u16 cpu_mhz;
    u8  throttled;
@@ -501,7 +505,7 @@ typedef struct // introduced in version 10.4
    u16 downlink_tx_data_packets_per_sec;
    u16 downlink_tx_compacted_packets_per_sec;
 
-   u8  temperature;
+   u8  temperatureC;
    u8  cpu_load;
    u16 cpu_mhz;
    u8  throttled;
@@ -516,7 +520,8 @@ typedef struct // introduced in version 10.4
    u8  uplink_mavlink_rx_rssi; // 0...100, 255 - not available
 
    u16 txTimePerSec; // miliseconds
-   u16 extraFlags; // bits 0..3 : structure version (0 for now, first one, starting at v3)
+   u16 uExtraRubyFlags; // see above
+      // bits 0..3 : structure version (0 for now, first one, starting at v3)
    u8 extraSize; // Extra info as part of the packet, after headers, can be retransmission info
 } __attribute__((packed)) t_packet_header_ruby_telemetry_extended_v4;
 
@@ -585,7 +590,7 @@ typedef struct
    int32_t latitude; // 1/10000000;
    int32_t longitude; // 1/10000000;
 
-   u8 temperature; // temperature - 100 degree celsius (value 100 = 0 celsius)
+   u8 temperatureC; // temperature - 100 degree celsius (value 100 = 0 celsius)
    // Changed in v7.5 to 2 8 bit values
    //u16 fc_kbps; // kbits/s serial link volume from FC to Pi
    u8 fc_hudmsgpersec; // low 4 bits: heartbeat messages/sec; high 4 bits: system messages/sec; 
@@ -640,7 +645,7 @@ typedef struct
 typedef struct
 {
    u32 uFlags;
-   // bit 0,1,2: FC type: 0 BF, 1 INAV
+   // bit 0..2: FC type (see above): 1 BF, 2 INAV, 3 Ardupilot
    u8 uRows;
    u8 uCols;
    u32 uDummy;

@@ -184,7 +184,7 @@ void _check_rx_loop_consistency()
          if ( uRead > 0xFFFF ) uRead = 0xFFFF;
          if ( uQueue > 0xFFFF ) uQueue = 0xFFFF;
          
-         send_alarm_to_central(ALARM_ID_CPU_RX_LOOP_OVERLOAD, uMaxRxLoopTime, uRead | (uQueue<<16));
+         send_alarm_to_central(ALARM_ID_CONTROLLER_CPU_RX_LOOP_OVERLOAD, uMaxRxLoopTime, uRead | (uQueue<<16));
       }
    }
 }

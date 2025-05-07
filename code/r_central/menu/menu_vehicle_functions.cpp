@@ -86,8 +86,7 @@ void MenuVehicleFunctions::onReturnFromChild(int iChildMenuId, int returnValue)
 void MenuVehicleFunctions::onSelectItem()
 {
    Menu::onSelectItem();
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    bool sendToVehicle = false;

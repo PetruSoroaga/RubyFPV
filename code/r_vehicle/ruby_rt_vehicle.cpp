@@ -77,6 +77,7 @@
 #include "processor_tx_video.h"
 #include "process_received_ruby_messages.h"
 #include "process_radio_in_packets.h"
+#include "process_radio_out_packets.h"
 #include "launchers_vehicle.h"
 #include "../utils/utils_vehicle.h"
 #include "periodic_loop.h"
@@ -736,6 +737,7 @@ int _consume_ipc_messages()
          break;
 
       t_packet_header* pPH = (t_packet_header*)pBuffer;
+      //log_line("Received local packet from component %s, type: %s", str_get_component_id(pPH->vehicle_id_src), str_get_packet_type(pPH->packet_type));
       process_local_control_packet(pPH);
       iConsumed++;
    }
@@ -765,128 +767,26 @@ int process_and_send_packets()
       if ( NULL != g_pProcessStats )
          g_pProcessStats->lastIPCIncomingTime = g_TimeNow;
 
-      bMustInjectVideoDevStats = false;
-      bMustInjectVideoDevGraphs = false;
+      preprocess_radio_out_packet(pPacketBuffer, iPacketLength);
 
       t_packet_header* pPH = (t_packet_header*)pPacketBuffer;
-      pPH->packet_flags &= (~PACKET_FLAGS_BIT_CAN_START_TX);
-      if ( (pPH->packet_flags & PACKET_FLAGS_MASK_MODULE) == PACKET_COMPONENT_TELEMETRY )
+      if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED )
       {
-         // Update Ruby telemetry info if we are sending Ruby telemetry to controller
-         // Update also the telemetry extended extra info: retransmissions info
-
-         if ( pPH->packet_type == PACKET_TYPE_DEBUG_INFO )
-         {
-            type_u32_couters* pCounters = (type_u32_couters*) (pPacketBuffer + sizeof(t_packet_header));
-            memcpy(pCounters, &g_CoutersMainLoop, sizeof(type_u32_couters));
-
-            type_radio_tx_timers* pRadioTxInfo = (type_radio_tx_timers*) (pPacketBuffer + sizeof(t_packet_header) + sizeof(type_u32_couters));
-            memcpy(pRadioTxInfo, &g_RadioTxTimers, sizeof(type_radio_tx_timers));
-         }
-
-         if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_SHORT )
-         {
-            t_packet_header_ruby_telemetry_short* pPHRTShort = (t_packet_header_ruby_telemetry_short*) (pPacketBuffer + sizeof(t_packet_header));
-            if ( g_bHasFastUplinkFromController )
-               pPHRTShort->uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_FAST_UPLINK_FROM_CONTROLLER;
-            else
-               pPHRTShort->uRubyFlags &= ~FLAG_RUBY_TELEMETRY_HAS_FAST_UPLINK_FROM_CONTROLLER;
-
-            if ( g_bHasSlowUplinkFromController )
-               pPHRTShort->uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_SLOW_UPLINK_FROM_CONTROLLER;
-            else
-               pPHRTShort->uRubyFlags &= ~FLAG_RUBY_TELEMETRY_HAS_SLOW_UPLINK_FROM_CONTROLLER;
-         }
-
-         if ( pPH->packet_type == PACKET_TYPE_RUBY_TELEMETRY_EXTENDED )
-         {
-            if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_STATS) )
-               bMustInjectVideoDevStats = true;
-            if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG2_SHOW_ADAPTIVE_VIDEO_GRAPH) )
-               bMustInjectVideoDevStats = true;
-            if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_GRAPHS) )
-               bMustInjectVideoDevGraphs = true;
-
-            t_packet_header_ruby_telemetry_extended_v4* pPHRTE = (t_packet_header_ruby_telemetry_extended_v4*) (pPacketBuffer + sizeof(t_packet_header));
-            pPHRTE->downlink_tx_video_bitrate_bps = g_pProcessorTxVideo->getCurrentVideoBitrateAverageLastMs(500);
-            pPHRTE->downlink_tx_video_all_bitrate_bps = g_pProcessorTxVideo->getCurrentTotalVideoBitrateAverageLastMs(500);
-            if ( NULL != g_pProcessorTxAudio )
-               pPHRTE->downlink_tx_data_bitrate_bps += g_pProcessorTxAudio->getAverageAudioInputBps();
-            else
-               pPHRTE->downlink_tx_data_bitrate_bps = 0;
-
-            pPHRTE->downlink_tx_video_packets_per_sec = s_countTXVideoPacketsOutPerSec[0] + s_countTXVideoPacketsOutPerSec[1];
-            pPHRTE->downlink_tx_data_packets_per_sec = s_countTXDataPacketsOutPerSec[0] + s_countTXDataPacketsOutPerSec[1];
-            pPHRTE->downlink_tx_compacted_packets_per_sec = s_countTXCompactedPacketsOutPerSec[0] + s_countTXCompactedPacketsOutPerSec[1];
-
-            for( int i=0; i<hardware_get_radio_interfaces_count(); i++ )
-            {
-               // positive: regular datarates, negative: mcs rates;
-               pPHRTE->last_sent_datarate_bps[i][0] = get_last_tx_used_datarate_bps_video(i);
-               pPHRTE->last_sent_datarate_bps[i][1] = get_last_tx_used_datarate_bps_data(i);
-
-               pPHRTE->last_recv_datarate_bps[i] = g_UplinkInfoRxStats[i].lastReceivedDataRate;
-
-               pPHRTE->uplink_rssi_dbm[i] = g_UplinkInfoRxStats[i].lastReceivedDBM + 200;
-               pPHRTE->uplink_noise_dbm[i] = g_UplinkInfoRxStats[i].lastReceivedNoiseDBM;
-               pPHRTE->uplink_link_quality[i] = g_SM_RadioStats.radio_interfaces[i].rxQuality;
-               
-               if ( hardware_radio_index_is_wifi_radio(i))
-               {
-                  if ( g_TimeLastReceivedFastRadioPacketFromController < g_TimeNow-TIMEOUT_LINK_TO_CONTROLLER_LOST )
-                     pPHRTE->uplink_link_quality[i] = 0;
-                  else if ( (TIMEOUT_LINK_TO_CONTROLLER_LOST >= 2000) && (g_TimeLastReceivedFastRadioPacketFromController < g_TimeNow-(TIMEOUT_LINK_TO_CONTROLLER_LOST-1000)) && (pPHRTE->uplink_link_quality[i] > 20) )
-                     pPHRTE->uplink_link_quality[i] = 20;
-               }
-               else
-               {
-                  if ( g_TimeLastReceivedSlowRadioPacketFromController < g_TimeNow-TIMEOUT_LINK_TO_CONTROLLER_LOST )
-                     pPHRTE->uplink_link_quality[i] = 0;
-                  else if ( (TIMEOUT_LINK_TO_CONTROLLER_LOST >= 2000) && (g_TimeLastReceivedSlowRadioPacketFromController < g_TimeNow-(TIMEOUT_LINK_TO_CONTROLLER_LOST-1000)) && (pPHRTE->uplink_link_quality[i] > 20) )
-                     pPHRTE->uplink_link_quality[i] = 20;
-               }
-
-               if ( hardware_radio_index_is_wifi_radio(i) )
-               if ( ! g_bHasFastUplinkFromController )
-                  pPHRTE->uplink_link_quality[i] = 0;
-
-               if ( ! hardware_radio_index_is_wifi_radio(i) )
-               if ( ! g_bHasSlowUplinkFromController )
-                  pPHRTE->uplink_link_quality[i] = 0;
-            }
-
-            pPHRTE->txTimePerSec = g_RadioTxTimers.uComputedTotalTxTimeMilisecPerSecondAverage;
-
-            if ( g_bHasFastUplinkFromController )
-               pPHRTE->uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_FAST_UPLINK_FROM_CONTROLLER;
-            else
-               pPHRTE->uRubyFlags &= ~FLAG_RUBY_TELEMETRY_HAS_FAST_UPLINK_FROM_CONTROLLER;
-
-            if ( g_bHasSlowUplinkFromController )
-               pPHRTE->uRubyFlags |= FLAG_RUBY_TELEMETRY_HAS_SLOW_UPLINK_FROM_CONTROLLER;
-            else
-               pPHRTE->uRubyFlags &= ~FLAG_RUBY_TELEMETRY_HAS_SLOW_UPLINK_FROM_CONTROLLER;
-            
-            // Update extra info: retransmissions
-            
-            if ( pPHRTE->extraSize > 0 )
-            if ( pPHRTE->extraSize == sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions) )
-            if ( pPH->total_length == (sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v4) + sizeof(t_packet_header_ruby_telemetry_extended_extra_info_retransmissions)) )
-            {
-               memcpy( pPacketBuffer + sizeof(t_packet_header) + sizeof(t_packet_header_ruby_telemetry_extended_v4), (u8*)&g_PHTE_Retransmissions, sizeof(g_PHTE_Retransmissions));
-            }
-         }
+         if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_STATS) )
+            bMustInjectVideoDevStats = true;
+         if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->osd_params.osd_flags2[g_pCurrentModel->osd_params.iCurrentOSDScreen] & OSD_FLAG2_SHOW_ADAPTIVE_VIDEO_GRAPH) )
+            bMustInjectVideoDevStats = true;
+         if ( (NULL != g_pCurrentModel) && (g_pCurrentModel->uDeveloperFlags & DEVELOPER_FLAGS_BIT_ENABLE_VIDEO_LINK_GRAPHS) )
+            bMustInjectVideoDevGraphs = true;
       }
-      if ( pPH->packet_type == PACKET_TYPE_RUBY_PAIRING_CONFIRMATION )
-         log_line("Sending pairing request confirmation to controller (from VID %u to CID %u)", pPH->vehicle_id_src, pPH->vehicle_id_dest);
 
       send_packet_to_radio_interfaces(pPacketBuffer, iPacketLength, -1);
       iCountSent++;
-      if ( bMustInjectVideoDevStats )
-         _inject_video_link_dev_stats_packet();
-      if ( bMustInjectVideoDevGraphs )
-         _inject_video_link_dev_graphs_packet();
    }
+   if ( bMustInjectVideoDevStats )
+      _inject_video_link_dev_stats_packet();
+   if ( bMustInjectVideoDevGraphs )
+      _inject_video_link_dev_graphs_packet();
    return iCountSent;
 }
 
@@ -1167,7 +1067,7 @@ void _check_rx_loop_consistency()
          if ( uRead > 0xFFFF ) uRead = 0xFFFF;
          if ( uQueue > 0xFFFF ) uQueue = 0xFFFF;
 
-         send_alarm_to_controller(ALARM_ID_CPU_RX_LOOP_OVERLOAD, uMaxRxLoopTime, uRead | (uQueue<<16), 1);
+         send_alarm_to_controller(ALARM_ID_VEHICLE_CPU_RX_LOOP_OVERLOAD, uMaxRxLoopTime, uRead | (uQueue<<16), 1);
       }
    }
 }
@@ -1343,6 +1243,10 @@ int main(int argc, char *argv[])
          return -1;
       }
    }
+
+   g_bVehicleArmed = false;
+   if ( g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_FORCE_ARMED )
+      g_bVehicleArmed = true;
 
    u32 uRefreshIntervalMs = 100;
    switch ( g_pCurrentModel->m_iRadioInterfacesGraphRefreshInterval )

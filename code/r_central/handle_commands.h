@@ -15,6 +15,7 @@ void handle_commands_on_response_received(u8* pPacketBuffer, int iLength);
 u32  handle_commands_get_last_command_id_response_received();
 bool handle_commands_last_command_succeeded();
 
+u32 handle_commands_get_current_command_counter();
 u32 handle_commands_increment_command_counter();
 u32 handle_commands_decrement_command_counter();
 

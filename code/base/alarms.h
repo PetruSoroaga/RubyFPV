@@ -19,7 +19,7 @@
 #define ALARM_ID_VEHICLE_RX_TIMEOUT ((u32)(((u32)0x01)<<9))
 #define ALARM_ID_VEHICLE_LOW_STORAGE_SPACE ((u32)(((u32)0x01)<<10))
 #define ALARM_ID_VEHICLE_STORAGE_WRITE_ERRROR ((u32)(((u32)0x01)<<11))
-#define ALARM_ID_VEHICLE_VIDEO_TX_BITRATE_TOO_LOW ((u32)(((u32)0x01)<<12))
+#define ALARM_ID_VEHICLE_CPU_RX_LOOP_OVERLOAD ((u32)(((u32)0x01)<<12)) // param: loop miliseconds spike
 #define ALARM_ID_RADIO_INTERFACE_DOWN ((u32)(((u32)0x01)<<13)) // flags: interface index that is not working
 #define ALARM_ID_RADIO_INTERFACE_REINITIALIZED ((u32)(((u32)0x01)<<14)) // flags: interface index that was reinitialized
 #define ALARM_ID_VEHICLE_VIDEO_CAPTURE_RESTARTED ((u32)(((u32)0x01)<<15))
@@ -37,7 +37,7 @@
 #define ALARM_ID_CONTROLLER_STORAGE_WRITE_ERRROR ((u32)(((u32)0x01)<<23))
 #define ALARM_ID_CONTROLLER_PAIRING_COMPLETED ((u32)(((u32)0x01)<<24))
 #define ALARM_ID_FIRMWARE_OLD ((u32)(((u32)0x01)<<25))
-#define ALARM_ID_CPU_RX_LOOP_OVERLOAD ((u32)(((u32)0x01)<<26)) // param: loop miliseconds spike
+#define ALARM_ID_CONTROLLER_CPU_RX_LOOP_OVERLOAD ((u32)(((u32)0x01)<<26)) // param: loop miliseconds spike
 #define ALARM_ID_UNSUPPORTED_VIDEO_TYPE ((u32)(((u32)0x01)<<27))  // flags1: vehicle id, flags2: video type
 #define ALARM_ID_DEVELOPER_ALARM ((u32)(((u32)0x01)<<28))
 #define ALARM_ID_CONTROLLER_CPU_LOOP_OVERLOAD_RECORDING ((u32)(((u32)0x01)<<29)) // param: low word: loop miliseconds average, highword: loop miliseconds spike

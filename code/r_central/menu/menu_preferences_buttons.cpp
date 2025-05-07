@@ -73,6 +73,7 @@ MenuButtons::MenuButtons(void)
    m_pItemsSelect[c]->addSelection(L("Rotary Encoder Function"));
    m_pItemsSelect[c]->addSelection(L("Freeze OSD"));
    m_pItemsSelect[c]->addSelection(L("Cycle Favorite Vehicles"));
+   m_pItemsSelect[c]->addSelection(L("PIT Mode"));
    m_pItemsSelect[c]->setIsEditable();
    addMenuItem(m_pItemsSelect[c]);
    c++;
@@ -92,6 +93,7 @@ MenuButtons::MenuButtons(void)
    m_pItemsSelect[c]->addSelection(L("Rotary Encoder Function"));
    m_pItemsSelect[c]->addSelection(L("Freeze OSD"));
    m_pItemsSelect[c]->addSelection(L("Cycle Favorite Vehicles"));
+   m_pItemsSelect[c]->addSelection(L("PIT Mode"));
    m_pItemsSelect[c]->setIsEditable();
    addMenuItem(m_pItemsSelect[c]);
    c++;
@@ -111,6 +113,7 @@ MenuButtons::MenuButtons(void)
    m_pItemsSelect[c]->addSelection(L("Rotary Encoder Function"));
    m_pItemsSelect[c]->addSelection(L("Freeze OSD"));
    m_pItemsSelect[c]->addSelection(L("Cycle Favorite Vehicles"));
+   m_pItemsSelect[c]->addSelection(L("PIT Mode"));
    m_pItemsSelect[c]->setIsEditable();
    addMenuItem(m_pItemsSelect[c]);
    c++;
@@ -188,8 +191,7 @@ void MenuButtons::Render()
 void MenuButtons::onSelectItem()
 {
    Menu::onSelectItem();
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    ControllerSettings* pCS = get_ControllerSettings();

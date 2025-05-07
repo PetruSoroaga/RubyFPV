@@ -181,15 +181,15 @@ void MenuVehicleRCExpo::onItemValueChanged(int itemIndex)
 void MenuVehicleRCExpo::onSelectItem()
 {
    Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
+
 
    if ( handle_commands_is_command_in_progress() )
    {
       handle_commands_show_popup_progress();
       return;
    }
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
-      return;
 
    int index = m_SelectedIndex/m_iColumnsCount;
    int fsvalue = m_ItemsChannels[index].pItemValue->getCurrentValue();

@@ -54,7 +54,7 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_SET_MODEL_FLAGS: strcpy(szCommandDesc, "Set_Model_Flags"); break;
       case COMMAND_ID_SET_SIK_PACKET_SIZE: strcpy(szCommandDesc, "Set_SiK_Packet_Size"); break;
       case COMMAND_ID_RESET_RADIO_LINK: strcpy(szCommandDesc, "Reset_Radio_Link"); break;
-      case COMMAND_ID_SET_AUTO_TX_POWERS: strcpy(szCommandDesc, "SetAutoTxPowers"); break;
+      case COMMAND_ID_SET_PIT_AUTO_TX_POWERS_FLAGS: strcpy(szCommandDesc, "SetPITAutoTxPowersFlags"); break;
       case COMMAND_ID_GET_USB_INFO: strcpy(szCommandDesc, "Get_USB_Info"); break;
       case COMMAND_ID_SET_RADIO_LINK_CAPABILITIES: strcpy(szCommandDesc, "Set_Radio_Link_Capabilities"); break;
       case COMMAND_ID_GET_USB_INFO2: strcpy(szCommandDesc, "Get_USB_Info2"); break;
@@ -76,6 +76,7 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_SET_SERIAL_PORTS_INFO: strcpy(szCommandDesc, "Set_Serial_Ports_Info"); break;
       case COMMAND_ID_SET_AUDIO_PARAMS: strcpy(szCommandDesc, "Set_Audio_Params"); break;
       case COMMAND_ID_RESET_ALL_TO_DEFAULTS: strcpy(szCommandDesc, "ResetToDefaults"); break;
+      case COMMAND_ID_SET_TX_PIT_MODE: strcpy(szCommandDesc, "SetTxPitMode"); break;
       case COMMAND_ID_SET_VIDEO_PARAMS: strcpy(szCommandDesc, "Set_Video_Params"); break;
       case COMMAND_ID_UPDATE_VIDEO_LINK_PROFILES: strcpy(szCommandDesc, "Update_Video_Link_Profiles"); break;
       case COMMAND_ID_RESET_VIDEO_LINK_PROFILE: strcpy(szCommandDesc, "Reset_Video_Link_Profile"); break;
@@ -109,6 +110,7 @@ const char* commands_get_description(u8 command_type)
       case COMMAND_ID_RESET_ALL_DEVELOPER_FLAGS: strcpy(szCommandDesc, "Reset_All_Developer_Flags"); break;
       case COMMAND_ID_DEBUG_GET_TOP: strcpy(szCommandDesc, "Debug_Get_TOP"); break;
       case COMMAND_ID_SET_ENCRYPTION_PARAMS: strcpy(szCommandDesc, "Set Encryption Params"); break;
+      case COMMAND_ID_UPLOAD_CALIBRATION_FILE: strcpy(szCommandDesc, "Upload_Calibration_File"); break;
       case COMMAND_ID_DOWNLOAD_FILE: strcpy(szCommandDesc, "Download_File"); break;
       case COMMAND_ID_DOWNLOAD_FILE_SEGMENT: strcpy(szCommandDesc, "Download_File_Segment"); break;
       case COMMAND_ID_CLEAR_LOGS: strcpy(szCommandDesc, "Clear_Logs"); break;

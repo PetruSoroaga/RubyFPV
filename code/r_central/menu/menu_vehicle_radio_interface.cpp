@@ -128,6 +128,9 @@ void MenuVehicleRadioInterface::sendInterfaceRadioFlags(int iInterfaceIndex)
 void MenuVehicleRadioInterface::onSelectItem()
 {
    Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
+
    if ( handle_commands_is_command_in_progress() )
    {
       handle_commands_show_popup_progress();
@@ -139,9 +142,6 @@ void MenuVehicleRadioInterface::onSelectItem()
       handle_commands_show_popup_progress();
       return;
    }
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
-      return;
 
    if ( m_IndexCardModel == m_SelectedIndex )
    {

@@ -46,6 +46,7 @@ MenuConfirmation::MenuConfirmation(const char* szTitle, const char* szText, int 
    m_bShowDoNotShowAgain = false;
    m_bDoNotShowAgain = false;
    m_bDisablePairingUIActions = false;
+   m_bDefaultsToYes = false;
    m_uTimeoutMs = 0;
    m_uCloseOnTimeoutTime = 0;
    m_uIconId = 0;
@@ -70,6 +71,7 @@ MenuConfirmation::MenuConfirmation(const char* szTitle, const char* szText, int 
    m_bShowDoNotShowAgain = false;
    m_bDoNotShowAgain = false;
    m_bDisablePairingUIActions = false;
+   m_bDefaultsToYes = false;
    m_uTimeoutMs = 0;
    m_uCloseOnTimeoutTime = 0;
    m_uIconId = 0;
@@ -93,6 +95,11 @@ void MenuConfirmation::setOkActionText(const char* szText)
    if ( (NULL == szText) || (0 == szText[0]) )
       return;
    strncpy(m_szButtonOk, szText, sizeof(m_szButtonOk)/sizeof(m_szButtonOk[0])-1);
+}
+
+void MenuConfirmation::setDefaultActionPositive()
+{
+   m_bDefaultsToYes = true;
 }
 
 void MenuConfirmation::setIconId(u32 uIconId)
@@ -154,6 +161,14 @@ void MenuConfirmation::onShow()
 
       m_bDoNotShowAgain = (bool)getPreferencesDoNotShowAgain(m_iUniqueId);
       m_pCheckBox->setChecked(m_bDoNotShowAgain);
+   }
+
+   if ( ! m_bSingleOption )
+   if ( m_bDefaultsToYes )
+   if ( m_iIndexMenuOk != -1 )
+   {
+      m_SelectedIndex = 1;
+      onFocusedItemChanged();
    }
 }
  
@@ -225,8 +240,13 @@ int MenuConfirmation::onBack()
 void MenuConfirmation::onSelectItem()
 {
    log_line("Menu Confirmation: selected item: %d", m_SelectedIndex);
+
+   Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
    
    if ( (m_iIndexMenuOk != -1) && (m_iIndexMenuOk == m_SelectedIndex) )
+   if ( (m_MenuId%1000) != MENU_ID_SIMPLE_MESSAGE ) // if it's a simple message menu, it was poped up by menu base.
    {
       log_line("Menu Confirmation: will close with Ok, confirmation id: %d (%d)", m_MenuId, (m_MenuId - MENU_ID_CONFIRMATION)/1000);
       _saveDoNotShowFlag();

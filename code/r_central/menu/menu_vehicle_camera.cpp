@@ -35,18 +35,23 @@
 #include "menu_item_select.h"
 #include "menu_item_slider.h"
 #include "menu_calibrate_hdmi.h"
+#include "menu_confirmation.h"
+#include "../../base/hardware_files.h"
+#include "../osd/osd_common.h"
+#include <sys/types.h>
+#include <dirent.h>
 
 MenuVehicleCamera::MenuVehicleCamera(void)
 :Menu(MENU_ID_VEHICLE_CAMERA, L("Camera Settings"), NULL)
 {
-   m_Width = 0.30;
+   m_Width = 0.32;
    m_xPos = menu_get_XStartPos(m_Width); m_yPos = 0.13;
 
    m_bShowCompact = false;
    m_bDidAnyLiveUpdates = false;
    m_IndexShowFull = -1;
    m_iLastCameraType = -1;
-
+   m_iSelectionIndexCalibration = -1;
    resetIndexes();
 }
 
@@ -80,6 +85,7 @@ void MenuVehicleCamera::resetIndexes()
    m_IndexIRCut = -1;
    m_IndexOpenIPCDayNight = -1;
    m_IndexOpenIPC3A = -1;
+   m_IndexOpenIPCBinProfile = -1;
 }
 
 void MenuVehicleCamera::onShow()
@@ -467,11 +473,38 @@ void MenuVehicleCamera::addItems()
       m_IndexOpenIPCDayNight = addMenuItem(m_pItemsSelect[21]);
    }
 
+   m_IndexOpenIPCBinProfile = -1;
+   if ( ! m_bShowCompact )
+   if (g_pCurrentModel->isRunningOnOpenIPCHardware())
+   if (g_pCurrentModel->isActiveCameraOpenIPC())
+   {
+      m_pItemsSelect[23] = new MenuItemSelect(L("Sensor Calibration File"), L("Sets the camera ISP sensor calibration file to use. Affects WDR, light sensitivity, how camera handles changing light conditions."));
+      m_pItemsSelect[23]->addSelection(L("Default"));
+
+      if ( g_pCurrentModel->isActiveCameraSensorOpenIPCIMX415() )
+      {
+         m_pItemsSelect[23]->addSelection("RunCam");      
+         m_pItemsSelect[23]->addSelection("FPV-2 for IMX415");
+         m_pItemsSelect[23]->addSelection("Milos for IMX415");
+      }
+      else
+      {
+         m_pItemsSelect[23]->addSelection("FPV-2 for IMX335");
+         m_pItemsSelect[23]->addSelection("Milos for IMX335");       
+      }
+      populateCalibrationFiles();
+      m_pItemsSelect[23]->addSelection(L("Import additional files"));
+      m_pItemsSelect[23]->addSelection(L("Delete all custom files"));
+      m_pItemsSelect[23]->setIsEditable();
+      m_iSelectionIndexCalibration = 0;
+      m_IndexOpenIPCBinProfile = addMenuItem(m_pItemsSelect[23]);
+   }
+
    m_IndexReset = -1;
    if ( ! m_bShowCompact )
    {
       m_IndexReset = addMenuItem(new MenuItem(L("Reset Profile"), L("Resets the current vehicle's camera paramters (brightness, contrast, etc) to the default values for the current profile.")));
-      m_pMenuItems[m_IndexReset]->setMargin(fMargin);
+      //m_pMenuItems[m_IndexReset]->setMargin(fMargin);
    }
 
    m_IndexCalibrateHDMI = -1;
@@ -500,6 +533,9 @@ void MenuVehicleCamera::updateUIValues(int iCameraProfileIndex)
 {   
    if ( (m_IndexCamera != -1) && (NULL != m_pItemsSelect[11]) )
       m_pItemsSelect[11]->setSelection(g_pCurrentModel->iCurrentCamera);
+
+   if ( -1 != m_IndexOpenIPCBinProfile )
+      updateCalibrationFileSelection();
 
    if ( -1 != m_IndexForceMode )
    {
@@ -692,6 +728,60 @@ void MenuVehicleCamera::valuesToUI()
    updateUIValues(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCurrentProfile);
 }
 
+void MenuVehicleCamera::updateCalibrationFileSelection()
+{
+   if ( -1 == m_IndexOpenIPCBinProfile )
+      return;
+
+   int iCameraBinProfile = g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraBinProfile;
+   if ( 0 == iCameraBinProfile )
+   {
+      m_pItemsSelect[23]->setSelectedIndex(0);
+      return;
+   }
+   if ( g_pCurrentModel->isActiveCameraSensorOpenIPCIMX415() )
+   {
+      if ( 2 == iCameraBinProfile )
+      {
+         m_pItemsSelect[23]->setSelectedIndex(1);
+         return;
+      }
+      if ( 3 == iCameraBinProfile )
+      {
+         m_pItemsSelect[23]->setSelectedIndex(2);
+         return;
+      }
+      if ( 4 == iCameraBinProfile )
+      {
+         m_pItemsSelect[23]->setSelectedIndex(3);
+         return;
+      }
+   }
+   else
+   {
+      if ( 3 == iCameraBinProfile )
+      {
+         m_pItemsSelect[23]->setSelectedIndex(1);
+         return;
+      }
+      if ( 4 == iCameraBinProfile )
+      {
+         m_pItemsSelect[23]->setSelectedIndex(2);
+         return;
+      }    
+   }
+
+   for( int i=0; i<m_pItemsSelect[23]->getSelectionsCount(); i++ )
+   {
+      char* szSelection = m_pItemsSelect[23]->getSelectionIndexText(i);
+      if ( (0 != g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName[0]) && (NULL != szSelection) )
+      if ( NULL != strstr(szSelection, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName) )
+      {
+         m_pItemsSelect[23]->setSelectedIndex(i);
+         return;
+      }
+   }
+}
 
 void MenuVehicleCamera::Render()
 {
@@ -927,6 +1017,279 @@ void MenuVehicleCamera::onItemValueChanged(int itemIndex)
    sendCameraParams(itemIndex, true);
 }
 
+void MenuVehicleCamera::populateCalibrationFiles()
+{
+   DIR *d;
+   struct dirent *dir;
+   char szFile[MAX_FILE_PATH_SIZE];
+   int iCountFound = 0;
+   d = opendir(FOLDER_CALIBRATION_FILES);
+
+   if ( ! d )
+      return;
+
+   bool bFoundCurrentCalibrationFile = false;
+
+   while ((dir = readdir(d)) != NULL)
+   {
+      if ( strlen(dir->d_name) < 4 )
+         continue;
+      if ( NULL == strstr(dir->d_name, ".bin") )
+         continue;
+      if ( NULL != strstr(dir->d_name, " ") )
+         continue;
+
+      snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s/%s", FOLDER_CALIBRATION_FILES, dir->d_name);
+      long lSize = get_filesize(szFile);
+      if ( (lSize < 1000) || (lSize > 300000) )
+         continue;
+
+      strncpy(szFile, dir->d_name, sizeof(szFile)/sizeof(szFile[0]));
+      char* pExt = strstr(szFile, ".bin");
+      if ( NULL != pExt )
+         *pExt = 0; 
+      m_pItemsSelect[23]->addSelection(szFile);
+      iCountFound++;
+
+      if ( 0 != g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraBinProfile )
+      if ( 0 != g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName[0] )
+      if ( NULL != strstr(szFile, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName) )
+      {
+         bFoundCurrentCalibrationFile = true;
+      }
+   }
+
+   if ( ! bFoundCurrentCalibrationFile )
+   if ( 1 == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraBinProfile )
+   if ( 0 != g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName[0] )
+      m_pItemsSelect[23]->addSelection(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName);
+   closedir(d);
+}
+
+void MenuVehicleCamera::importCalibrationFiles()
+{
+   char szComm[256];
+   snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "mkdir -p %s 2>/dev/null 1>/dev/null", FOLDER_CALIBRATION_FILES);
+   hw_execute_bash_command(szComm, NULL);
+
+   if ( 1 != hardware_try_mount_usb() )
+   {
+      addMessage(L("No USB memory stick detected. Please insert a USB stick."));
+      return;
+   }
+   ruby_pause_watchdog();
+
+   //sprintf(szComm, "find %s/gs.key 2>/dev/null", FOLDER_USB_MOUNT);
+   //hw_execute_bash_command(szComm, szOutput);
+
+   DIR *d;
+   struct dirent *dir;
+   char szFile[MAX_FILE_PATH_SIZE];
+   int iCountFound = 0;
+   d = opendir(FOLDER_USB_MOUNT);
+
+   if ( ! d )
+   {
+      hardware_unmount_usb();
+      ruby_resume_watchdog();
+      addMessage(L("Failed to quiery the USB memory stick."));
+      return;
+   }
+
+   while ((dir = readdir(d)) != NULL)
+   {
+      if ( strlen(dir->d_name) < 4 )
+         continue;
+      if ( NULL == strstr(dir->d_name, ".bin") )
+         continue;
+      if ( NULL != strstr(dir->d_name, " ") )
+         continue;
+
+      snprintf(szFile, sizeof(szFile)/sizeof(szFile[0]), "%s/%s", FOLDER_USB_MOUNT, dir->d_name);
+      long lSize = get_filesize(szFile);
+      if ( (lSize < 1000) || (lSize > 300000) )
+         continue;
+
+      iCountFound++;
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s %s%s",
+         szFile, FOLDER_CALIBRATION_FILES, dir->d_name);
+      hw_execute_bash_command(szComm, NULL);
+   }   
+   closedir(d);
+
+   hardware_unmount_usb();
+   ruby_resume_watchdog();
+   onShow();
+   char szText[256];
+   if ( 0 == iCountFound )
+      strcpy(szText, L("No valid camera calibration files (.bin) found on the USB memory stick."));
+   else
+      sprintf(szText, "Imported %d camera calibration files", iCountFound);
+   addMessage(szText);
+   valuesToUI();
+
+}
+
+void MenuVehicleCamera::uploadCalibrationFile(int iType, const char* szCalibrationFile)
+{
+   if ( (NULL == szCalibrationFile) || (0 == szCalibrationFile[0]) )
+   {
+      addMessage("Tried to upload invalid calibration file.");
+      valuesToUI();
+      return;
+   }
+
+   char szCalibFileSelected[MAX_FILE_PATH_SIZE];
+   if ( NULL != strstr(szCalibrationFile, "res/") )
+   {
+      log_line("MenuVehicleCamera: Uploading standard calib file: [%s]", szCalibrationFile);
+      char szComm[256];
+      char* pFileName = (char*)strstr(szCalibrationFile, "res/");
+      pFileName += 4;
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s%s %s%s", FOLDER_RESOURCES, pFileName, FOLDER_CALIBRATION_FILES, pFileName);
+      hw_execute_bash_command(szComm, NULL);
+      strcpy(szCalibFileSelected, pFileName);
+      char* pExt = (char*) strstr(szCalibFileSelected, ".bin");
+      if ( NULL != pExt )
+         *pExt = 0;
+   }
+   else
+      strcpy(szCalibFileSelected, szCalibrationFile);
+
+   log_line("MenuVehicleCamera: Source calibration file to upload: [%s]", szCalibFileSelected);
+
+   t_packet_header_command_upload_calib_file calib_segment_data;
+   memset(&calib_segment_data, 0, sizeof(t_packet_header_command_upload_calib_file));
+
+   static int s_iCalibrationFileUploadIndex = 0;
+   s_iCalibrationFileUploadIndex++;
+
+   calib_segment_data.calibration_file_type = iType;
+   calib_segment_data.iUploadFileIndex = s_iCalibrationFileUploadIndex;
+   strncpy(calib_segment_data.szFileName, szCalibFileSelected, 63);
+
+   char szFileName[MAX_FILE_PATH_SIZE];
+   strcpy(szFileName, FOLDER_CALIBRATION_FILES);
+   strcat(szFileName, szCalibFileSelected);
+   strcat(szFileName, ".bin");
+   log_line("MenuVehicleCamera: Sending calibration file [%s] to vehicle...", szFileName);
+   int iFileSize = (int)get_filesize(szFileName);
+
+   if ( (iFileSize < 1000) || (iFileSize > 200000) )
+   {
+      log_softerror_and_alarm("MenuVehicleCamera: Tried to send invalid calibration file of %d bytes", iFileSize);
+      addMessage("Tried to upload invalid calibration file (too big).");
+      valuesToUI();
+      return;
+   }
+
+   FILE* fp = fopen(szFileName, "rb");
+   if ( NULL == fp )
+   {
+      log_softerror_and_alarm("MenuVehicleCamera: Failed to open calibration file.");
+      addMessage("Failed to upload invalid calibration file.");
+      valuesToUI();
+      return;
+   }
+
+   Popup* p = new Popup(L("Uploading camera calibration file. Please wait..."), 0.3, 0.3, 0.7, 60 );
+   p->setCentered();
+   p->setIconId(g_idIconUplink, get_Color_IconNormal());
+   p->addLine("0%");
+   popups_add_topmost(p);
+
+   ruby_pause_watchdog();
+   g_bUpdateInProgress = true;
+   send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_UPDATE_STARTED,0);
+
+   int iBlockSize = 1100;
+   int iCountSegments = iFileSize / iBlockSize;
+   if ( iFileSize > iCountSegments * iBlockSize )
+      iCountSegments++;
+
+   calib_segment_data.total_file_size = iFileSize;
+
+   send_control_message_to_router(PACEKT_TYPE_LOCAL_CONTROLLER_ADAPTIVE_VIDEO_PAUSE, 30000);
+
+   u32 uTimeLastRender = g_TimeNow;
+   u8 uSegmentData[4096];
+   int iSegmentOffset = 0;
+
+   for( int iSegment=0; iSegment<iCountSegments; iSegment++ )
+   {
+      log_line("MenuVehicleCamera: Sending segment %d of %d", iSegment, iCountSegments);
+      int iRead = fread(&uSegmentData[sizeof(t_packet_header_command_upload_calib_file)], 1, iBlockSize, fp);
+      if ( iRead <= 0 )
+      {
+         log_softerror_and_alarm("MenuVehicleCamera: Failed to read calibration file segment %d (of %d), error: %d", iSegment, iCountSegments, iRead);
+         addMessage("An internal error occured uploading calibration file.");
+         send_control_message_to_router(PACEKT_TYPE_LOCAL_CONTROLLER_ADAPTIVE_VIDEO_PAUSE, 0);
+         valuesToUI();
+         break;
+      }
+
+      g_TimeNow = get_current_timestamp_ms();
+      g_TimeNowMicros = get_current_timestamp_micros();
+      ruby_signal_alive();
+
+      calib_segment_data.segment_index = iSegment;
+      calib_segment_data.segment_offset = iSegmentOffset;
+      calib_segment_data.segment_length = iRead;
+      calib_segment_data.is_last_segment = 0;
+      if ( iSegment == (iCountSegments-1) )
+         calib_segment_data.is_last_segment = 1;
+      iSegmentOffset += iRead;
+
+      memcpy(uSegmentData, &calib_segment_data, sizeof(t_packet_header_command_upload_calib_file));
+      if ( ! handle_commands_send_to_vehicle(COMMAND_ID_UPLOAD_CALIBRATION_FILE, 0, uSegmentData, sizeof(t_packet_header_command_upload_calib_file)+iRead) )
+      {
+         log_softerror_and_alarm("MenuVehicleCamera: Failed to send command to vehicle.");
+         addMessage("Failed to send command to vehicle.");
+         send_control_message_to_router(PACEKT_TYPE_LOCAL_CONTROLLER_ADAPTIVE_VIDEO_PAUSE, 0);
+         valuesToUI();
+         break;
+      }
+
+      u32 uCommandId = handle_commands_get_current_command_counter();
+      u32 uTimeStartWait = g_TimeNow;
+
+      while ( g_TimeNow < uTimeStartWait + 4000 )
+      {
+         g_TimeNow = get_current_timestamp_ms();
+         g_TimeNowMicros = get_current_timestamp_micros();
+         ruby_signal_alive();
+         ruby_processing_loop(true);
+         if ( g_TimeNow > (uTimeLastRender+100) )
+         {
+            p->removeAllLines();
+            char szLine[128];
+            sprintf(szLine, "%d%%", (iSegment*100)/iCountSegments);
+            p->addLine(szLine);
+            uTimeLastRender = g_TimeNow;
+            render_all(g_TimeNow);
+         }
+         if ( handle_commands_get_last_command_id_response_received() == uCommandId )
+            break;
+      }
+      if ( (! handle_commands_last_command_succeeded()) || (handle_commands_get_last_command_id_response_received() != uCommandId) )
+      {
+         log_softerror_and_alarm("MenuVehicleCamera: Failed to get response from vehicle.");
+         addMessage("Failed to get response from vehicle.");
+         send_control_message_to_router(PACEKT_TYPE_LOCAL_CONTROLLER_ADAPTIVE_VIDEO_PAUSE, 0);
+         valuesToUI();
+         break;
+      }
+   }
+
+   fclose(fp);
+   popups_remove(p);
+   send_control_message_to_router(PACKET_TYPE_LOCAL_CONTROL_UPDATE_STOPED,0);
+   ruby_resume_watchdog();
+   g_bUpdateInProgress = false;
+   addMessage(L("Camera calibration file was uploaded and applied."));
+   valuesToUI();
+}
+
 void MenuVehicleCamera::onItemEndEdit(int itemIndex)
 {
    Menu::onItemEndEdit(itemIndex);
@@ -937,18 +1300,60 @@ void MenuVehicleCamera::onItemEndEdit(int itemIndex)
 }
 
 
+void MenuVehicleCamera::onReturnFromChild(int iChildMenuId, int returnValue)
+{
+   Menu::onReturnFromChild(iChildMenuId, returnValue);
+
+   log_line("MenuVehicleCamera: Returned from child id: %d, return value: %d", iChildMenuId, returnValue);
+   
+   // Delete calibration files
+   if ( (1 == iChildMenuId/1000) && (1 == returnValue) )
+   {
+      // Preserve existing custom one
+      char szComm[256];
+
+      if ( g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName[0] != 0 )
+      {
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s%s.bin %s%s.bin",
+             FOLDER_CALIBRATION_FILES, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName,
+             FOLDER_RUBY_TEMP, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName);
+         hw_execute_bash_command(szComm, NULL);
+      }
+      snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "rm -rf %s* 2>/dev/null 1>/dev/null", FOLDER_CALIBRATION_FILES);
+      hw_execute_bash_command(szComm, NULL);
+      if ( g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName[0] != 0 )
+      {
+         snprintf(szComm, sizeof(szComm)/sizeof(szComm[0]), "cp -rf %s%s.bin %s%s.bin",
+             FOLDER_RUBY_TEMP, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName,
+             FOLDER_CALIBRATION_FILES, g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].szCameraBinProfileName);
+         hw_execute_bash_command(szComm, NULL);
+      }
+      onShow();
+      addMessage(L("All custom camera calibration files have been deleted."));
+      valuesToUI();
+      return;
+   }
+
+   // Import calibration files
+   if ( (2 == iChildMenuId/1000) && (1 == returnValue) )
+   {
+      importCalibrationFiles();
+      valuesToUI();
+      return;
+   }
+}
+
 void MenuVehicleCamera::onSelectItem()
 {
    Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
 
    if ( handle_commands_is_command_in_progress() )
    {
       handle_commands_show_popup_progress();
       return;
    }
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
-      return;
 
    g_TimeLastVideoCameraChangeCommand = g_TimeNow;
 
@@ -1120,5 +1525,78 @@ void MenuVehicleCamera::onSelectItem()
    {
       g_pCurrentModel->resetCameraToDefaults(g_pCurrentModel->iCurrentCamera);
       handle_commands_send_to_vehicle(COMMAND_ID_SET_CAMERA_PARAMETERS, g_pCurrentModel->iCurrentCamera, (u8*)(&(g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera])), sizeof(type_camera_parameters));
+   }
+
+   if ( (-1 != m_IndexOpenIPCBinProfile) && (m_IndexOpenIPCBinProfile == m_SelectedIndex) )
+   {
+      int iIndexSelection = m_pItemsSelect[23]->getSelectedIndex();
+      int iSelectionsCount = m_pItemsSelect[23]->getSelectionsCount();
+
+      log_line("MenuVehicleCamera: Selected calibration index %d of %d", iIndexSelection, iSelectionsCount);
+
+      if ( 0 == iIndexSelection )
+      {
+         send_control_message_to_router(PACEKT_TYPE_LOCAL_CONTROLLER_ADAPTIVE_VIDEO_PAUSE, 12000);
+         t_packet_header_command_upload_calib_file header;
+         memset(&header, 0, sizeof(t_packet_header_command_upload_calib_file));
+         header.calibration_file_type = 0;
+         header.segment_index = MAX_U32;
+         if ( ! handle_commands_send_to_vehicle(COMMAND_ID_UPLOAD_CALIBRATION_FILE, 0, (u8*)(&header), sizeof(t_packet_header_command_upload_calib_file)) )
+         {
+            send_control_message_to_router(PACEKT_TYPE_LOCAL_CONTROLLER_ADAPTIVE_VIDEO_PAUSE, 0);
+            valuesToUI();
+         }
+         return;
+      }
+      if ( iIndexSelection == iSelectionsCount - 1 )
+      {
+         m_pItemsSelect[23]->setSelectedIndex(m_iSelectionIndexCalibration);
+         MenuConfirmation* pMC = new MenuConfirmation(L("Warning! Delete Confirmation"), L("Are you sure you want to delete all custom calibration files you imported on the controller?"), 1);
+         pMC->addTopLine(L("All custom camera calibration files you imported to this controller will be deleted."));
+         add_menu_to_stack(pMC);
+         return;
+      }
+      if ( iIndexSelection == iSelectionsCount - 2 )
+      {
+         m_pItemsSelect[23]->setSelectedIndex(m_iSelectionIndexCalibration);
+         MenuConfirmation* pMC = new MenuConfirmation(L("Import Files"), L("Import custom camera calibration files from a USB memory stick."), 2, true);
+         pMC->addTopLine(L("Insert a USB memory stick into the controller and press [Ok] to import any camera custom calibrations files present on the memory stick."));
+         add_menu_to_stack(pMC);
+         return;
+      }
+
+      if ( g_pCurrentModel->isActiveCameraSensorOpenIPCIMX415() )
+      {
+         if ( iIndexSelection == 1 )
+         {
+            uploadCalibrationFile(2, "res/imx415_runcam_20240717.bin");
+            return;
+         }
+         if ( iIndexSelection == 2 )
+         {
+            uploadCalibrationFile(3, "res/imx415_ssc338q_20240613.bin");
+            return;
+         }
+         if ( iIndexSelection == 3 )
+         {
+            uploadCalibrationFile(4, "res/imx415_milos12.bin");
+            return;
+         }
+      }
+      else
+      {
+         if ( iIndexSelection == 1 )
+         {
+            uploadCalibrationFile(3, "res/imx335_ssc338q_20240628.bin");
+            return;
+         }
+         if ( iIndexSelection == 2 )
+         {
+            uploadCalibrationFile(4, "res/imx335_milos6.bin");
+            return;
+         }
+      }
+
+      uploadCalibrationFile(1, m_pItemsSelect[23]->getSelectionIndexText(iIndexSelection));
    }
 }

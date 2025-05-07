@@ -316,6 +316,10 @@ bool MenuVehicle::periodicLoop()
 
 void MenuVehicle::onSelectItem()
 {
+   Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
+
    if ( NULL == g_pCurrentModel )
    {
       Popup* p = new Popup(true, L("Vehicle is offline"), 4 );

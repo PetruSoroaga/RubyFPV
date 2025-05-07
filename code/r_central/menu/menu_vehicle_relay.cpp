@@ -699,8 +699,7 @@ void MenuVehicleRelay::onSelectItem()
    Preferences* pP = get_Preferences();
    
    Menu::onSelectItem();
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    if ( handle_commands_is_command_in_progress() )

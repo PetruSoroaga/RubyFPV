@@ -101,6 +101,8 @@ void MenuVehicleCameraGains::onItemValueChanged(int itemIndex)
 void MenuVehicleCameraGains::onSelectItem()
 {
    Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
 
    if ( handle_commands_is_command_in_progress() )
    {

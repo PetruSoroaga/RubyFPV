@@ -587,11 +587,7 @@ void MenuVehicleVideoEncodings::sendVideoParams()
 void MenuVehicleVideoEncodings::onSelectItem()
 {
    Menu::onSelectItem();
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
-      return;
-
-   if ( -1 == m_SelectedIndex )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    if ( handle_commands_is_command_in_progress() )

@@ -44,6 +44,9 @@ vehicle_runtime_info g_VehicleRuntimeInfo;
 type_uplink_rx_info_stats g_UplinkInfoRxStats[MAX_RADIO_INTERFACES];
 int g_iDefaultRouterThreadPriority = -1;
 
+bool g_bVehicleArmed = false;
+int g_iVehicleSOCTemperatureC = 0;
+
 t_sik_radio_state g_SiKRadiosState;
 
 bool g_bReinitializeRadioInProgress = false;

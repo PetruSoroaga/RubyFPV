@@ -1862,6 +1862,7 @@ void _main_loop_simple(bool bDoBasicTxSync)
          g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iCountAntennas = pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount;
          for( int k=0; k<pRadioHWInfo->runtimeInterfaceInfoRx.radioHwRxInfo.nAntennaCount; k++ )
          {
+            g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].uLastTimeCapture[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.uLastTimeCapture[k];
             g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmLast[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmLast[k];
             g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmMin[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmMin[k];
             g_SMControllerRTInfo.radioInterfacesDbm[g_SMControllerRTInfo.iCurrentIndex][i].iDbmMax[k] = g_SM_RadioStats.radio_interfaces[i].signalInfo.dbmValuesAll.iDbmMax[k];
@@ -1914,6 +1915,7 @@ void _main_loop_simple(bool bDoBasicTxSync)
         bDoBasicTxSync?"basic":"simple", g_pProcessStats->uLoopCounter, tTime4 - tTime0, tTime1-tTime0, tTime2-tTime1, tTime3-tTime2, tTime4-tTime3,
         rx_video_is_recording()?"yes":"no", s_iCountCPULoopOverflows+1);
       if ( ! test_link_is_in_progress() )
+      if ( g_pControllerSettings->iDeveloperMode )
       if ( g_TimeNow > rx_video_recording_get_last_start_stop_time() + 2000 )
       {
          s_iCountCPULoopOverflows++;
@@ -2090,6 +2092,7 @@ void _main_loop_adv_sync()
          g_pProcessStats->uLoopCounter, tTime4 - tTime0, tTime1-tTime0, tTime2-tTime1, tTime3-tTime2, tTime4-tTime3,
          rx_video_is_recording()?"yes":"no", s_iCountCPULoopOverflows+1);
       if ( ! test_link_is_in_progress() )
+      if ( g_pControllerSettings->iDeveloperMode )
       {
          s_iCountCPULoopOverflows++;
          if ( rx_video_is_recording() )

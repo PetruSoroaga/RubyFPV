@@ -29,6 +29,7 @@ typedef struct
    int iDbmNoiseMin[MAX_RADIO_ANTENNAS];
    int iDbmNoiseMax[MAX_RADIO_ANTENNAS];
    int iDbmNoiseAvg[MAX_RADIO_ANTENNAS];
+   u32 uLastTimeCapture[MAX_RADIO_ANTENNAS];
 } ALIGN_STRUCT_SPEC_INFO controller_runtime_info_radio_interface_rx_signal;
 
 

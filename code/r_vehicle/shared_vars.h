@@ -25,6 +25,7 @@ typedef struct
    int lastReceivedDBM;
    int lastReceivedNoiseDBM;
    int lastReceivedDataRate;
+   u32 uTimeLastCapture;
 }
 type_uplink_rx_info_stats;
 
@@ -69,6 +70,9 @@ extern shared_mem_radio_stats g_SM_RadioStats;
 extern shared_mem_radio_stats_rx_hist* g_pSM_HistoryRxStats;
 extern shared_mem_radio_stats_rx_hist g_SM_HistoryRxStats;
 extern vehicle_runtime_info g_VehicleRuntimeInfo;
+
+extern bool g_bVehicleArmed;
+extern int g_iVehicleSOCTemperatureC;
 
 extern type_uplink_rx_info_stats g_UplinkInfoRxStats[MAX_RADIO_INTERFACES];
 

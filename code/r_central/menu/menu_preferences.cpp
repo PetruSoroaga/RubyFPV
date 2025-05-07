@@ -112,8 +112,7 @@ void MenuPreferences::Render()
 void MenuPreferences::onSelectItem()
 {
    Menu::onSelectItem();
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    ControllerSettings* pCS = get_ControllerSettings();

@@ -86,7 +86,7 @@ void telemetry_init()
    sPHFCT.fc_hudmsgpersec = 0;
    sPHFCT.fc_kbps = 0;
    sPHFCT.rc_rssi = 0xFF;
-   sPHFCT.temperature = 0;
+   sPHFCT.temperatureC = 0;
    for( int i=0; i<(int)(sizeof(sPHFCT.extra_info)/sizeof(sPHFCT.extra_info[0])); i++ )
       sPHFCT.extra_info[i] = 0;
 
@@ -335,7 +335,8 @@ bool _telemetry_must_send_raw_telemetry_to_controller()
         (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_LTM) )
    {
       bool bMustSendFullTelemetryPackets = false;
-      if ( g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SEND_FULL_PACKETS_TO_CONTROLLER )
+      if ( (g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SEND_FULL_TELEMETRY_TO_CONTROLLER) ||
+           (g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SEND_FULL_TELEMETRY_TO_CONTROLLER_PLUGINS) )
         bMustSendFullTelemetryPackets = true;
       if ( g_pCurrentModel->telemetry_params.bControllerHasInputTelemetry || g_pCurrentModel->telemetry_params.bControllerHasOutputTelemetry )
          bMustSendFullTelemetryPackets = true;
@@ -453,6 +454,9 @@ void telemetry_periodic_loop()
       if ( (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MAVLINK) ||
            (g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_LTM) )
          telemetry_mavlink_on_second_lapse();
+
+      if ( g_pCurrentModel->telemetry_params.fc_telemetry_type == TELEMETRY_TYPE_MSP )
+         telemetry_msp_on_second_lapse();
    }
 
    if ( _telemetry_must_send_raw_telemetry_to_controller() )

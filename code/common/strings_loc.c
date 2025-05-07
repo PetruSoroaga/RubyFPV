@@ -171,7 +171,8 @@ const char* L(const char* szString)
 
    u16 uHashIndex = _loc_string_compute_hash(szString);
    int iColCount = 0;
-   while ( (s_HashTableDynamicStrings[uHashIndex] != 0xFFFF) && (iColCount < STRINGS_HASH_SIZE/2) )
+
+   while ( (s_HashTableLocStrings[uHashIndex] != 0xFFFF) && (iColCount < STRINGS_HASH_SIZE/2) )
    {
        if ( s_HashTableLocStrings[uHashIndex] < iStringsTableSize )
        if ( 0 == strcmp(pStringsTable[s_HashTableLocStrings[uHashIndex]].szEnglish, szString) )
@@ -197,6 +198,7 @@ const char* L(const char* szString)
        uHashIndex = uHashIndex % STRINGS_HASH_SIZE;
        iColCount++;
    }
+   
    if ( iColCount >= STRINGS_HASH_SIZE/2 )
       return s_szStringTableMissingText;
    if ( (NULL != pLocalized) && (NULL != pEnglish) )

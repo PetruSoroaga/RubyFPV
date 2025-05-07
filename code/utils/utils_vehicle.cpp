@@ -327,8 +327,6 @@ bool configure_radio_interfaces_for_current_model(Model* pModel, shared_mem_proc
    hardware_save_radio_info();
    hardware_sleep_ms(50);
 
-   apply_vehicle_tx_power_levels(pModel);
-
    log_line("CONFIGURE RADIO END ---------------------------------------------------------");
 
    return bMissmatch;

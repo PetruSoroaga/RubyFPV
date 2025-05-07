@@ -584,11 +584,10 @@ void MenuSystemVideoProfiles::sendVideoLinkProfiles()
 void MenuSystemVideoProfiles::onSelectItem()
 {
    Menu::onSelectItem();
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    ControllerSettings* pCS = get_ControllerSettings();
-
    
    if ( m_IndexRetransmitWindow == m_SelectedIndex  )
       sendVideoLinkProfiles();

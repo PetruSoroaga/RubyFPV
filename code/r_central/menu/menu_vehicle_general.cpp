@@ -223,22 +223,15 @@ int MenuVehicleGeneral::onBack()
 
 void MenuVehicleGeneral::onSelectItem()
 {
+   Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
+
    if ( handle_commands_is_command_in_progress() )
    {
       handle_commands_show_popup_progress();
       return;
    }
-
-   if ( 0 == m_SelectedIndex )
-   {
-      m_pMenuItems[0]->beginEdit();
-      return;
-   }
-
-   Menu::onSelectItem();
-
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
-      return;
 
    if ( m_IndexVehicleType == m_SelectedIndex )
    {

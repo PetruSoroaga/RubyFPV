@@ -22,12 +22,14 @@ class MenuConfirmation: public Menu
       void setUniqueId(int iUniqueId);
       void enableShowDoNotShowAgain();
       void disablePairingUIActions();
+      void setDefaultActionPositive();
 
    protected:
       void _saveDoNotShowFlag();
       bool m_bSingleOption;
       bool m_bShowDoNotShowAgain;
       bool m_bDisablePairingUIActions;
+      bool m_bDefaultsToYes;
       u32 m_uTimeoutMs;
       u32 m_uCloseOnTimeoutTime;
       u32 m_uIconId;

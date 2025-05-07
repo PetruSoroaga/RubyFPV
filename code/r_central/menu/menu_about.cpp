@@ -175,7 +175,8 @@ void MenuAbout::onReturnFromChild(int iChildMenuId, int returnValue)
 void MenuAbout::onSelectItem()
 {
    Menu::onSelectItem();
-   if ( m_pMenuItems[m_SelectedIndex]->isEditing() )
+
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
       return;
 
    menu_stack_pop(0);

@@ -96,6 +96,7 @@ void reset_runtime_radio_rx_info_dbminfo(type_runtime_radio_rx_info* pRuntimeRad
       pRuntimeRadioRxInfo->nDbmNoiseAvg[i] = 1000;
       pRuntimeRadioRxInfo->nDbmNoiseMin[i] = 1000;
       pRuntimeRadioRxInfo->nDbmNoiseMax[i] = 1000;
+      pRuntimeRadioRxInfo->uLastTimeCapture[i] = 0;
    }
 }
 

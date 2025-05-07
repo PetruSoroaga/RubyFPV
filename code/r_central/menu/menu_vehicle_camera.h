@@ -16,6 +16,7 @@ class MenuVehicleCamera: public Menu
       virtual void onItemValueChanged(int itemIndex);
       virtual void onItemEndEdit(int itemIndex);
       virtual void valuesToUI();
+      virtual void onReturnFromChild(int iChildMenuId, int returnValue);  
             
    private:
       void resetIndexes();
@@ -23,6 +24,10 @@ class MenuVehicleCamera: public Menu
       void updateUIValues(int iCameraProfileIndex);
       bool canSendLiveUpdates(int iItemIndex);
       void sendCameraParams(int itemIndex, bool bQuick);
+      void populateCalibrationFiles();
+      void updateCalibrationFileSelection();
+      void importCalibrationFiles();
+      void uploadCalibrationFile(int iType, const char* szCalibrationFile);
 
       MenuItemSlider* m_pItemsSlider[25];
       MenuItemSelect* m_pItemsSelect[25];
@@ -47,8 +52,11 @@ class MenuVehicleCamera: public Menu
       int m_IndexIRCut, m_IndexOpenIPCDayNight;
       int m_IndexOpenIPC3A;
       int m_IndexCalibrateHDMI;
+      int m_IndexOpenIPCBinProfile;
       int m_IndexShowFull;
 
       bool m_bShowCompact;
       bool m_bDidAnyLiveUpdates;
+
+      int m_iSelectionIndexCalibration;
 };

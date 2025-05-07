@@ -143,10 +143,6 @@ void hardware_override_keys(int iKeyMenu, int iKeyBack, int iKeyPlus, int iKeyMi
 
 void hardware_blockCurrentPressedKeys();
 
-int hardware_try_mount_usb();
-void hardware_unmount_usb();
-char* hardware_get_mounted_usb_name();
-
 int hardware_is_station();
 int hardware_is_vehicle();
 int hardware_is_running_on_openipc();

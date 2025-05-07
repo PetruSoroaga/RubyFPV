@@ -209,6 +209,8 @@ Model::Model(void)
    uVehicleId = 0;
    uControllerId = 0;
    uModelFlags = 0;
+   uModelPersistentStatusFlags = 0;
+   uModelRuntimeStatusFlags = 0;
    iGPSCount = 0;
    constructLongName();
 
@@ -502,7 +504,7 @@ bool Model::loadVersion10(FILE* fd)
          radioInterfacesParams.interface_szPort[i][iStrLen-1] = 0;
    }
 
-   if ( 9 != fscanf(fd, "%d %d %d %d %d %d %d %d %d", &tmp1, &radioInterfacesParams.iAutoVehicleTxPower, &radioInterfacesParams.iAutoControllerTxPower, &radioInterfacesParams.iDummyR3, &radioInterfacesParams.iDummyR4, &radioInterfacesParams.iDummyR5, &radioInterfacesParams.iDummyR6,  &radioInterfacesParams.iDummyR7, &radioInterfacesParams.iDummyR8) )
+   if ( 9 != fscanf(fd, "%d %d %d %u %d %d %d %d %d", &tmp1, &radioInterfacesParams.iAutoVehicleTxPower, &radioInterfacesParams.iAutoControllerTxPower, &radioInterfacesParams.uFlagsRadioInterfaces, &radioInterfacesParams.iDummyR4, &radioInterfacesParams.iDummyR5, &radioInterfacesParams.iDummyR6,  &radioInterfacesParams.iDummyR7, &radioInterfacesParams.iDummyR8) )
       { log_softerror_and_alarm("Load model8: Error on line 8"); return false; }
    enableDHCP = (bool)tmp1;
 
@@ -869,7 +871,7 @@ bool Model::loadVersion10(FILE* fd)
    //----------------------------------------
    // Misc
 
-   if ( 2 != fscanf(fd, "%*s %u %u", &uDummyM1, &uDeveloperFlags) )
+   if ( 2 != fscanf(fd, "%*s %u %u", &uModelPersistentStatusFlags, &uDeveloperFlags) )
       { log_softerror_and_alarm("Load model8: Error on line 39"); uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8); }
   
    if ( 1 != fscanf(fd, "%u", &enc_flags) )
@@ -961,7 +963,7 @@ bool Model::loadVersion10(FILE* fd)
    if ( 1 != fscanf(fd, "%d", &m_iRadioInterfacesGraphRefreshInterval) )
       m_iRadioInterfacesGraphRefreshInterval = 3;
 
-   if ( 3 != fscanf(fd, "%d %d %u", &hwCapabilities.iMaxTxVideoBlocksBuffer, &hwCapabilities.iMaxTxVideoBlockPackets, &hwCapabilities.uFlags) )
+   if ( 3 != fscanf(fd, "%d %d %u", &hwCapabilities.iMaxTxVideoBlocksBuffer, &hwCapabilities.iMaxTxVideoBlockPackets, &hwCapabilities.uHWFlags) )
       resetHWCapabilities();
 
    if ( 1 != fscanf(fd, "%u", &hwCapabilities.uRubyBaseVersion) )
@@ -1035,6 +1037,32 @@ bool Model::loadVersion10(FILE* fd)
       {
          if ( 1 != fscanf(fd, "%d", &video_link_profiles[i].iECPercentage) )
             video_link_profiles[i].iECPercentage = DEFAULT_VIDEO_EC_RATE_HQ;
+      }
+   }
+
+   for( int i=0; i<MODEL_MAX_CAMERAS; i++ )
+   {
+      camera_params[i].iCameraBinProfile = 0;
+      camera_params[i].szCameraBinProfileName[0] = 0;
+   }
+
+   if ( bOk )
+   {
+      for( int i=0; i<MODEL_MAX_CAMERAS; i++ )
+      {
+         char szTmpBin[MAX_CAMERA_BIN_PROFILE_NAME];
+         if ( 2 != fscanf(fd, "%d %s", &camera_params[i].iCameraBinProfile, szTmpBin) )
+         {
+            camera_params[i].iCameraBinProfile = 0;
+            camera_params[i].szCameraBinProfileName[0] = 0;
+         }
+         else
+         {
+            strncpy(camera_params[i].szCameraBinProfileName, szTmpBin, MAX_CAMERA_BIN_PROFILE_NAME-1);
+            camera_params[i].szCameraBinProfileName[MAX_CAMERA_BIN_PROFILE_NAME-1] = 0;
+            if ( '-' == camera_params[i].szCameraBinProfileName[0] )
+               camera_params[i].szCameraBinProfileName[0] = 0;
+         }
       }
    }
    //--------------------------------------------------
@@ -1219,7 +1247,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
       sprintf(szSetting, "  %u %d %u %d %d %d %s- %s-\n", radioInterfacesParams.interface_capabilities_flags[i], radioInterfacesParams.interface_supported_bands[i], radioInterfacesParams.interface_radiotype_and_driver[i], radioInterfacesParams.interface_current_radio_flags[i], radioInterfacesParams.interface_raw_power[i], radioInterfacesParams.interface_dummy2[i], radioInterfacesParams.interface_szMAC[i], radioInterfacesParams.interface_szPort[i]);
       strcat(szModel, szSetting);
    }
-   sprintf(szSetting, "%d %d %d %d %d %d %d %d %d\n", enableDHCP, radioInterfacesParams.iAutoVehicleTxPower, radioInterfacesParams.iAutoControllerTxPower, radioInterfacesParams.iDummyR3, radioInterfacesParams.iDummyR4, radioInterfacesParams.iDummyR5, radioInterfacesParams.iDummyR6, radioInterfacesParams.iDummyR7, radioInterfacesParams.iDummyR8); 
+   sprintf(szSetting, "%d %d %d %u %d %d %d %d %d\n", enableDHCP, radioInterfacesParams.iAutoVehicleTxPower, radioInterfacesParams.iAutoControllerTxPower, radioInterfacesParams.uFlagsRadioInterfaces, radioInterfacesParams.iDummyR4, radioInterfacesParams.iDummyR5, radioInterfacesParams.iDummyR6, radioInterfacesParams.iDummyR7, radioInterfacesParams.iDummyR8); 
    strcat(szModel, szSetting);
 
    sprintf(szSetting, "%d\n", radioInterfacesParams.iDummyR9);
@@ -1451,7 +1479,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
    //----------------------------------------
    // Misc
 
-   sprintf(szSetting, "misc_dev: %u %u\n", uDummyM1, uDeveloperFlags);
+   sprintf(szSetting, "misc_dev: %u %u\n", uModelPersistentStatusFlags, uDeveloperFlags);
    strcat(szModel, szSetting);
    sprintf(szSetting, "%u\n", enc_flags);
    strcat(szModel, szSetting);
@@ -1500,7 +1528,7 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
    sprintf(szSetting, "%d\n", (int)m_iRadioInterfacesGraphRefreshInterval);
    strcat(szModel, szSetting);
    
-   sprintf(szSetting, "%d %d %u\n", hwCapabilities.iMaxTxVideoBlocksBuffer, hwCapabilities.iMaxTxVideoBlockPackets, hwCapabilities.uFlags);
+   sprintf(szSetting, "%d %d %u\n", hwCapabilities.iMaxTxVideoBlocksBuffer, hwCapabilities.iMaxTxVideoBlockPackets, hwCapabilities.uHWFlags);
    strcat(szModel, szSetting);
 
    sprintf(szSetting, "%u\n", hwCapabilities.uRubyBaseVersion);
@@ -1549,6 +1577,18 @@ bool Model::saveVersion10(FILE* fd, bool isOnController)
       if ( i != 0 )
          strcat(szModel, " ");
       sprintf(szSetting, "%d", video_link_profiles[i].iECPercentage);
+      strcat(szModel, szSetting);
+   }
+   strcat(szModel, "\n");
+
+   for( int i=0; i<MODEL_MAX_CAMERAS; i++ )
+   {
+      if ( i != 0 )
+         strcat(szModel, " ");
+      if ( 0 == camera_params[i].szCameraBinProfileName[0] )
+         sprintf(szSetting, "%d -", camera_params[i].iCameraBinProfile);
+      else
+         sprintf(szSetting, "%d %s", camera_params[i].iCameraBinProfile, camera_params[i].szCameraBinProfileName);
       strcat(szModel, szSetting);
    }
    strcat(szModel, "\n");
@@ -3052,10 +3092,23 @@ void Model::resetToDefaults(bool generateId)
    constructLongName();
 
    enc_flags = MODEL_ENC_FLAGS_NONE;
+   enableDHCP = false;
    alarms = 0;
 
    uModelFlags = MODEL_FLAG_USE_LOGER_SERVICE | MODEL_FLAG_PRIORITIZE_UPLINK;
-     
+   uModelPersistentStatusFlags = 0;
+   uModelRuntimeStatusFlags = 0;
+
+   uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8);
+   uDeveloperFlags |= DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS;
+   uDeveloperFlags |= DEVELOPER_FLAGS_USE_PCAP_RADIO_TX;
+
+   if ( DEFAULT_USE_PPCAP_FOR_TX )
+      uDeveloperFlags |= DEVELOPER_FLAGS_USE_PCAP_RADIO_TX;
+   else
+      uDeveloperFlags &= (~DEVELOPER_FLAGS_USE_PCAP_RADIO_TX);
+
+
    m_iRadioInterfacesGraphRefreshInterval = 3;
 
    radioInterfacesParams.interfaces_count = 0;
@@ -3077,18 +3130,6 @@ void Model::resetToDefaults(bool generateId)
       populateRadioInterfacesInfoFromHardware();
    }
    iGPSCount = 1;
-
-   enableDHCP = false;
-   uDummyM1 = 0;
-   
-   uDeveloperFlags = (((u32)DEFAULT_DELAY_WIFI_CHANGE)<<8);
-   uDeveloperFlags |= DEVELOPER_FLAGS_BIT_LOG_ONLY_ERRORS;
-   uDeveloperFlags |= DEVELOPER_FLAGS_USE_PCAP_RADIO_TX;
-
-   if ( DEFAULT_USE_PPCAP_FOR_TX )
-      uDeveloperFlags |= DEVELOPER_FLAGS_USE_PCAP_RADIO_TX;
-   else
-      uDeveloperFlags &= (~DEVELOPER_FLAGS_USE_PCAP_RADIO_TX);
 
    resetRelayParamsToDefaults(&relay_params);
 
@@ -3174,20 +3215,22 @@ void Model::resetHWCapabilities()
    memset(&hwCapabilities, 0, sizeof(type_hardware_capabilities));
    hwCapabilities.iMaxTxVideoBlocksBuffer = MAX_RXTX_BLOCKS_BUFFER;
    hwCapabilities.iMaxTxVideoBlockPackets = MAX_TOTAL_PACKETS_IN_BLOCK;
-   hwCapabilities.uFlags = 0;
-
+   
+   hwCapabilities.uHWFlags = 0;
    if ( hardware_board_is_goke( hardware_getBoardType() ) )
-      hwCapabilities.uFlags &= ~MODEL_HW_CAP_FLAG_OTA;
+      hwCapabilities.uHWFlags &= ~MODEL_HW_CAP_FLAG_OTA;
    else
-      hwCapabilities.uFlags |= MODEL_HW_CAP_FLAG_OTA;
+      hwCapabilities.uHWFlags |= MODEL_HW_CAP_FLAG_OTA;
+
+   hwCapabilities.uHWFlags |= (((u32)75) << 8);
 }
 
 void Model::resetRadioLinksParams()
 {
    log_line("Model: Reset radio links params...");
-   radioInterfacesParams.iAutoVehicleTxPower = 1;
+   radioInterfacesParams.iAutoVehicleTxPower = 0;
    radioInterfacesParams.iAutoControllerTxPower = 1;
-   radioInterfacesParams.iDummyR3 = 0;
+   radioInterfacesParams.uFlagsRadioInterfaces = 0;
    radioInterfacesParams.iDummyR4 = 0;
    radioInterfacesParams.iDummyR5 = 0;
    radioInterfacesParams.iDummyR6 = 0;
@@ -3541,6 +3584,9 @@ void Model::resetCameraToDefaults(int iCameraIndex)
          camera_params[k].iCurrentProfile = 0;
       }
 
+      camera_params[k].iCameraBinProfile = 0;
+      camera_params[k].szCameraBinProfileName[0] = 0;
+
       for( int i=0; i<MODEL_CAMERA_PROFILES; i++ )
       {
          resetCameraProfileToDefaults(&(camera_params[k].profiles[i]));
@@ -3677,11 +3723,11 @@ int Model::getRadioLinkDownlinkDataRate(int iLinkId)
          break;
 
       case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_SAME_AS_ADAPTIVE_VIDEO:
+      case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_AUTO:
          return radioLinksParams.link_datarate_video_bps[iLinkId];
          break;
 
       case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_LOWEST:
-      case FLAG_RADIO_LINK_DATARATE_DATA_TYPE_AUTO:
       default:
          if ( radioLinksParams.link_datarate_video_bps[iLinkId] > 0 )
             return DEFAULT_RADIO_DATARATE_LOWEST;
@@ -4321,6 +4367,21 @@ bool Model::isActiveCameraOpenIPC()
       return true;
    return false;
 }
+
+bool Model::isActiveCameraSensorOpenIPCIMX415()
+{
+   if ( ! isRunningOnOpenIPCHardware() )
+      return false;
+
+   if ( CAMERA_TYPE_OPENIPC_IMX415 == camera_params[iCurrentCamera].iCameraType )
+      return true;
+
+   if ( CAMERA_TYPE_OPENIPC_IMX415 == camera_params[iCurrentCamera].iForcedCameraType )
+      return true;
+
+   return false;
+}
+
 
 void Model::log_camera_profiles_differences(camera_profile_parameters_t* pCamProfile1, camera_profile_parameters_t* pCamProfile2, int iIndex1, int iIndex2)
 {

@@ -120,7 +120,7 @@ void radio_populate_ruby_telemetry_v4_from_ruby_telemetry_v3(t_packet_header_rub
    pV4->downlink_tx_data_packets_per_sec = pV3->downlink_tx_data_packets_per_sec;
    pV4->downlink_tx_compacted_packets_per_sec = pV3->downlink_tx_compacted_packets_per_sec;
 
-   pV4->temperature = pV3->temperature;
+   pV4->temperatureC = pV3->temperatureC;
    pV4->cpu_load = pV3->cpu_load;
    pV4->cpu_mhz = pV3->cpu_mhz;
    pV4->throttled = pV3->throttled;
@@ -136,7 +136,7 @@ void radio_populate_ruby_telemetry_v4_from_ruby_telemetry_v3(t_packet_header_rub
    pV4->uplink_mavlink_rx_rssi = pV3->uplink_mavlink_rx_rssi;
 
    pV4->txTimePerSec = pV3->txTimePerSec;
-   pV4->extraFlags = pV3->extraFlags;
+   pV4->uExtraRubyFlags = pV3->extraFlags;
    pV4->extraSize = pV3->extraSize;
 }
 

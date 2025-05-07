@@ -60,6 +60,7 @@
 #include "timers.h"
 #include "../utils/utils_vehicle.h"
 #include "process_upload.h"
+#include "process_calib_file.h"
 
 #include <time.h>
 #include <sys/resource.h>
@@ -1761,6 +1762,28 @@ bool process_command(u8* pBuffer, int length)
       return true;
    }
 
+   if ( uCommandType == COMMAND_ID_SET_PIT_AUTO_TX_POWERS_FLAGS )
+   {
+      sendCommandReply(COMMAND_RESPONSE_FLAGS_OK, 0, 0);
+      g_pCurrentModel->radioInterfacesParams.uFlagsRadioInterfaces = (pPHC->command_param & 0xFF);
+      g_pCurrentModel->hwCapabilities.uHWFlags &= ~(0x0000FF00);
+      g_pCurrentModel->hwCapabilities.uHWFlags |= (pPHC->command_param & 0xFF00);
+
+      if ( pPHC->command_param & (((u32)(0x01)) << 16) )
+         g_pCurrentModel->radioInterfacesParams.iAutoVehicleTxPower = 1;
+      else
+         g_pCurrentModel->radioInterfacesParams.iAutoVehicleTxPower = 0;
+
+      if ( pPHC->command_param & (((u32)(0x01)) << 17) )
+         g_pCurrentModel->radioInterfacesParams.iAutoControllerTxPower = 1;
+      else
+         g_pCurrentModel->radioInterfacesParams.iAutoControllerTxPower = 0;
+      
+      saveCurrentModel();
+      signalReloadModel(MODEL_CHANGED_GENERIC, 0);
+      return true;
+   }
+
    if ( uCommandType == COMMAND_ID_SET_RADIO_INTERFACE_CAPABILITIES )
    {
       int iInterface = (int)(pPHC->command_param & 0xFF);
@@ -1870,10 +1893,19 @@ bool process_command(u8* pBuffer, int length)
             char szComm[256];
             sprintf(szComm, "fw_setenv sensor %s", szSensor);
             hw_execute_bash_command(szComm, NULL);
+
+            if ( 0 == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iCameraBinProfile )
+               hardware_camera_set_default_oipc_calibration(g_pCurrentModel->getActiveCameraType());
             hardware_reboot();
          }
          sendControlMessage(PACKET_TYPE_LOCAL_CONTROL_START_VIDEO_PROGRAM, 0);
       }
+      return true;
+   }
+
+   if ( uCommandType == COMMAND_ID_UPLOAD_CALIBRATION_FILE )
+   {
+      process_calibration_file_segment(pPHC->command_param, pBuffer, length);
       return true;
    }
 
@@ -3094,16 +3126,16 @@ bool process_command(u8* pBuffer, int length)
          log_line("Enabled vehicle developer video link graphs.");
       }
 
-      if ( (pPHC->command_param & (((u32)0x01)<<5)) && (!(g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SEND_FULL_PACKETS_TO_CONTROLLER)) )
+      if ( (pPHC->command_param & (((u32)0x01)<<5)) && (!(g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SEND_FULL_TELEMETRY_TO_CONTROLLER_PLUGINS)) )
       {
-         g_pCurrentModel->telemetry_params.flags |= TELEMETRY_FLAGS_SEND_FULL_PACKETS_TO_CONTROLLER;
+         g_pCurrentModel->telemetry_params.flags |= TELEMETRY_FLAGS_SEND_FULL_TELEMETRY_TO_CONTROLLER_PLUGINS;
          bNotifyChanged = true;
          bSave = true;
          log_line("Send full MAVLink/LTM packets to controller was enabnled.");
       }
-      else if ( (!(pPHC->command_param & (((u32)0x01)<<5))) && (g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SEND_FULL_PACKETS_TO_CONTROLLER) )
+      else if ( (!(pPHC->command_param & (((u32)0x01)<<5))) && (g_pCurrentModel->telemetry_params.flags & TELEMETRY_FLAGS_SEND_FULL_TELEMETRY_TO_CONTROLLER_PLUGINS) )
       {
-         g_pCurrentModel->telemetry_params.flags &= (~TELEMETRY_FLAGS_SEND_FULL_PACKETS_TO_CONTROLLER);
+         g_pCurrentModel->telemetry_params.flags &= (~TELEMETRY_FLAGS_SEND_FULL_TELEMETRY_TO_CONTROLLER_PLUGINS);
          bNotifyChanged = true;
          bSave = true;
          log_line("Send full MAVLink/LTM packets to controller was disabled (can still be enabled from telemetry menu).");
@@ -3697,6 +3729,7 @@ int r_start_commands_rx(int argc, char* argv[])
    //video_overwrites_init( &s_CurrentVideoLinkOverwrites, g_pCurrentModel );
 
    process_sw_upload_init();
+   process_calibration_files_init();
 
    s_InfoLastFileUploaded.uLastFileId = MAX_U32;
    s_InfoLastFileUploaded.szFileName[0] = 0;

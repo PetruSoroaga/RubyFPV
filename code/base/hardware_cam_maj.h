@@ -16,6 +16,8 @@ void hardware_camera_maj_apply_all_settings(Model* pModel, camera_profile_parame
 void hardware_camera_maj_set_irfilter_off(int iOff, bool bAsync);
 void hardware_camera_maj_set_daylight_off(int iDLOff);
 
+void hardware_camera_maj_set_calibration_file(int iCameraType, int iCalibrationFileType, char* szCalibrationFile);
+
 void hardware_camera_maj_set_brightness(u32 uValue);
 void hardware_camera_maj_set_contrast(u32 uValue);
 void hardware_camera_maj_set_hue(u32 uValue);
@@ -30,8 +32,6 @@ void hardware_camera_maj_set_qpdelta(int iQPDelta);
 void hardware_camera_maj_set_bitrate_and_qpdelta(u32 uBitrate, int iQPDelta);
 
 u32  hardware_camera_maj_get_last_change_time();
-void hardware_camera_maj_check_apply_cached_image_changes(u32 uTimeNow);
-
 
 void hardware_camera_maj_enable_audio(bool bEnable, int iBitrate, int iVolume);
 void hardware_camera_maj_set_audio_volume(int iVolume);

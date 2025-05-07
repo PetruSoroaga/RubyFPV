@@ -37,7 +37,7 @@
 
 #include "../osd/osd_common.h"
 #include "../../common/favorites.h"
-//#include "../../base/radio_utils.h"
+#include "../../base/hardware_files.h"
 
 const char* s_textTitle[] = { "My Vehicles",  NULL };
 const char* s_szVehicleNone1 = "No vehicles defined. To add a vehicle:";
@@ -309,6 +309,10 @@ void MenuVehicles::Render()
 
 void MenuVehicles::onSelectItem()
 {
+   Menu::onSelectItem();
+   if ( (-1 == m_SelectedIndex) || (m_pMenuItems[m_SelectedIndex]->isEditing()) )
+      return;
+
    if ( m_IndexImport == m_SelectedIndex )
    {
       int iMountRes = hardware_try_mount_usb();
