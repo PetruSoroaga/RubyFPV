@@ -799,11 +799,8 @@ int ruby_start_recording()
 
    g_uVideoRecordStartTime = get_current_timestamp_ms();
 
-   #ifdef HW_PLATFORM_RASPBERRY
-   sprintf(szComm, "df -m %s | grep root", FOLDER_BINARIES);
-   #endif
-   #ifdef HW_PLATFORM_RADXA
-   sprintf(szComm, "df -m %s | grep mmc", FOLDER_BINARIES);
+   #if defined(HW_PLATFORM_RASPBERRY) || defined(HW_PLATFORM_RADXA)
+   sprintf(szComm, "df -m %s | tail -n 1", FOLDER_MEDIA);
    #endif
    if ( 1 == hw_execute_bash_command_raw(szComm, szBuff) )
    {
