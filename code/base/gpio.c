@@ -131,26 +131,26 @@ void _gpio_load_custom_mapping()
 
    log_line("[GPIO] Assigned GPIO for menu/back/plus/minus: %d %d %d %d", g_iGPIOPinMenu, g_iGPIOPinBack, g_iGPIOPinPlus, g_iGPIOPinMinus);
 
-   if ( 1 == fscanf(fd, "%d", &iTmp1) )
-   if ( iTmp1 > 0 )
-      g_iGPIOPinQA1 = iTmp1;
+   iTmp1 = 0;
+   iTmp2 = 0;
+   iTmp3 = 0;
+   
+   if ( 1 != fscanf(fd, "%d", &iTmp1) )
+      iTmp1 = 0;
+   if ( 1 != fscanf(fd, "%d", &iTmp2) )
+      iTmp2 = 0;
+   if ( 1 != fscanf(fd, "%d", &iTmp3) )
+      iTmp3 = 0;
 
-   if ( 1 == fscanf(fd, "%d", &iTmp1) )
-   if ( iTmp1 > 0 )
-      g_iGPIOPinQA2 = iTmp1;
 
-   if ( 1 == fscanf(fd, "%d", &iTmp1) )
-   if ( iTmp1 > 0 )
-      g_iGPIOPinQA3 = iTmp1;
-
-   g_iGPIOPinQA1 = iTmp1;
-   g_iGPIOPinQA2 = iTmp2;
-   g_iGPIOPinQA3 = iTmp3;
-
+   log_line("[GPIO] GPIO custom pins for QA1/2/3: %d %d %d", iTmp1, iTmp2, iTmp3);
    #if defined (HW_PLATFORM_RADXA)
-   g_iGPIOPinQA1 = _gpio_reverse_find_pin_mapping(g_iGPIOPinQA1);
-   g_iGPIOPinQA2 = _gpio_reverse_find_pin_mapping(g_iGPIOPinQA2);
-   g_iGPIOPinQA3 = _gpio_reverse_find_pin_mapping(g_iGPIOPinQA3);
+   if ( iTmp1 > 0 )
+      g_iGPIOPinQA1 = _gpio_reverse_find_pin_mapping(iTmp1);
+   if ( iTmp2 > 0 )
+      g_iGPIOPinQA2 = _gpio_reverse_find_pin_mapping(iTmp2);
+   if ( iTmp3 > 0 )
+      g_iGPIOPinQA3 = _gpio_reverse_find_pin_mapping(iTmp3);
    #endif
 
    log_line("[GPIO] Assigned GPIO for QA1/QA2/QA3: %d %d %d", g_iGPIOPinQA1, g_iGPIOPinQA2, g_iGPIOPinQA3);
