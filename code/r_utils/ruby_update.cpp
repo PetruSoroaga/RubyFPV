@@ -128,6 +128,9 @@ void do_update_to_111()
    pModel->resetAudioParams();
    #endif
 
+   pModel->hwCapabilities.uHWFlags &= ~(0x0000FF00);
+   pModel->hwCapabilities.uHWFlags |= (((u32)75) << 8);
+
    pModel->uModelPersistentStatusFlags = 0;
    pModel->radioInterfacesParams.uFlagsRadioInterfaces = 0;
 

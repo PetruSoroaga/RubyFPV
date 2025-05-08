@@ -444,7 +444,7 @@ void _render_video_background()
    g_pRenderEngine->drawText((1.0-width_text)*0.5, 0.45, g_idFontOSDBig, szText);
 
    if ( !g_bSearching )
-   if ( ((uVehicleSoftwareVersion >>16) < 284) || ((uVehicleSoftwareVersion >>16) > SYSTEM_SW_BUILD_NUMBER) )
+   if ( ((uVehicleSoftwareVersion >>16) < 284) || ((uVehicleSoftwareVersion>>16) > SYSTEM_SW_BUILD_NUMBER) )
    {
       float fHeight = 1.5*g_pRenderEngine->textHeight(g_idFontOSDBig);
       char szWarning[256];
