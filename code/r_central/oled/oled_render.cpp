@@ -96,30 +96,30 @@ void *_thread_oled_render_async(void *argument)
         sprintf(szBuff, "CPU: %d%% Temp: %d C", g_iControllerCPULoad, g_iControllerCPUTemp);
         ssd1306_oled_draw_string(4, 4, szBuff, strlen(szBuff), 1, false, SSD1306_FONT_12);
 
-        char MEM[84] = {0}, MEM_CMD[16] = {0}, Swap[84] = {0}, Swap_CMD[84] = {0}, DISK[84], DISK_CMD[84];
+        char MEM[64] = {0}, MEM_CMD[64] = {0}, Swap[64] = {0}, Swap_CMD[64] = {0}, DISK[64] = {0}, DISK_CMD[64] = {0};
         strcat(MEM_CMD, "free -m | awk 'NR==2{printf \"Mem:%.1f/%.0fGB (%.0f%%) \", $3/1024,$2/1024,$3*100/$2 }'");
         strcat(Swap_CMD, "free -m | awk 'NR==3{printf \"Swp:%.1f/%.0fGB (%.0f%%) \", $3/1024,$2/1024,$3*100/$2 }'");
-        strcat(DISK, "df -h | awk '$NF==\"/\"{printf \"Disk:%d/%dGB (%s) \", $3,$2,$5}'");
+        strcat(DISK_CMD, "df -h | awk '$NF==\"/\"{printf \"Disk:%d/%dGB (%s) \", $3,$2,$5}'");
         FILE *file;
 
         if ((file = popen(MEM_CMD, "r")) != NULL) // 使用popen执行准备好的shell命令
         {
-            while (fgets(MEM, 16, file) != NULL){} // 读取命令输出到缓冲区
+            while (fgets(MEM, 32, file) != NULL){} // 读取命令输出到缓冲区
             pclose(file);
         }
         if ((file = popen(Swap_CMD, "r")) != NULL) // 使用popen执行准备好的shell命令
         {
-            while (fgets(Swap, 16, file) != NULL){} // 读取命令输出到缓冲区
+            while (fgets(Swap, 32, file) != NULL){} // 读取命令输出到缓冲区
             pclose(file);
         }
         if ((file = popen(DISK_CMD, "r")) != NULL) // 使用popen执行准备好的shell命令
         {
-            while (fgets(DISK, 16, file) != NULL){} // 读取命令输出到缓冲区
+            while (fgets(DISK, 32, file) != NULL){} // 读取命令输出到缓冲区
             pclose(file);
         }
         ssd1306_oled_draw_string(4, 18, MEM, strlen(MEM), 1, false, SSD1306_FONT_12);
-        ssd1306_oled_draw_string(4, 32, Swap, strlen(MEM), 1, false, SSD1306_FONT_12);
-        ssd1306_oled_draw_string(4, 48, DISK, strlen(MEM), 1, false, SSD1306_FONT_12);
+        ssd1306_oled_draw_string(4, 32, Swap, strlen(Swap), 1, false, SSD1306_FONT_12);
+        ssd1306_oled_draw_string(4, 48, DISK, strlen(DISK), 1, false, SSD1306_FONT_12);
         // ssd1306_oled_draw_rect(3, 53, (120 * (test_count / 100.0)), 8, 3, 1, 1);
         // ssd1306_oled_draw_rect(3, 53, 120, 8, 3, 1, -1);
 
