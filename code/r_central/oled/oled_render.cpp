@@ -96,7 +96,7 @@ void *_thread_oled_render_async(void *argument)
         sprintf(szBuff, "CPU: %d%% Temp: %d C", g_iControllerCPULoad, g_iControllerCPUTemp);
         ssd1306_oled_draw_string(4, 4, szBuff, strlen(szBuff), 1, false, SSD1306_FONT_12);
 
-        char MEM[64] = {0}, MEM_CMD[64] = {0}, Swap[64] = {0}, Swap_CMD[64] = {0}, DISK[64] = {0}, DISK_CMD[64] = {0};
+        char MEM[64] = {0}, MEM_CMD[128] = {0}, Swap[64] = {0}, Swap_CMD[128] = {0}, DISK[64] = {0}, DISK_CMD[128] = {0};
         strcat(MEM_CMD, "free -m | awk 'NR==2{printf \"Mem:%.1f/%.0fGB (%.0f%%) \", $3/1024,$2/1024,$3*100/$2 }'");
         strcat(Swap_CMD, "free -m | awk 'NR==3{printf \"Swp:%.1f/%.0fGB (%.0f%%) \", $3/1024,$2/1024,$3*100/$2 }'");
         strcat(DISK_CMD, "df -h | awk '$NF==\"/\"{printf \"Disk:%d/%dGB (%s) \", $3,$2,$5}'");
