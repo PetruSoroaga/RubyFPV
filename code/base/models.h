@@ -682,6 +682,7 @@ class Model
       bool isActiveCameraVeye327290();
       bool isActiveCameraCSICompatible();
       bool isActiveCameraCSI();
+      bool isActiveCameraIP();
       bool isActiveCameraOpenIPC();
       bool isActiveCameraSensorOpenIPCIMX415();
 

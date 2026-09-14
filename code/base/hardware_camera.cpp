@@ -123,12 +123,39 @@ void* _thread_hardware_camera_detect_on_raspbery(void *argument)
    return NULL;
 }
 
+// Returns 1 if a config file for an external IP/Ethernet video source is present
+int hardware_camera_has_ip_camera_config()
+{
+   char szFile[MAX_FILE_PATH_SIZE];
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_IP_CAMERA);
+   if ( access(szFile, R_OK) != -1 )
+      return 1;
+   return 0;
+}
+
 u32 _hardware_detect_camera_type()
 {
    log_line("[Hardware] Detecting camera type...");
 
    char szBuff[256];
    char szFile[MAX_FILE_PATH_SIZE];
+
+   // An IP/Ethernet camera is an external device, there is no local camera hardware to detect.
+   // It has priority over any local camera and it's not cached to the camera type file,
+   // so that removing the config file reverts to regular camera detection.
+   if ( hardware_camera_has_ip_camera_config() )
+   {
+      s_bHardwareHasCamera = 1;
+      s_uHardwareCameraType = CAMERA_TYPE_IP;
+      s_iHardwareCameraI2CBus = -1;
+      s_iHardwareCameraDevId = -1;
+      s_iHardwareCameraHWVer = -1;
+      s_bDetectedCameraType = true;
+      log_line("[Hardware] IP camera config file (%s%s) is present. Using IP/Ethernet video source.", FOLDER_CONFIG, FILE_CONFIG_IP_CAMERA);
+      return s_uHardwareCameraType;
+   }
+
    strcpy(szFile, FOLDER_RUBY_TEMP);
    strcat(szFile, FILE_CONFIG_CAMERA_TYPE);
    FILE* fd = fopen(szFile, "r");

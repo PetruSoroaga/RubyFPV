@@ -5668,6 +5668,11 @@ int Model::hasRadioCardsAtheros()
 
 bool Model::hasCamera()
 {
+   // IP/Ethernet cameras are external devices: they are present even if
+   // no local camera hardware was detected on this board.
+   if ( isActiveCameraIP() )
+      return true;
+
    if ( iCameraCount <= 0 )
       return false;
 
@@ -5835,6 +5840,22 @@ bool Model::isActiveCameraCSI()
    return false;
 }
 
+bool Model::isActiveCameraIP()
+{
+   if ( (iCurrentCamera < 0) || (iCurrentCamera >= MODEL_MAX_CAMERAS) )
+      return false;
+
+   if ( CAMERA_TYPE_IP == camera_params[iCurrentCamera].iForcedCameraType )
+      return true;
+
+   if ( 0 != camera_params[iCurrentCamera].iForcedCameraType )
+      return false;
+
+   if ( CAMERA_TYPE_IP == camera_params[iCurrentCamera].iCameraType )
+      return true;
+   return false;
+}
+
 bool Model::isActiveCameraOpenIPC()
 {
    if ( iCameraCount <= 0 )
@@ -5842,7 +5863,11 @@ bool Model::isActiveCameraOpenIPC()
 
    if ( (iCurrentCamera < 0) || (iCurrentCamera >= iCameraCount) )
       return false;
-   
+
+   // An explicitly forced IP/Ethernet camera is handled by the UDP video source, not by majestic
+   if ( isActiveCameraIP() )
+      return false;
+
    if ( isRunningOnOpenIPCHardware() )
       return true;
    return false;

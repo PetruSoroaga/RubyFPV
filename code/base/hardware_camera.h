@@ -5,6 +5,7 @@
 #include "../base/hardware_cam_maj.h"
 
 int hardware_hasCamera();
+int hardware_camera_has_ip_camera_config();
 u32 hardware_getCameraType();
 int hardware_getCameraI2CBus();
 int hardware_getVeyeCameraDevId();
