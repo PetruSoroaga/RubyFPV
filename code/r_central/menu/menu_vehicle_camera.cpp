@@ -245,7 +245,7 @@ void MenuVehicleCamera::addItems()
       m_pItemsSelect[12]->addSelection("OpenIPC IMX335", g_pCurrentModel->isRunningOnOpenIPCHardware());
       m_pItemsSelect[12]->addSelection("OpenIPC IMX415", g_pCurrentModel->isRunningOnOpenIPCHardware());
       //m_pItemsSelect[12]->addSelection("USB Camera", false);
-      m_pItemsSelect[12]->addSelection("IP Camera", false);
+      m_pItemsSelect[12]->addSelection("IP Camera", !g_pCurrentModel->isRunningOnOpenIPCHardware());
       m_pItemsSelect[12]->setIsEditable();
       m_IndexForceMode = addMenuItem(m_pItemsSelect[12]);
    }
@@ -587,7 +587,7 @@ void MenuVehicleCamera::updateUIValues()
       else if ( CAMERA_TYPE_OPENIPC_IMX415 == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType )
          m_pItemsSelect[12]->setSelection(8);
       else if ( CAMERA_TYPE_IP == g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType )
-         m_pItemsSelect[12]->setSelection(10);
+         m_pItemsSelect[12]->setSelection(9);
       else
          m_pItemsSelect[12]->setSelection(0);
    }
@@ -1554,6 +1554,7 @@ void MenuVehicleCamera::onSelectItem()
          case 6: iCamType = CAMERA_TYPE_OPENIPC_IMX307; break;
          case 7: iCamType = CAMERA_TYPE_OPENIPC_IMX335; break;
          case 8: iCamType = CAMERA_TYPE_OPENIPC_IMX415; break;
+         case 9: iCamType = CAMERA_TYPE_IP; break;
       }
       if ( iCamType != g_pCurrentModel->camera_params[g_pCurrentModel->iCurrentCamera].iForcedCameraType )
       {
