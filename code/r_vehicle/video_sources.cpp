@@ -55,6 +55,7 @@
 #include "adaptive_video.h"
 #include "video_source_csi.h"
 #include "video_source_majestic.h"
+#include "video_source_udp.h"
 #include "negociate_radio.h"
 #include "packets_utils.h"
 #include "ruby_rt_vehicle.h"
@@ -64,6 +65,13 @@ u32 s_uTotalVideoSourceReadBytes = 0;
 u32 s_uLastSetVideoBitrateBPS = 0;
 int s_iLastSetIPQDelta = -1000;
 int s_iLastSetVideoKeyframeMs = 0;
+
+static bool s_bLastCameraReadWasEndOfFrame = false;
+static u32  s_uTimeLastCameraReadStartOfFrame = 0;
+static u32  s_uTimeLastCameraStartSecond = 0;
+static int  s_iCumulativeFramesCount = 0;
+static int  s_iTempFramesCount = 0;
+static u32  s_uLastTimeCountedTempFramesFPS = 0;
 
 void video_sources_init()
 {
@@ -143,6 +151,8 @@ void video_sources_start_capture()
       uInitialVideoBitrate = video_source_csi_start_program(s_uLastSetVideoBitrateBPS, s_iLastSetVideoKeyframeMs, &iInitialKeyframeMs);
    if ( g_pCurrentModel->isActiveCameraOpenIPC() )
       uInitialVideoBitrate = video_source_majestic_start_program(s_uLastSetVideoBitrateBPS, s_iLastSetVideoKeyframeMs, s_iLastSetIPQDelta, &iInitialKeyframeMs);
+   else if ( g_pCurrentModel->isActiveCameraIP() )
+      uInitialVideoBitrate = video_source_udp_start_program(s_uLastSetVideoBitrateBPS, s_iLastSetVideoKeyframeMs, s_iLastSetIPQDelta, &iInitialKeyframeMs);
 
    s_uLastSetVideoBitrateBPS = uInitialVideoBitrate;
    s_iLastSetVideoKeyframeMs = iInitialKeyframeMs;
@@ -165,7 +175,9 @@ void video_sources_stop_capture()
 
    signal_start_long_op();
 
-   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->isActiveCameraOpenIPC() )
+   if ( (NULL != g_pCurrentModel) && g_pCurrentModel->isActiveCameraIP() )
+      video_source_udp_stop_program();
+   else if ( (NULL != g_pCurrentModel) && g_pCurrentModel->isActiveCameraOpenIPC() )
       video_source_majestic_stop_program();
    else
       video_source_csi_stop_program();
@@ -179,6 +191,10 @@ bool video_sources_is_caputure_process_running()
 {
    if ( (NULL == g_pCurrentModel) || (! g_pCurrentModel->hasCamera()) )
       return false;
+   // An IP camera is an external device: there is no local capture process for it
+   if ( g_pCurrentModel->isActiveCameraIP() )
+      return false;
+
    char szOutput[1024];
    if ( (NULL != g_pCurrentModel) && g_pCurrentModel->isActiveCameraOpenIPC() )
    {
@@ -201,6 +217,8 @@ u32 video_sources_get_capture_start_time()
 {
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       return video_source_cs_get_program_start_time();
+   if ( g_pCurrentModel->isActiveCameraIP() )
+      return video_source_udp_get_program_start_time();
    return video_source_majestic_get_program_start_time(); 
 }
 
@@ -210,9 +228,110 @@ void video_sources_flush_discard_all_pending_data()
       
    if ( g_pCurrentModel->isActiveCameraOpenIPC() )
       video_source_majestic_clear_input_buffers();
+   if ( g_pCurrentModel->isActiveCameraIP() )
+      video_source_udp_clear_input_buffers();
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       video_source_csi_flush_discard();
    log_line("[VideoSources] Done clear video pipes.");
+}
+
+typedef struct
+{
+   u8* (*pReadFunc)(int* piReadSize, bool bAsync, u32* puOutTimeDataAvailable);
+   bool (*pLastReadIsStartNALFunc)();
+   bool (*pLastReadIsEndNALFunc)();
+   u32 (*pGetLastNALTypeFunc)();
+} type_video_source_rtp_read_funcs;
+
+// Reads and assembles NALs from a video source that delivers H264/H265 as RTP over UDP
+// (OpenIPC cameras and IP/Ethernet cameras use the same data path).
+// Returns the total number of bytes read.
+int _video_sources_read_rtp_video_source(type_video_source_rtp_read_funcs* pFuncs, bool* pbOutEndOfFrameDetected)
+{
+   u32 uTimeDataAvailable = 0;
+   int iReadSize = 0;
+   int iTotalBytes = 0;
+   u32 uNALPresenceFlags = 0;
+
+   int iNumUDPPackets = 0;
+   int iNumRetries = 100;
+   bool bEndOfFrame = false;
+   do
+   {
+      u32 uTimeRead = 0;
+      u32* pTimeRead = &uTimeRead;
+      if ( 0 != uTimeDataAvailable )
+         pTimeRead = NULL;
+      u8* pVideoData = pFuncs->pReadFunc(&iReadSize, true, pTimeRead);
+
+      if ( (NULL == pVideoData) || (iReadSize <= 0) )
+      {
+         if ( 0 == iTotalBytes )
+            break;
+         iNumRetries--;
+         if ( (iNumRetries < 0) || (iTotalBytes == 0) )
+            break;
+         continue;
+      }
+      if ( 0 == uTimeDataAvailable )
+         uTimeDataAvailable = uTimeRead;
+
+      bool bEnd = pFuncs->pLastReadIsEndNALFunc();
+      u32 uNALType = pFuncs->pGetLastNALTypeFunc();
+
+      if ( bEnd && (! parser_h264_is_signaling_nal(uNALType)) )
+         s_iTempFramesCount++;
+
+      if ( (! parser_h264_is_signaling_nal(uNALType)) && pFuncs->pLastReadIsStartNALFunc() )
+      if ( s_bLastCameraReadWasEndOfFrame )
+      {
+         u32 uDeltaTime = g_TimeNow - s_uTimeLastCameraReadStartOfFrame;
+         s_uTimeLastCameraReadStartOfFrame = g_TimeNow;
+         s_bLastCameraReadWasEndOfFrame = false;
+         g_pVideoTxBuffers->setLastFrameDistanceMs(uDeltaTime);
+         if ( g_TimeNow >= s_uTimeLastCameraStartSecond + 999 )
+         {
+            g_pVideoTxBuffers->setCurrentRealFPS(s_iCumulativeFramesCount);
+            s_uTimeLastCameraStartSecond = g_TimeNow;
+            s_iCumulativeFramesCount = 0;
+         }
+         s_iCumulativeFramesCount++;
+      }
+
+      iTotalBytes += iReadSize;
+      iNumUDPPackets++;
+
+      if ( uNALType == 1 )
+         uNALPresenceFlags |= VIDEO_STATUS_FLAGS2_IS_NAL_P;
+      if ( uNALType == 5 )
+         uNALPresenceFlags |= VIDEO_STATUS_FLAGS2_IS_NAL_I;
+      if ( parser_h264_is_signaling_nal(uNALType) )
+         uNALPresenceFlags |= VIDEO_STATUS_FLAGS2_IS_NAL_O;
+
+      bEndOfFrame = false;
+      if ( bEnd && (iTotalBytes > 0) )
+      if ( ! parser_h264_is_signaling_nal(uNALType) )
+         bEndOfFrame = true;
+      if ( NULL != g_pVideoTxBuffers )
+         g_pVideoTxBuffers->appendDataToCurrentFrame(pVideoData, iReadSize, uNALPresenceFlags, bEndOfFrame, uTimeDataAvailable);
+
+      if ( bEndOfFrame )
+      {
+         s_bLastCameraReadWasEndOfFrame = true;
+         break;
+      }
+   } while ( ! bEndOfFrame );
+
+   if ( iTotalBytes > 100 )
+   {
+      s_uLastVideoSourcesStreamDataAvailable = g_TimeNow;
+      s_uTotalVideoSourceReadBytes += (u32)iTotalBytes;
+      if ( NULL != pbOutEndOfFrameDetected )
+         *pbOutEndOfFrameDetected = bEndOfFrame;
+   }
+
+
+   return iTotalBytes;
 }
 
 // Returns true if any frame data has been read
@@ -224,13 +343,6 @@ bool video_sources_try_read_camera_frame(bool* pbOutEndOfFrameDetected)
          *pbOutEndOfFrameDetected = true;
       return false;
    }
-
-   static bool s_bLastCameraReadWasEndOfFrame = false;
-   static u32  s_uTimeLastCameraReadStartOfFrame = 0;
-   static u32  s_uTimeLastCameraStartSecond = 0;
-   static int  s_iCumulativeFramesCount = 0;
-   static int  s_iTempFramesCount = 0;
-   static u32  s_uLastTimeCountedTempFramesFPS = 0;
 
    u32 uTimeDataAvailable = 0;
    u8* pVideoData = NULL;
@@ -336,84 +448,24 @@ bool video_sources_try_read_camera_frame(bool* pbOutEndOfFrameDetected)
             *pbOutEndOfFrameDetected = true;
        }
    }
-   else if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+   else if ( g_pCurrentModel->isActiveCameraOpenIPC() || g_pCurrentModel->isActiveCameraIP() )
    {
-      int iNumUDPPackets = 0;
-      int iNumRetries = 100;
-      bool bEndOfFrame = false;
-      do
+      type_video_source_rtp_read_funcs funcsRTP;
+      if ( g_pCurrentModel->isActiveCameraIP() )
       {
-         u32 uTimeRead = 0;
-         u32* pTimeRead = &uTimeRead;
-         if ( 0 != uTimeDataAvailable )
-            pTimeRead = NULL;
-         u8* pVideoData = video_source_majestic_read(&iReadSize, true, pTimeRead);
-
-         if ( (NULL == pVideoData) || (iReadSize <= 0) )
-         {
-            if ( 0 == iTotalBytes )
-               break;
-            iNumRetries--;
-            if ( (iNumRetries < 0) || (iTotalBytes == 0) )
-               break;
-            continue;
-         }
-         if ( 0 == uTimeDataAvailable )
-            uTimeDataAvailable = uTimeRead;
-
-         bool bEnd = video_source_majestic_last_read_is_end_nal();
-         u32 uNALType = video_source_majestic_get_last_nal_type();
-
-         if ( bEnd && (! parser_h264_is_signaling_nal(uNALType)) )
-            s_iTempFramesCount++;
-
-         if ( (! parser_h264_is_signaling_nal(uNALType)) && video_source_majestic_last_read_is_start_nal() )
-         if ( s_bLastCameraReadWasEndOfFrame )
-         {
-            u32 uDeltaTime = g_TimeNow - s_uTimeLastCameraReadStartOfFrame;
-            s_uTimeLastCameraReadStartOfFrame = g_TimeNow;
-            s_bLastCameraReadWasEndOfFrame = false;
-            g_pVideoTxBuffers->setLastFrameDistanceMs(uDeltaTime);
-            if ( g_TimeNow >= s_uTimeLastCameraStartSecond + 999 )
-            {
-               g_pVideoTxBuffers->setCurrentRealFPS(s_iCumulativeFramesCount);
-               s_uTimeLastCameraStartSecond = g_TimeNow;
-               s_iCumulativeFramesCount = 0;
-            }
-            s_iCumulativeFramesCount++;
-         }
-
-         iTotalBytes += iReadSize;
-         iNumUDPPackets++;
-
-         if ( uNALType == 1 )
-            uNALPresenceFlags |= VIDEO_STATUS_FLAGS2_IS_NAL_P;
-         if ( uNALType == 5 )
-            uNALPresenceFlags |= VIDEO_STATUS_FLAGS2_IS_NAL_I;
-         if ( parser_h264_is_signaling_nal(uNALType) )
-            uNALPresenceFlags |= VIDEO_STATUS_FLAGS2_IS_NAL_O;
-
-         bEndOfFrame = false;
-         if ( bEnd && (iTotalBytes > 0) )
-         if ( ! parser_h264_is_signaling_nal(uNALType) )
-            bEndOfFrame = true;
-         if ( NULL != g_pVideoTxBuffers )
-            g_pVideoTxBuffers->appendDataToCurrentFrame(pVideoData, iReadSize, uNALPresenceFlags, bEndOfFrame, uTimeDataAvailable);
-
-         if ( bEndOfFrame )
-         {
-            s_bLastCameraReadWasEndOfFrame = true;
-            break;
-         }
-      } while ( ! bEndOfFrame );
-
-      if ( iTotalBytes > 100 )
-      {
-         s_uLastVideoSourcesStreamDataAvailable = g_TimeNow;
-         s_uTotalVideoSourceReadBytes += (u32)iTotalBytes;
-         if ( NULL != pbOutEndOfFrameDetected )
-            *pbOutEndOfFrameDetected = bEndOfFrame;
+         funcsRTP.pReadFunc = &video_source_udp_read;
+         funcsRTP.pLastReadIsStartNALFunc = &video_source_udp_last_read_is_start_nal;
+         funcsRTP.pLastReadIsEndNALFunc = &video_source_udp_last_read_is_end_nal;
+         funcsRTP.pGetLastNALTypeFunc = &video_source_udp_get_last_nal_type;
       }
+      else
+      {
+         funcsRTP.pReadFunc = &video_source_majestic_read;
+         funcsRTP.pLastReadIsStartNALFunc = &video_source_majestic_last_read_is_start_nal;
+         funcsRTP.pLastReadIsEndNALFunc = &video_source_majestic_last_read_is_end_nal;
+         funcsRTP.pGetLastNALTypeFunc = &video_source_majestic_get_last_nal_type;
+      }
+      iTotalBytes = _video_sources_read_rtp_video_source(&funcsRTP, pbOutEndOfFrameDetected);
    }
 
    if ( iTotalBytes == 0 )
@@ -476,7 +528,9 @@ void video_sources_apply_all_parameters()
       return;
    }
 
-   if ( g_pCurrentModel->isActiveCameraOpenIPC() )
+   if ( g_pCurrentModel->isActiveCameraIP() )
+      video_source_udp_apply_all_parameters();
+   else if ( g_pCurrentModel->isActiveCameraOpenIPC() )
       video_source_majestic_apply_all_parameters();
    else
       video_source_csi_request_restart_program();
@@ -773,7 +827,13 @@ void video_sources_on_changed_video_params(camera_profile_parameters_t* pOldCame
    {
       log_line("[VideoSources] OnChangedVideoParams: Handle video quantization change...");
       iCountChanges++;
-      if ( g_pCurrentModel->isActiveCameraOpenIPC() && hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
+      if ( g_pCurrentModel->isActiveCameraIP() )
+      {
+         video_source_udp_set_video_bitrate(s_uLastSetVideoBitrateBPS, pNewVideoProfile->iIPQuantizationDelta);
+         s_iLastSetIPQDelta = pNewVideoProfile->iIPQuantizationDelta;
+         iCountChangesApplied++;
+      }
+      else if ( g_pCurrentModel->isActiveCameraOpenIPC() && hardware_board_is_sigmastar(g_pCurrentModel->hwCapabilities.uBoardType) )
       {
          hardware_camera_maj_set_qpdelta(pNewVideoProfile->iIPQuantizationDelta);
          s_iLastSetIPQDelta = pNewVideoProfile->iIPQuantizationDelta;
@@ -810,6 +870,8 @@ void video_sources_set_video_bitrate(u32 uVideoBitrateBPS, int iIPQDelta, const 
    s_iLastSetIPQDelta = iIPQDelta;
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       video_source_csi_send_control_message(RASPIVID_COMMAND_ID_VIDEO_BITRATE, uVideoBitrateBPS/100000, 0);
+   else if ( g_pCurrentModel->isActiveCameraIP() )
+      video_source_udp_set_video_bitrate(uVideoBitrateBPS, iIPQDelta);
    else if ( g_pCurrentModel->isActiveCameraOpenIPC() )
    {
       if ( (uVideoBitrateBPS != hardware_camera_maj_get_current_bitrate()) &&
@@ -852,6 +914,8 @@ void video_sources_set_keyframe(int iKeyframeMs)
       int iKeyFrame_FrameCountValue = (iCurrentFPS * s_iLastSetVideoKeyframeMs) / 1000; 
       video_source_csi_send_control_message(RASPIVID_COMMAND_ID_KEYFRAME, (u16)iKeyFrame_FrameCountValue, 0);
    }
+   if ( g_pCurrentModel->isActiveCameraIP() )
+      video_source_udp_set_keyframe(s_iLastSetVideoKeyframeMs);
    if ( g_pCurrentModel->isActiveCameraOpenIPC() )
       hardware_camera_maj_set_keyframe(s_iLastSetVideoKeyframeMs);                
 }
@@ -886,6 +950,8 @@ bool video_sources_periodic_health_checks()
       return false;
    if ( g_pCurrentModel->isActiveCameraCSICompatible() || g_pCurrentModel->isActiveCameraVeye() )
       return video_source_csi_periodic_health_checks();
+   if ( g_pCurrentModel->isActiveCameraIP() )
+      return video_source_udp_periodic_health_checks();
    if ( g_pCurrentModel->isActiveCameraOpenIPC() )
       return video_source_majestic_periodic_health_checks();
 
