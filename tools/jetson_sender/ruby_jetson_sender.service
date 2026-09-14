@@ -1,0 +1,19 @@
+[Unit]
+Description=RubyFPV Jetson video sender (H.264 RTP to the RubyFPV vehicle)
+After=network.target nvargus-daemon.service
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/ruby_jetson_sender/ruby_jetson_sender.py --config /etc/ruby_jetson_sender.conf
+# The pipeline retries on its own; this only covers a hard crash of the script.
+Restart=always
+RestartSec=3
+User=root
+Nice=-5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ruby_jetson_sender
+
+[Install]
+WantedBy=multi-user.target
