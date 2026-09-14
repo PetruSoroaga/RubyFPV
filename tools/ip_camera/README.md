@@ -12,15 +12,20 @@ as one line JSON messages, which is what keeps the adaptive video link working.
 ## Enabling it on the vehicle
 
 1. Copy `ip_camera.conf.sample` to the vehicle as `/home/pi/ruby/config/ip_camera.conf`
-   and edit the ports and the remote IP if needed.
+   and edit the ports and the remote IP if needed. On a board with no display and no SSH
+   access yet, put it at `/boot/ip_camera.conf` instead: that partition is FAT, so it can be
+   written from any other computer just by moving the SD card. The config folder is checked
+   first and the boot partition is the fallback, so a file left behind on `/boot` never
+   shadows a later one placed properly in the config folder.
 2. Copy the rebuilt `ruby_rt_vehicle` and `ruby_start` binaries to `/home/pi/ruby/`.
    Reflashing the Ruby image is not needed.
 3. Reboot the vehicle.
 
-The config file is what activates the source. While it exists, camera detection reports
-camera type `CAMERA_TYPE_IP` even on a board with no CSI camera attached, `hasCamera()`
-returns true, and no local capture process (`ruby_capture_raspi`) is launched. Deleting
-the file reverts to regular camera autodetection.
+The config file is what activates the source. While it exists in either location, camera
+detection reports camera type `CAMERA_TYPE_IP` even on a board with no CSI camera attached,
+`hasCamera()` returns true, and no local capture process (`ruby_capture_raspi`) is launched.
+Deleting the file reverts to regular camera autodetection. The log line naming the file that
+was found tells you which of the two locations is in effect.
 
 The camera type can also be forced from the controller, under Camera Settings, by setting
 Camera Type to "IP Camera".

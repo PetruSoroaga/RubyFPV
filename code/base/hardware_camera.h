@@ -6,6 +6,7 @@
 
 int hardware_hasCamera();
 int hardware_camera_has_ip_camera_config();
+int hardware_camera_get_ip_camera_config_file(char* pszOutFile);
 u32 hardware_getCameraType();
 int hardware_getCameraI2CBus();
 int hardware_getVeyeCameraDevId();

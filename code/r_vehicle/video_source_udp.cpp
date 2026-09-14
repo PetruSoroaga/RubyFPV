@@ -125,15 +125,20 @@ static void _video_source_udp_load_config()
    s_szVideoSourceUDPRemoteIP[0] = 0;
    s_bVideoSourceUDPRemoteIPIsFixed = false;
 
+   // Same lookup as camera detection: regular config folder first, boot partition as fallback
    char szFile[MAX_FILE_PATH_SIZE];
-   strcpy(szFile, FOLDER_CONFIG);
-   strcat(szFile, FILE_CONFIG_IP_CAMERA);
+   if ( ! hardware_camera_get_ip_camera_config_file(szFile) )
+   {
+      log_line("[VideoSourceUDP] No config file found. Using defaults: video port %d, control port %d, remote IP: auto detected.",
+         s_iVideoSourceUDPVideoPort, s_iVideoSourceUDPControlPort);
+      return;
+   }
 
    FILE* fd = fopen(szFile, "r");
    if ( NULL == fd )
    {
-      log_line("[VideoSourceUDP] No config file (%s). Using defaults: video port %d, control port %d, remote IP: auto detected.",
-         szFile, s_iVideoSourceUDPVideoPort, s_iVideoSourceUDPControlPort);
+      log_softerror_and_alarm("[VideoSourceUDP] Can't open config file (%s): %s. Using defaults: video port %d, control port %d.",
+         szFile, strerror(errno), s_iVideoSourceUDPVideoPort, s_iVideoSourceUDPControlPort);
       return;
    }
 
