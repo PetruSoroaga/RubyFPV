@@ -3,6 +3,7 @@
 #include "../base/models.h"
 #include "video_source_csi.h"
 #include "video_source_majestic.h"
+#include "video_source_udp.h"
 
 void video_sources_init();
 void video_sources_uninit();

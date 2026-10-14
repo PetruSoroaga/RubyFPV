@@ -1,0 +1,33 @@
+# Ruby IP/Ethernet video source config.
+#
+# Copy this file to the vehicle as:
+#    /home/pi/ruby/config/ip_camera.conf        (Raspberry Pi)
+#    /home/radxa/ruby/config/ip_camera.conf     (Radxa)
+#
+# Or, to set it up on a board with no display and no SSH access yet, put it on
+# the boot partition instead. That partition is FAT, so it can be written from
+# any other computer just by moving the SD card:
+#    /boot/ip_camera.conf                       (Raspberry Pi)
+#    /config/ip_camera.conf                     (Radxa)
+#
+# The config folder is checked first; the boot partition is the fallback.
+#
+# The presence of this file is what activates the IP video source: camera
+# detection then reports an IP camera even if no CSI camera is connected.
+# Delete the file to go back to regular camera autodetection.
+#
+# All keys are optional. Lines starting with # are ignored.
+
+# UDP port the vehicle listens on for the incoming H264/H265 RTP stream.
+video_port=5600
+
+# UDP port used for the control channel to the remote encoder.
+# The vehicle sends one line JSON messages to this port on the encoder,
+# and listens on the same port locally for the encoder replies.
+control_port=5601
+
+# IP address of the remote encoder (the machine running the camera).
+# Leave it commented out to auto detect it from the source address of the
+# incoming RTP stream. Set it explicitly if you want the vehicle to be able
+# to push encoder settings before the stream has started.
+#remote_ip=192.168.10.2

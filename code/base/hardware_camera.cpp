@@ -123,12 +123,71 @@ void* _thread_hardware_camera_detect_on_raspbery(void *argument)
    return NULL;
 }
 
+// Finds the config file for an external IP/Ethernet video source.
+// The regular config folder has priority. The boot partition is checked as a fallback:
+// it's the only partition that can be written from another computer just by moving the
+// SD card, so it's the way to enable this video source on a board with no display and
+// no SSH access yet.
+// Returns 1 if found, and if pszOutFile is not NULL it receives the full path.
+int hardware_camera_get_ip_camera_config_file(char* pszOutFile)
+{
+   char szFile[MAX_FILE_PATH_SIZE];
+
+   strcpy(szFile, FOLDER_CONFIG);
+   strcat(szFile, FILE_CONFIG_IP_CAMERA);
+   if ( access(szFile, R_OK) != -1 )
+   {
+      if ( NULL != pszOutFile )
+         strcpy(pszOutFile, szFile);
+      return 1;
+   }
+
+   if ( 0 != FOLDER_WINDOWS_PARTITION[0] )
+   {
+      strcpy(szFile, FOLDER_WINDOWS_PARTITION);
+      strcat(szFile, FILE_CONFIG_IP_CAMERA);
+      if ( access(szFile, R_OK) != -1 )
+      {
+         if ( NULL != pszOutFile )
+            strcpy(pszOutFile, szFile);
+         return 1;
+      }
+   }
+
+   if ( NULL != pszOutFile )
+      pszOutFile[0] = 0;
+   return 0;
+}
+
+// Returns 1 if a config file for an external IP/Ethernet video source is present
+int hardware_camera_has_ip_camera_config()
+{
+   return hardware_camera_get_ip_camera_config_file(NULL);
+}
+
 u32 _hardware_detect_camera_type()
 {
    log_line("[Hardware] Detecting camera type...");
 
    char szBuff[256];
    char szFile[MAX_FILE_PATH_SIZE];
+
+   // An IP/Ethernet camera is an external device, there is no local camera hardware to detect.
+   // It has priority over any local camera and it's not cached to the camera type file,
+   // so that removing the config file reverts to regular camera detection.
+   char szIPCameraConfigFile[MAX_FILE_PATH_SIZE];
+   if ( hardware_camera_get_ip_camera_config_file(szIPCameraConfigFile) )
+   {
+      s_bHardwareHasCamera = 1;
+      s_uHardwareCameraType = CAMERA_TYPE_IP;
+      s_iHardwareCameraI2CBus = -1;
+      s_iHardwareCameraDevId = -1;
+      s_iHardwareCameraHWVer = -1;
+      s_bDetectedCameraType = true;
+      log_line("[Hardware] IP camera config file (%s) is present. Using IP/Ethernet video source.", szIPCameraConfigFile);
+      return s_uHardwareCameraType;
+   }
+
    strcpy(szFile, FOLDER_RUBY_TEMP);
    strcat(szFile, FILE_CONFIG_CAMERA_TYPE);
    FILE* fd = fopen(szFile, "r");

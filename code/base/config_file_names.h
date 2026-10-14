@@ -30,6 +30,7 @@
 #define FILE_CONFIG_FIRST_PAIRING_DONE "firstpairingdone"
 #define FILE_CONFIG_SYSTEM_TYPE "system_type.txt"
 #define FILE_CONFIG_CAMERA_TYPE "camera_type.txt"
+#define FILE_CONFIG_IP_CAMERA "ip_camera.conf"
 #define FILE_CONFIG_BOARD_TYPE "board.txt"
 #define FILE_CONFIG_GPIO "gpio.txt"
 #define FILE_VEHICLE_SPECTATOR "spect-%d.mdl"
